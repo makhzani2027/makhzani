@@ -4,7 +4,7 @@ import type { IconName, Permission } from '@raqeem/shared';
 /** أقسام القائمة الجانبية بالترتيب (لكل قسم لون) */
 export const NAV_GROUPS = [
   { key: 'home', label: '', color: 'var(--accent)' },
-  { key: 'sales', label: 'البيع', color: '#E0703F' },
+  { key: 'sales', label: 'البيع', color: '#E8622A' },
   { key: 'stock', label: 'المخزون', color: '#86A8F0' },
   { key: 'finance', label: 'الزبائن والمال', color: '#5BC48D' },
   { key: 'store', label: 'المتجر', color: '#E7B04F' },

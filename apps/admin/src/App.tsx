@@ -55,7 +55,7 @@ function Shell() {
         {menuOpen ? <div className="scrim only-mobile" onClick={() => setMenuOpen(false)} role="presentation" /> : null}
         <nav className={`side ${menuOpen ? 'open' : ''}`} aria-label="القائمة الرئيسية">
           <div className="side-brand">
-            <Mark size={34} ink="var(--side-ink)" hole="#E0703F" />
+            <Mark size={34} ink="var(--side-ink)" hole="#E8622A" />
             <b>رَقيم</b>
             <span className="tag">الإدارة</span>
           </div>

@@ -11,10 +11,10 @@ export function Mark({ size = 32, ink = 'currentColor', hole = 'var(--accent)' }
 }
 
 /** أيقونة التطبيق (مربع بزوايا) */
-export function AppIcon({ size = 40, tone = 'ink' }: { size?: number; tone?: 'ink' | 'clay' }) {
-  const bg = tone === 'clay' ? '#B4461B' : '#17140F';
-  const fg = tone === 'clay' ? '#FFF8F1' : '#F6F3EC';
-  const hole = tone === 'clay' ? '#17140F' : '#E0703F';
+export function AppIcon({ size = 40, tone = 'ink' }: { size?: number; tone?: 'ink' | 'brick' }) {
+  const bg = tone === 'brick' ? '#C2410E' : '#121513';
+  const fg = tone === 'brick' ? '#FFF7F0' : '#EDEEEC';
+  const hole = tone === 'brick' ? '#121513' : '#E8622A';
   return (
     <svg viewBox="0 0 120 120" width={size} height={size} aria-hidden="true">
       <rect width="120" height="120" rx="34" fill={bg} />

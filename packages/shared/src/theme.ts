@@ -3,50 +3,50 @@
  * المرجع: system/05-brand.md. لا تكتب لوناً ثابتاً في أي تطبيق: استورده من هنا.
  *
  * الألوان مسمّاة بمواد بلاد الرافدين:
- *   القار (حبر)، البردي (ورق)، طين أوروك (المميز)، النخيل (نجاح)، الزعفران/التمر (تنبيه)،
+ *   القار (حبر)، الحجر (خلفية)، آجُر بابل — الطين المفخور (المميز)، النخيل (نجاح)، التمر (تنبيه)،
  *   الرمان (خطر)، اللازورد (معلومة).
  */
 
 export const palette = {
   light: {
-    bg: '#F6F3EC', // البردي — خلفية التطبيق
+    bg: '#EDEEEC', // الحجر — خلفية التطبيق (رمادي بارد، لا كريمي)
     card: '#FFFFFF', // البطاقات والجداول
-    sunken: '#EFEBE2', // حقول، صفوف متناوبة، خلفيات خفيفة
-    ink: '#17140F', // القار — النص الأساسي
-    ink2: '#5E574C', // نص ثانوي
-    ink3: '#8C8477', // تلميحات، أيقونات خاملة
-    line: '#E4DED2', // الحدود
-    lineStrong: '#CFC7B8',
-    accent: '#B4461B', // طين أوروك — اللون المميز الوحيد
-    accentHover: '#9C3B15',
+    sunken: '#E4E6E3', // حقول، صفوف متناوبة، خلفيات خفيفة
+    ink: '#121513', // القار — النص الأساسي
+    ink2: '#50564F', // نص ثانوي
+    ink3: '#7F877E', // تلميحات، أيقونات خاملة
+    line: '#DCDFDB', // الحدود
+    lineStrong: '#C3C8C2',
+    accent: '#C2410E', // آجُر بابل — اللون المميز الوحيد
+    accentHover: '#A3360A',
     accentInk: '#FFFFFF',
-    accentSoft: '#F7E7DD',
-    accentSoftInk: '#6E2A0E',
-    hero: '#17140F', // كتل العرض الكبيرة (بطاقة البطل، الشريط الجانبي النشط)
-    heroInk: '#F6F3EC',
-    heroInk2: '#B9B0A1',
-    overlay: 'rgba(23, 20, 15, 0.48)',
-    focus: '#B4461B',
+    accentSoft: '#FBE6DA',
+    accentSoftInk: '#7A2606',
+    hero: '#121513', // كتل العرض الكبيرة
+    heroInk: '#EDEEEC',
+    heroInk2: '#A9AFA8',
+    overlay: 'rgba(18, 21, 19, 0.5)',
+    focus: '#C2410E',
   },
   dark: {
-    bg: '#0F0D0A',
-    card: '#1A1714',
-    sunken: '#14110E',
-    ink: '#F4EFE6',
-    ink2: '#B3AA9C',
-    ink3: '#7F776B',
-    line: '#2C2722',
-    lineStrong: '#3D362F',
-    accent: '#F2875A',
-    accentHover: '#F59C76',
-    accentInk: '#1A0E07',
-    accentSoft: '#3A1E12',
-    accentSoftInk: '#FFD7C4',
-    hero: '#B4461B',
-    heroInk: '#FFF8F1',
-    heroInk2: '#F6D3C2',
+    bg: '#0E100F',
+    card: '#181B19',
+    sunken: '#121412',
+    ink: '#EEF0ED',
+    ink2: '#A9AFA8',
+    ink3: '#7A817A',
+    line: '#262A27',
+    lineStrong: '#343935',
+    accent: '#F2783E',
+    accentHover: '#F5915F',
+    accentInk: '#1A0B03',
+    accentSoft: '#3A1A0C',
+    accentSoftInk: '#FFD3BD',
+    hero: '#C2410E',
+    heroInk: '#FFF7F0',
+    heroInk2: '#FBD0B8',
     overlay: 'rgba(0, 0, 0, 0.6)',
-    focus: '#F2875A',
+    focus: '#F2783E',
   },
 } as const;
 
@@ -60,36 +60,36 @@ export const tones = {
     warning: { ink: '#9A6206', bg: '#FBF0D9' }, // التمر
     danger: { ink: '#B8262E', bg: '#FBE4E2' }, // الرمان
     info: { ink: '#2453A6', bg: '#E5ECF8' }, // اللازورد
-    neutral: { ink: '#5E574C', bg: '#EFEBE2' },
-    accent: { ink: '#9C3B15', bg: '#F7E7DD' },
+    neutral: { ink: '#50564F', bg: '#E4E6E3' },
+    accent: { ink: '#A3360A', bg: '#FBE6DA' },
   },
   dark: {
     success: { ink: '#5BC48D', bg: '#12301F' },
     warning: { ink: '#E7B04F', bg: '#33260F' },
     danger: { ink: '#F2777A', bg: '#3A1517' },
     info: { ink: '#86A8F0', bg: '#16233D' },
-    neutral: { ink: '#B3AA9C', bg: '#24201B' },
-    accent: { ink: '#FFB08C', bg: '#3A1E12' },
+    neutral: { ink: '#A9AFA8', bg: '#1F2320' },
+    accent: { ink: '#FFA97E', bg: '#3A1A0C' },
   },
 } as const;
 
 export type Tone = keyof typeof tones.light;
 
-/** ألوان الرسوم البيانية بالترتيب (الأول دائماً الطين) */
+/** ألوان الرسوم البيانية بالترتيب (الأول دائماً الآجُر) */
 export const chartColors = {
-  light: ['#B4461B', '#2453A6', '#1D7A4E', '#C8901A', '#6E6457', '#8E3B5E'],
-  dark: ['#F2875A', '#86A8F0', '#5BC48D', '#E7B04F', '#B3AA9C', '#D98AAE'],
+  light: ['#C2410E', '#2453A6', '#1D7A4E', '#C8901A', '#5F675E', '#8E3B5E'],
+  dark: ['#F2783E', '#86A8F0', '#5BC48D', '#E7B04F', '#A9AFA8', '#D98AAE'],
 } as const;
 
 /** ألوان ثابتة للعلامة (للطباعة، الأيقونات، ملفات SVG) */
 export const brand = {
-  ink: '#17140F',
-  paper: '#F6F3EC',
-  clay: '#B4461B',
-  clayLight: '#E0703F',
-  ember: '#F2875A',
-  cream: '#FFF8F1',
-  night: '#0F0D0A',
+  ink: '#121513', // القار
+  stone: '#EDEEEC', // الحجر
+  brick: '#C2410E', // آجُر بابل
+  brickLight: '#E8622A', // ثقب الرمز على الحبر
+  ember: '#F2783E', // الآجُر في الوضع الغامق
+  cream: '#FFF7F0', // الرمز على أيقونة الآجُر
+  night: '#0E100F',
 } as const;
 
 export const radius = { xs: 8, sm: 12, md: 16, lg: 20, xl: 28, pill: 999 } as const;

@@ -50,7 +50,7 @@ export default function Login({ denied }: { denied: boolean }) {
     <div className="login-page">
       <aside className="login-art" aria-hidden="true">
         <div className="login-art-inner">
-          <Mark size={88} ink="#F6F3EC" hole="#E0703F" />
+          <Mark size={88} ink="#EDEEEC" hole="#E8622A" />
           <h1>رَقيم</h1>
           <p>كلُّ قطعةٍ مرقومة.</p>
         </div>

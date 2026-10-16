@@ -11,7 +11,7 @@ fs.mkdirSync(out, { recursive: true });
 
 const GLYPH = 'M56 17H98L82.5 37.7C82.5 80 62 101.5 20 103C54 93.5 71.5 75 71.5 37.7Z';
 const HOLE = 'M84.5 27a7.5 7.5 0 1 0 -15 0a7.5 7.5 0 1 0 15 0Z';
-const C = { ink: '#17140F', paper: '#F6F3EC', clay: '#B4461B', clayLight: '#E0703F', cream: '#FFF8F1', night: '#0F0D0A', dayInk: '#F4EFE6', ember: '#F2875A' };
+const C = { ink: '#121513', paper: '#EDEEEC', clay: '#C2410E', clayLight: '#E8622A', cream: '#FFF7F0', night: '#0E100F', dayInk: '#EEF0ED', ember: '#F2783E' }; // clay = آجُر بابل
 const glyph = (fg, dot, scale = 1, cx = 60, cy = 60) => {
   // الرمز مصمم في مربع ١٢٠؛ scale يصغّره حول المركز (لمنطقة الأمان في أيقونة أندرويد)
   // dot = لون ثقب البطاقة؛ null = ثقب مفرغ (للأيقونات أحادية اللون)
