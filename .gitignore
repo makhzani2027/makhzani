@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.expo/
+web-build/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+__MACOSX/
+# مجلدات أندرويد/آيفون تُولّد بـ expo prebuild أثناء البناء
+android/
+ios/
+*.keystore
+*.jks
+supabase/.temp/
+supabase/.branches/
+# ناتج تجميع الموقع ولوحة التحكم للنشر
+hosting/
+coverage/
+.vscode/*
+!.vscode/extensions.json

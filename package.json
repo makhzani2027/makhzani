@@ -1,0 +1,21 @@
+{
+  "name": "raqeem",
+  "private": true,
+  "description": "رَقيم — متجر إلكتروني + لوحة تحكم ومخزون + موقع تعريفي",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "npm run test -w @raqeem/shared",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "admin:dev": "npm run dev -w @raqeem/admin",
+    "admin:build": "npm run build -w @raqeem/admin",
+    "mobile:start": "npm run start -w @raqeem/mobile",
+    "site:build": "bash scripts/build-hosting.sh",
+    "brand:render": "node scripts/render-brand.cjs"
+  }
+}

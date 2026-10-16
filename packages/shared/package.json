@@ -1,0 +1,21 @@
+{
+  "name": "@raqeem/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "هوية رقيم ومنطق الأعمال المشترك: الألوان، الأيقونات، الأنواع، التسعير، دورة الطلب، التنسيق",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "sideEffects": false,
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./demo": "./src/demo.ts"
+  }
+}

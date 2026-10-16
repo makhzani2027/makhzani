@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="رقيم">
+  <!-- رمز رَقيم: إسفين مسماري (رأس مثلث + ذيل) ينحني على شكل حرف «ر». الثقب في الرأس = بطاقة سعر المنتج -->
+  <path fill="#17140F" stroke="#17140F" stroke-width="3" stroke-linejoin="round" d="M56 17H98L82.5 37.7C82.5 80 62 101.5 20 103C54 93.5 71.5 75 71.5 37.7Z"/>
+  <circle cx="77" cy="27" r="6" fill="#B4461B"/>
+</svg>
