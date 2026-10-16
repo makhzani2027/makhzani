@@ -20,3 +20,6 @@ hosting/
 coverage/
 .vscode/*
 !.vscode/extensions.json
+
+# نسخ عمل الوكلاء المؤقتة (لا تُرفع)
+.claude/worktrees/
