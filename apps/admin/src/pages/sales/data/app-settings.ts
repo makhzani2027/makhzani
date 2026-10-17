@@ -3,8 +3,8 @@
  * الفواتير والطباعة، المخزون، التطبيق، ونقطة البيع. مع ذاكرة مؤقتة حتى لا تُطلب مع كل بيع.
  */
 import { useEffect, useState } from 'react';
-import type { AppConfigSettings, CheckoutSettings, InventorySettings, InvoiceSettings, StoreSettings } from '@raqeem/shared';
-import { demoCheckout, demoStore } from '@raqeem/shared/demo';
+import type { AppConfigSettings, CheckoutSettings, CurrencySettings, InventorySettings, InvoiceSettings, StoreSettings } from '@raqeem/shared';
+import { demoCheckout, demoCurrency, demoStore } from '@raqeem/shared/demo';
 import { IS_DEMO } from '../../../lib/env';
 import { demoDb, demoDelay } from '../../../lib/demo-db';
 import { sb } from '../../../lib/supabase';
@@ -27,6 +27,7 @@ export interface SettingsMap {
   inventory: InventorySettings;
   app: AppConfigSettings;
   pos: PosSettings;
+  currency: CurrencySettings;
 }
 export type SettingKey = keyof SettingsMap;
 
@@ -45,10 +46,11 @@ export const DEFAULTS: SettingsMap = {
   inventory: { allow_negative_stock: false, default_warehouse_id: null, low_stock_default: 5 },
   app: { min_version: 1, latest_version: 1, maintenance: false, maintenance_message: null, play_store_url: null, apk_url: null },
   pos: { auto_print: true, require_cash_session: false, late_order_minutes: 30 },
+  currency: demoCurrency,
 };
 
 /** هل يقرأ الزبون هذا المفتاح؟ (is_public) */
-const PUBLIC: Record<SettingKey, boolean> = { store: true, checkout: true, app: true, invoice: false, inventory: false, pos: false };
+const PUBLIC: Record<SettingKey, boolean> = { store: true, checkout: true, app: true, invoice: false, inventory: false, pos: false, currency: true };
 
 const cache = new Map<SettingKey, unknown>();
 const subs = new Set<() => void>();
