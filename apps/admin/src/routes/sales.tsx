@@ -5,10 +5,11 @@ import { lazy } from 'react';
 import type { AppRoute } from './types';
 
 const Soon = lazy(() => import('../pages/core/UnderConstruction'));
+const Pos = lazy(() => import('../pages/sales/Pos'));
 
 export const salesRoutes: AppRoute[] = [
   { path: '/', label: 'نظرة عامة', icon: 'grid', group: 'home', perm: 'dashboard.view', element: Soon, order: 0 },
-  { path: '/pos', label: 'نقطة البيع', icon: 'pos', group: 'sales', perm: 'pos.sell', element: Soon, order: 1, full: true },
+  { path: '/pos', label: 'نقطة البيع', icon: 'pos', group: 'sales', perm: 'pos.sell', element: Pos, order: 1, full: true },
   { path: '/orders', label: 'الطلبات', icon: 'bag', group: 'sales', perm: 'orders.view', element: Soon, order: 2, badge: 'ordersNew' },
   { path: '/orders/:id', label: 'الطلب', icon: 'bag', group: 'sales', perm: 'orders.view', element: Soon, nav: false },
   { path: '/requests', label: 'طلبات التوفير', icon: 'request', group: 'sales', perm: 'requests.manage', element: Soon, order: 3, badge: 'requestsNew' },
