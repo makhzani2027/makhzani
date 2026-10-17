@@ -67,7 +67,9 @@ insert into public.app_settings (key, value, is_public) values
     'label_size', jsonb_build_object('width_mm', 50, 'height_mm', 30)), false),
   ('app', jsonb_build_object('min_version', 1, 'latest_version', 1, 'maintenance', false, 'maintenance_message', null,
     'play_store_url', null, 'apk_url', null), true),
-  ('currency', jsonb_build_object('base', 'IQD', 'usd_enabled', true, 'usd_rate', 1310, 'usd_rate_updated_at', null), false)
+  ('currency', jsonb_build_object('base', 'IQD', 'usd_enabled', true, 'usd_rate', 1310, 'usd_rate_updated_at', null), false),
+  -- نقطة البيع: طباعة تلقائية، اشتراط جلسة صندوق، ومتى يُعدّ الطلب الجديد متأخراً
+  ('pos', jsonb_build_object('auto_print', true, 'require_cash_session', false, 'late_order_minutes', 30), false)
 on conflict (key) do nothing;
 
 -- أقسام الرئيسية الأربعة
