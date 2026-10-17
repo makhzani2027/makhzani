@@ -205,7 +205,8 @@ export function VoucherModal({ open, onClose, preset, onDone }: { open: boolean;
     setAmount(preset?.amount ?? preset?.invoice?.due ?? null);
     setCurrency(preset?.currency ?? preset?.invoice?.currency ?? 'IQD');
     setMethod('cash'); setAccount(null); setReference(''); setNote('');
-  }, [open, preset]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- يُعاد الضبط عند الفتح فقط (preset كائن جديد في كل رسم)
+  }, [open]);
 
   const acc: AccountRow | MoneyAccount | undefined = account ? accounts.find((a) => a.id === account) : defaultAccountFor(accounts, method, currency);
   const save = useAction(async () => {
