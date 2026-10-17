@@ -224,7 +224,7 @@ export async function mySession(userId: string): Promise<CashSession | null> {
 }
 
 export async function openCashSession(float: number): Promise<CashSession> {
-  if (!IS_DEMO) return rpc<CashSession>('open_cash_session', { float });
+  if (!IS_DEMO) return rpc<CashSession>('open_cash_session', { opening_float: float });
   await demoDelay();
   if (ledger.cash_sessions.some((s) => s.status === 'open' && s.opened_by === 'demo-owner')) throw new AppError('لديك جلسة صندوق مفتوحة بالفعل.');
   const s: CashSession = { id: demoId(), status: 'open', opened_by: 'demo-owner', opened_at: nowIso(), opening_float: float, closed_by: null, closed_at: null, expected_cash: null, counted_cash: null, note: null };

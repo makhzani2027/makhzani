@@ -47,16 +47,23 @@ export interface PaymentRow extends Payment {
   created_by_name: string | null;
 }
 
-/** سطر كشف الحساب — ما تعيده customer_statement / supplier_statement */
+/** سطر كشف الحساب — ما تعيده customer_statement / supplier_statement حرفياً (rows[]) */
 export interface StatementRow {
   at: string;
-  kind: 'opening' | 'invoice' | 'return' | 'payment' | 'refund';
-  ref_id: string | null;
+  doc_type: string; // sale | sale_return | purchase | purchase_return | payment_in | payment_out | opening | transfer_in …
+  doc_id: string | null;
   number: string | null;
   description: string;
+  currency: CurrencyCode;
   debit: number; // يزيد الدين على الطرف
   credit: number; // ينقصه
-  balance: number; // الرصيد التراكمي بعد السطر
+  balance: number; // الرصيد التراكمي بعملة السطر
+}
+
+export interface Statement {
+  opening: Record<CurrencyCode, number>;
+  rows: StatementRow[];
+  closing: Record<CurrencyCode, number>;
 }
 
 /** صنف في نقطة البيع (نسخة منتج قابلة للبيع) */
@@ -95,6 +102,7 @@ export interface CheckoutItem {
   discount?: number;
   serials?: string[];
   price_tier?: PriceTier; // 'retail' | 'wholesale' (الجملة من wholesale_price)
+  unit_id?: string | null; // وحدة التعبئة (كرتونة) — عندها qty بعدد الوحدات
 }
 
 export interface CheckoutPayload {
