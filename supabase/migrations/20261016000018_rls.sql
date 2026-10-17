@@ -166,19 +166,4 @@ do $$ begin
   revoke execute on function public.make_owner(text, text) from anon, authenticated;
   revoke execute on function public.set_updated_at() from anon, authenticated;
 exception when undefined_object then null; end $$;
--- دوال الموظفين للمستخدم المسجّل فقط (وتفحص الصلاحية بنفسها)
-do $$
-declare f text;
-begin
-  for f in select p.oid::regprocedure::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-           where n.nspname = 'public' and p.proname in ('upsert_product', 'archive_product', 'restore_product', 'next_barcode', 'pos_checkout',
-             'post_purchase', 'post_return', 'void_invoice', 'record_payment', 'record_expense', 'adjust_stock', 'transfer_stock',
-             'create_stocktake', 'set_stocktake_count', 'apply_stocktake', 'post_stock_voucher', 'save_quotation', 'convert_quotation',
-             'transfer_money', 'set_order_status', 'set_request_status', 'open_cash_session', 'close_cash_session', 'dashboard_summary',
-             'sales_series', 'top_products', 'inventory_valuation', 'low_stock', 'stagnant_products', 'near_expiry', 'customer_statement',
-             'supplier_statement', 'send_campaign', 'place_order', 'cancel_my_order', 'upsert_my_profile', 'delete_my_account',
-             'create_product_request', 'submit_review', 'mark_notifications_read') loop
-    execute format('revoke execute on function %s from public, anon', f);
-    execute format('grant execute on function %s to authenticated, service_role', f);
-  end loop;
-end $$;
+-- صلاحيات تنفيذ دوال RPC في ٢٠ (بعد إنشاء كلها)
