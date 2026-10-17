@@ -254,6 +254,9 @@ export const DOC_PREFIX = {
   request: 'RQ',
   transfer: 'TR',
   stocktake: 'ST',
+  quotation: 'Q', // عرض سعر
+  stock_voucher: 'SV', // سند مخزني
+  account_transfer: 'AT', // تحويل بين الصناديق
 } as const;
 export type DocKind = keyof typeof DOC_PREFIX;
 
