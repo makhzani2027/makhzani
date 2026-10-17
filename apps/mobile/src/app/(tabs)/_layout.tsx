@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import type { BottomTabBarProps } from 'expo-router/tabs';
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +17,6 @@ const TABS: { name: string; label: string; icon: IconName }[] = [
   { name: 'account', label: 'حسابي', icon: 'user' },
 ];
 
-type BarProps = { state: { index: number; routes: { key: string; name: string }[] }; navigation: { navigate: (name: string) => void; emit: (e: { type: 'tabPress'; target: string; canPreventDefault: true }) => { defaultPrevented: boolean } } };
 
 function CartIcon({ color, active }: { color: string; active: boolean }) {
   const { count } = useCart();
@@ -32,7 +32,7 @@ function CartIcon({ color, active }: { color: string; active: boolean }) {
 }
 
 /** شريط التبويبات: خلفية البطاقة، ومؤشر آجُري رفيع فوق التبويب النشط */
-function TabBar({ state, navigation }: BarProps) {
+function TabBar({ state, navigateToTab }: BottomTabBarProps) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   return (
@@ -51,10 +51,7 @@ function TabBar({ state, navigation }: BarProps) {
               accessibilityLabel={tab.label}
               haptic={active ? undefined : 'select'}
               scaleTo={0.92}
-              onPress={() => {
-                const e = navigation.emit({ type: 'tabPress', target: r.key, canPreventDefault: true });
-                if (!active && !e.defaultPrevented) navigation.navigate(r.name);
-              }}
+              onPress={() => { if (!active) navigateToTab(r.key); }}
               style={{ flex: 1, alignItems: 'center', paddingTop: 10, gap: 2 }}>
               <View style={{ position: 'absolute', top: 0, height: 3, width: 28, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, backgroundColor: active ? c.accent : 'transparent' }} />
               {tab.name === 'cart' ? <CartIcon color={color} active={active} /> : <Icon name={tab.icon} size={24} color={color} strokeWidth={active ? 2.1 : 1.75} fill={active && tab.icon === 'heart' ? c.accent : undefined} />}
@@ -69,7 +66,7 @@ function TabBar({ state, navigation }: BarProps) {
 
 export default function TabsLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false, animation: 'fade' }} tabBar={(p) => <TabBar {...(p as unknown as BarProps)} />}>
+    <Tabs screenOptions={{ headerShown: false, animation: 'fade' }} tabBar={(p) => <TabBar {...p} />}>
       {TABS.map((t) => <Tabs.Screen key={t.name} name={t.name} options={{ title: t.label }} />)}
     </Tabs>
   );

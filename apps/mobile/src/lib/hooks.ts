@@ -3,6 +3,7 @@ import { useSyncExternalStore } from 'react';
 import { api } from './api';
 import { useAuth } from './auth';
 import { qk } from './query';
+import { storage } from './storage';
 
 /** عدد الإشعارات غير المقروءة للمسجّل */
 export function useUnread() {
@@ -51,3 +52,16 @@ export const afterAuth = {
   set(v: string | null) { pendingNext = v; },
   take(): string { const v = pendingNext; pendingNext = null; return v || '/'; },
 };
+
+// ---------------------------------------------------------------- هل رأى الترحيب (null = لم يُقرأ بعد)
+let welcomed: boolean | null = null;
+const welcomeListeners = new Set<() => void>();
+const setWelcomed = (v: boolean) => { welcomed = v; welcomeListeners.forEach((l) => l()); };
+storage.get<boolean>(WELCOMED_KEY).then((v) => { if (welcomed === null) setWelcomed(!!v); });
+export function markWelcomed() {
+  setWelcomed(true);
+  return storage.set(WELCOMED_KEY, true);
+}
+export function useWelcomed(): boolean | null {
+  return useSyncExternalStore((cb) => { welcomeListeners.add(cb); return () => { welcomeListeners.delete(cb); }; }, () => welcomed, () => welcomed);
+}

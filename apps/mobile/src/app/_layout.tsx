@@ -15,10 +15,9 @@ import { ToastHost } from '@/components/toast';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { CartProvider } from '@/lib/cart';
 import { FavoritesProvider } from '@/lib/favorites';
-import { WELCOMED_KEY } from '@/lib/hooks';
+import { useWelcomed } from '@/lib/hooks';
 import { notificationRoute, onNotificationTap, registerPush } from '@/lib/push';
 import { QueryProvider } from '@/lib/query';
-import { storage } from '@/lib/storage';
 import { AppThemeProvider, fontAssets, useTheme } from '@/lib/theme';
 
 // التطبيق عربي بالكامل: من اليمين لليسار
@@ -79,9 +78,7 @@ function Navigator() {
   const { ready, uid, profile } = useAuth();
   const segments = useSegments() as string[];
   const [intro, setIntro] = useState(true);
-  const [welcomed, setWelcomed] = useState<boolean | null>(null);
-
-  useEffect(() => { storage.get<boolean>(WELCOMED_KEY).then((v) => setWelcomed(!!v)); }, []);
+  const welcomed = useWelcomed();
 
   // بوابة البداية: الترحيب أول مرة، وإكمال البيانات بعد أول دخول بـ Google
   useEffect(() => {

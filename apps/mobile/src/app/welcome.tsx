@@ -4,8 +4,7 @@ import { FlatList, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Logo, WedgePattern } from '@/components/brand';
 import { Button, Icon, T, type IconName } from '@/components/ui';
-import { WELCOMED_KEY } from '@/lib/hooks';
-import { storage } from '@/lib/storage';
+import { markWelcomed } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 
 const SLIDES: { icon: IconName; title: string; body: string }[] = [
@@ -23,7 +22,7 @@ export default function Welcome() {
   const last = i === SLIDES.length - 1;
 
   const finish = async (to: '/' | '/login') => {
-    await storage.set(WELCOMED_KEY, true);
+    await markWelcomed();
     router.replace('/');
     if (to === '/login') setTimeout(() => router.push('/login'), 50);
   };

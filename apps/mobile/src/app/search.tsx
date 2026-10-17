@@ -53,7 +53,7 @@ export default function Search() {
             returnKeyType="search"
             selectionColor={c.accent}
             maxFontSizeMultiplier={1.3}
-            style={{ flex: 1, color: c.ink, fontFamily: fonts.regular, fontSize: 15.5, textAlign: 'right', writingDirection: 'rtl', paddingVertical: 0 }}
+            style={{ flex: 1, color: c.ink, fontFamily: fonts.regular, fontSize: 15.5, textAlign: 'right', writingDirection: 'rtl', paddingVertical: 0, ...({ outlineStyle: 'none' } as object) }}
             accessibilityLabel="البحث"
           />
           {text ? (

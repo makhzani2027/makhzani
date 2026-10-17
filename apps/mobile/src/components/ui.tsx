@@ -257,6 +257,7 @@ export const Input = forwardRef<ComponentRef<typeof TextInput>, TextInputProps &
               fontFamily: fonts.regular, fontSize: 16, color: c.ink,
               writingDirection: ltr ? 'ltr' : 'rtl', textAlign: ltr ? 'left' : 'right',
               textAlignVertical: props.multiline ? 'top' : 'center',
+              ...({ outlineStyle: 'none' } as object),
             }, style]}
           />
         </View>
