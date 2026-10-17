@@ -1,0 +1,5 @@
+.expo/
+dist/
+web-build/
+google-services.json
+expo-env.d.ts
