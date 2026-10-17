@@ -1,4 +1,4 @@
-import { formatPhone, governorateName } from '@raqeem/shared';
+import { governorateName } from '@raqeem/shared';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { View } from 'react-native';
@@ -37,7 +37,7 @@ export default function Addresses() {
           </Row>
           <T v="small" tone="ink2">{[governorateName(a.governorate), a.city, a.area, a.street].filter(Boolean).join('، ')}</T>
           {a.landmark ? <T v="small" tone="ink2">أقرب نقطة دالة: {a.landmark}</T> : null}
-          <T v="small" tone="ink2">{a.recipient_name} · {f.text(formatPhone(a.phone))}</T>
+          <T v="small" tone="ink2">{a.recipient_name} · {f.phone(a.phone)}</T>
           <Row gap={8} style={{ marginTop: 4, flexWrap: 'wrap' }}>
             <Button small variant="secondary" icon="edit" title="تعديل" onPress={() => router.push({ pathname: '/addresses/edit', params: { id: a.id } })} />
             {!a.is_default ? <Button small variant="ghost" title="اجعله الافتراضي" onPress={() => run(() => api.setDefaultAddress(uid!, a.id), 'صار العنوان الافتراضي')} /> : null}

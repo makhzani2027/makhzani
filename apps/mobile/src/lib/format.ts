@@ -1,5 +1,5 @@
 import {
-  countOf, formatDate, formatMoney, formatNumber, formatRelative, formatTime, governorateName, nouns, withDigits,
+  countOf, formatDate, formatPhone, formatMoney, formatNumber, formatRelative, formatTime, governorateName, nouns, withDigits,
   type Currency, type Digits,
 } from '@raqeem/shared';
 import { useMemo } from 'react';
@@ -23,6 +23,8 @@ export interface Fmt {
   gov: (key: string | null | undefined) => string;
   /** رقم مستند لاتيني (O-000123) معزول باتجاه LTR داخل النص العربي */
   doc: (s: string | null | undefined) => string;
+  /** هاتف عراقي مقروء (0770 123 4567) بأرقام المتجر، معزول LTR */
+  phone: (e164: string | null | undefined) => string;
 }
 
 /** تنسيق الأرقام بحسب إعدادات المتجر العامة (store.digits و store.currency) */
@@ -46,5 +48,6 @@ export function useFmt(): Fmt {
     text: (s) => withDigits(s, digits),
     gov: (k) => governorateName(k),
     doc: (s) => (s ? `\u2066${s}\u2069` : ''),
+    phone: (p) => (p ? `\u2066${withDigits(formatPhone(p), digits)}\u2069` : ''),
   }), [digits, currency]);
 }

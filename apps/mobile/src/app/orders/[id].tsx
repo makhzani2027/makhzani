@@ -1,5 +1,5 @@
 import {
-  customerCanCancel, customerTimeline, formatPhone, FULFILLMENT, governorateName, ORDER_PAYMENT_METHOD, ORDER_PAYMENT_STATUS,
+  customerCanCancel, customerTimeline, FULFILLMENT, governorateName, ORDER_PAYMENT_METHOD, ORDER_PAYMENT_STATUS,
   ORDER_STATUS, whatsappLink,
 } from '@raqeem/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -221,7 +221,7 @@ export default function OrderDetail() {
             <T>{governorateName(o.address.governorate)}{o.address.city ? ` — ${o.address.city}` : ''}{o.address.area ? `، ${o.address.area}` : ''}</T>
             {o.address.street ? <T v="small" tone="ink2">{o.address.street}</T> : null}
             {o.address.landmark ? <T v="small" tone="ink2">قرب {o.address.landmark}</T> : null}
-            <T v="small" tone="ink2">{o.address.recipient_name} · {f.text(formatPhone(o.address.phone))}</T>
+            <T v="small" tone="ink2">{o.address.recipient_name} · {f.phone(o.address.phone)}</T>
           </>
         ) : <T v="small" tone="ink2">{store?.address ?? 'نبلغك حين يجهز طلبك للاستلام.'}</T>}
         {o.customer_note ? <T v="small" tone="ink2">ملاحظتك: {o.customer_note}</T> : null}

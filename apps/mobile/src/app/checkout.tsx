@@ -1,4 +1,4 @@
-import { formatPhone, governorateName, ORDER_PAYMENT_METHOD, type Fulfillment, type OrderPaymentMethod } from '@raqeem/shared';
+import { governorateName, ORDER_PAYMENT_METHOD, type Fulfillment, type OrderPaymentMethod } from '@raqeem/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -162,7 +162,7 @@ export default function Checkout() {
             return (
               <Option key={a.id} on={a.id === addressId} onPress={() => setAddressId(a.id)} icon="mapPin"
                 title={`${a.label ? `${a.label} · ` : ''}${governorateName(a.governorate)}${a.city ? ` — ${a.city}` : ''}`}
-                body={[a.area, a.street, a.landmark ? `قرب ${a.landmark}` : null].filter(Boolean).join('، ') + `\n${a.recipient_name} · ${f.text(formatPhone(a.phone))}`}
+                body={[a.area, a.street, a.landmark ? `قرب ${a.landmark}` : null].filter(Boolean).join('، ') + `\n${a.recipient_name} · ${f.phone(a.phone)}`}
                 right={z ? <T v="small" tone="ink2">{z.fee ? f.money(z.fee) : 'مجاني'}</T> : <Badge tone="danger" label="غير متاح" />} />
             );
           })}

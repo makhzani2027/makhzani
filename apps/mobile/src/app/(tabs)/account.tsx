@@ -1,4 +1,4 @@
-import { formatPhone, telLink, whatsappLink } from '@raqeem/shared';
+import { telLink, whatsappLink } from '@raqeem/shared';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -67,7 +67,7 @@ export default function Account() {
           <View style={{ flex: 1 }}>
             <T v="h3" lines={1}>{profile?.full_name || 'زبون رقيم'}</T>
             <T v="small" tone="ink2" lines={1} style={{ writingDirection: 'ltr', textAlign: 'right' }}>
-              {profile?.phone ? f.text(formatPhone(profile.phone)) : email ?? ''}
+              {profile?.phone ? f.phone(profile.phone) : email ?? ''}
             </T>
           </View>
           <Button small variant="secondary" title="تعديل" onPress={() => router.push('/complete-profile')} />
@@ -105,7 +105,7 @@ export default function Account() {
       <Group>
         {wa ? <ListItem icon="whatsapp" title="راسلنا على واتساب" onPress={() => Linking.openURL(wa)} /> : null}
         {wa ? <Divider /> : null}
-        {tel ? <ListItem icon="phone" title="اتصل بنا" subtitle={f.text(formatPhone(store?.phone))} onPress={() => Linking.openURL(tel)} /> : null}
+        {tel ? <ListItem icon="phone" title="اتصل بنا" subtitle={f.phone(store?.phone)} onPress={() => Linking.openURL(tel)} /> : null}
         {tel ? <Divider /> : null}
         <ListItem icon="store" title="عن المتجر" onPress={() => router.push('/about')} />
         <Divider />

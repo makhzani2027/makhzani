@@ -1,4 +1,4 @@
-import { formatPhone, telLink, whatsappLink } from '@raqeem/shared';
+import { telLink, whatsappLink } from '@raqeem/shared';
 import * as Linking from 'expo-linking';
 import { View } from 'react-native';
 import { Logo } from '@/components/brand';
@@ -23,7 +23,7 @@ export default function About() {
       <Card padded={false} style={{ overflow: 'hidden' }}>
         {store?.address ? <ListItem icon="mapPin" title="العنوان" subtitle={store.address} chevron={!!store.map_url} onPress={store.map_url ? () => Linking.openURL(store.map_url!) : undefined} /> : null}
         {store?.hours ? <><Divider /><ListItem icon="clock" title="أوقات الدوام" subtitle={f.text(store.hours)} chevron={false} /></> : null}
-        {tel ? <><Divider /><ListItem icon="phone" title="الهاتف" subtitle={f.text(formatPhone(store?.phone))} onPress={() => Linking.openURL(tel)} /></> : null}
+        {tel ? <><Divider /><ListItem icon="phone" title="الهاتف" subtitle={f.phone(store?.phone)} onPress={() => Linking.openURL(tel)} /></> : null}
         {store?.email ? <><Divider /><ListItem icon="mail" title="البريد" subtitle={store.email} onPress={() => Linking.openURL(`mailto:${store.email}`)} /></> : null}
         {socials.map(([k, v]) => <View key={k}><Divider /><ListItem icon="globe" title={NAMES[k] ?? k} onPress={() => Linking.openURL(v)} /></View>)}
       </Card>
