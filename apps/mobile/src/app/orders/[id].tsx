@@ -105,6 +105,7 @@ export default function OrderDetail() {
   useEffect(() => api.subscribeOrder(id, () => {
     q.refetch();
     qc.invalidateQueries({ queryKey: ['orders'] });
+    qc.invalidateQueries({ queryKey: ['notifications'] });
   }), [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const d = q.data;
