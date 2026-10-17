@@ -35,8 +35,14 @@ function Shell() {
   const [collapsed, setCollapsed] = useStored('rq.side.collapsed', false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [theme, setTheme] = useThemePref();
+  // أقسام القائمة المطوية (مثل المرجع: القسم يُفتح ليظهر خياراته)
+  const [closedGroups, setClosedGroups] = useStored<string[]>('rq.side.closed', []);
 
   useEffect(() => setMenuOpen(false), [location.pathname]);
+  // التبويب النشط في شريط القسم يظهر دائماً (على الهاتف يكون خارج الشاشة أحياناً)
+  useEffect(() => {
+    requestAnimationFrame(() => document.querySelector('.section-tab.on')?.scrollIntoView({ block: 'nearest', inline: 'center' }));
+  }, [location.pathname]);
   useHotkey('mod+k', () => setPaletteOpen(true));
 
   // الصفحات المسموحة لهذا الموظف فقط
@@ -46,6 +52,11 @@ function Shell() {
     [allowed],
   );
   const current = allowed.find((r) => matchPath(r.path, location.pathname));
+  // صفحات القسم الحالي: تظهر شريطَ تبويبات أعلى الصفحة للتنقل بين خيارات القسم
+  const sectionItems = current && current.group !== 'home' ? navItems.find((g) => g.key === current.group)?.items ?? [] : [];
+  const sectionLabel = NAV_GROUPS.find((g) => g.key === current?.group)?.label ?? '';
+  const isActive = (path: string) => (path === '/' ? location.pathname === '/' : location.pathname === path || location.pathname.startsWith(`${path}/`));
+  const toggleGroup = (key: string) => setClosedGroups(closedGroups.includes(key) ? closedGroups.filter((k) => k !== key) : [...closedGroups, key]);
   const home = allowed.find((r) => r.path === '/') ? '/' : navItems[0]?.items[0]?.path ?? '/account';
 
   return (
@@ -59,10 +70,20 @@ function Shell() {
             <b>رَقيم</b>
             <span className="tag">الإدارة</span>
           </div>
-          {navItems.map((g) => (
-            <div key={g.key} style={{ '--g': g.color } as React.CSSProperties}>
-              {g.label ? <div className="side-group"><i /><span>{g.label}</span></div> : null}
-              {g.items.map((r) => {
+          {navItems.map((g) => {
+            const hasActive = g.items.some((r) => isActive(r.path));
+            const open = !g.label || hasActive || !closedGroups.includes(g.key);
+            const groupCount = g.items.reduce((n, r) => n + (r.badge && r.badge !== 'lowStock' ? counts[r.badge] : 0), 0);
+            return (
+            <div key={g.key} style={{ '--g': g.color } as React.CSSProperties} className={`side-section ${open ? 'open' : ''}`}>
+              {g.label ? (
+                <button type="button" className="side-group" aria-expanded={open} onClick={() => toggleGroup(g.key)}>
+                  <i /><span>{g.label}</span>
+                  {!open && groupCount ? <span className="count">{fmt.num(groupCount)}</span> : null}
+                  <Icon name="chevronDown" size={14} className="chev" />
+                </button>
+              ) : null}
+              {open ? g.items.map((r) => {
                 const count = r.badge ? counts[r.badge] : 0;
                 return (
                   <NavLink key={r.path} to={r.path} end={r.path === '/'} className={({ isActive }) => `side-link ${isActive ? 'active' : ''}`} title={collapsed ? r.label : undefined}>
@@ -71,9 +92,10 @@ function Shell() {
                     {count ? <span className={`count ${r.badge === 'lowStock' ? 'quiet' : ''}`}>{fmt.num(count)}</span> : null}
                   </NavLink>
                 );
-              })}
+              }) : null}
             </div>
-          ))}
+            );
+          })}
           <div className="side-foot">
             <Avatar name={auth.profile?.full_name} imageKey={auth.profile?.avatar_key} />
             <div className="who">
@@ -87,9 +109,9 @@ function Shell() {
           <header className="topbar">
             <IconButton icon="menu" label="القائمة" className="only-mobile" onClick={() => setMenuOpen(true)} />
             <IconButton icon={collapsed ? 'chevronLeft' : 'chevronRight'} label={collapsed ? 'توسيع القائمة' : 'طي القائمة'} className="only-desktop" onClick={() => setCollapsed(!collapsed)} />
-            <button type="button" className="btn ghost" style={{ flex: '0 1 380px', justifyContent: 'flex-start', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink3)' }} onClick={() => setPaletteOpen(true)}>
+            <button type="button" className="btn ghost topbar-search" onClick={() => setPaletteOpen(true)}>
               <Icon name="search" size={18} />
-              <span className="grow" style={{ textAlign: 'start', fontWeight: 500 }}>بحث عن منتج، زبون، طلب…</span>
+              <span className="grow truncate" style={{ textAlign: 'start', fontWeight: 500 }}>بحث عن منتج، زبون، طلب…</span>
               <span className="kbd only-desktop">Ctrl K</span>
             </button>
             <span className="grow" />
@@ -113,6 +135,19 @@ function Shell() {
           </header>
 
           <main className={`content ${current?.full ? 'full' : ''}`} id="main">
+            {sectionItems.length > 1 && !current?.full ? (
+              <nav className="section-tabs" aria-label={`خيارات ${sectionLabel}`}>
+                <span className="section-name">{sectionLabel}</span>
+                <div className="section-scroll">
+                  {sectionItems.map((r) => (
+                    <NavLink key={r.path} to={r.path} className={() => `section-tab ${isActive(r.path) ? 'on' : ''}`}>
+                      <Icon name={r.icon} size={16} />{r.label}
+                      {r.badge && counts[r.badge] ? <span className="count">{fmt.num(counts[r.badge])}</span> : null}
+                    </NavLink>
+                  ))}
+                </div>
+              </nav>
+            ) : null}
             <Suspense fallback={<Loading />}>
               <Routes>
                 {allowed.map((r: AppRoute) => {
