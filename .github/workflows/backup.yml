@@ -1,0 +1,85 @@
+# نسخة احتياطية أسبوعية مشفّرة لقاعدة البيانات، تُحفظ artifact لمدة ٩٠ يوماً.
+# الأسرار: SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_REF, SUPABASE_DB_PASSWORD, BACKUP_PASSPHRASE.
+#
+# الاسترجاع (من حاسوب فيه supabase CLI و psql و openssl):
+#   ١) Actions ← Backup ← آخر تشغيل ناجح ← حمّل artifact «raqeem-backup-<التاريخ>» وفك ضغطه.
+#   ٢) فك التشفير بالجملة السرية نفسها:
+#        openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in raqeem-backup.tar.gz.enc -out raqeem-backup.tar.gz   (يطلب BACKUP_PASSPHRASE)
+#        tar -xzf raqeem-backup.tar.gz     ← roles.sql و schema.sql و data.sql
+#   ٣) على مشروع Supabase جديد فارغ (رابط الاتصال من Project Settings ← Database ← Connection string):
+#        psql "$DB_URL" -v ON_ERROR_STOP=1 -f roles.sql
+#        psql "$DB_URL" -v ON_ERROR_STOP=1 -f schema.sql
+#        psql "$DB_URL" -v ON_ERROR_STOP=1 -c 'SET session_replication_role = replica' -f data.sql
+#   ٤) شغّل «Deploy Supabase» على المشروع الجديد (الدوال والأسرار وربط الإشعارات)، ثم حدّث المتغيرات SUPABASE_URL/SUPABASE_ANON_KEY وأعد نشر الموقع والتطبيق.
+#   ملاحظة: ملفات الصور في Storage/R2 لا تدخل في هذه النسخة.
+name: Backup
+on:
+  schedule:
+    - cron: '41 2 * * 5'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        id: check
+        run: |
+          missing=""
+          for k in SUPABASE_ACCESS_TOKEN PROJECT_REF SUPABASE_DB_PASSWORD BACKUP_PASSPHRASE; do [ -n "${!k}" ] || missing="$missing $k"; done
+          if [ -n "$missing" ]; then
+            echo "::notice::أسرار غير مضافة:$missing — تخطّي النسخة الاحتياطية."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: supabase/setup-cli@v1
+        if: steps.check.outputs.ok == 'true'
+        with:
+          version: latest
+
+      - name: Dump database
+        if: steps.check.outputs.ok == 'true'
+        run: |
+          supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+          d="$RUNNER_TEMP/dump"
+          mkdir -p "$d"
+          supabase db dump --linked --password "$SUPABASE_DB_PASSWORD" --role-only -f "$d/roles.sql"
+          supabase db dump --linked --password "$SUPABASE_DB_PASSWORD" -f "$d/schema.sql"
+          supabase db dump --linked --password "$SUPABASE_DB_PASSWORD" --data-only --use-copy -f "$d/data.sql"
+          ls -lh "$d"
+          [ -s "$d/schema.sql" ] && [ -s "$d/data.sql" ] || { echo "::error::النسخة فارغة"; exit 1; }
+
+      - name: Encrypt
+        if: steps.check.outputs.ok == 'true'
+        run: |
+          mkdir -p out
+          tar -czf "$RUNNER_TEMP/raqeem-backup.tar.gz" -C "$RUNNER_TEMP/dump" .
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -pass env:BACKUP_PASSPHRASE \
+            -in "$RUNNER_TEMP/raqeem-backup.tar.gz" -out out/raqeem-backup.tar.gz.enc
+          rm -rf "$RUNNER_TEMP/dump" "$RUNNER_TEMP/raqeem-backup.tar.gz"
+          echo "DATE=$(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
+          ls -lh out
+
+      - uses: actions/upload-artifact@v4
+        if: steps.check.outputs.ok == 'true'
+        with:
+          name: raqeem-backup-${{ env.DATE }}
+          path: out/raqeem-backup.tar.gz.enc
+          retention-days: 90

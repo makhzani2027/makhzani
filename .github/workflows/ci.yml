@@ -1,0 +1,110 @@
+# فحص كل تعديل: اختبارات الحزمة المشتركة، الأنواع في كل مساحات العمل، بناء لوحة التحكم، تصدير تطبيق الويب (تجريبي)،
+# دوال الخادم (Deno)، وقاعدة البيانات كاملة (migrations مرتين + seed + اختبارات RLS والمنطق) على Postgres 16.
+name: CI
+on:
+  push:
+    branches: [main, claude/happy-rubin-s67gcc]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    name: Node (shared, admin, mobile)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Shared tests (@raqeem/shared)
+        run: npm test
+      - name: Typecheck all workspaces
+        run: npm run typecheck
+      - name: Mobile typecheck
+        run: npm run typecheck -w @raqeem/mobile --if-present
+      - name: Admin build
+        run: npm run build -w @raqeem/admin
+        env:
+          VITE_SUPABASE_URL: ''
+          VITE_SUPABASE_ANON_KEY: ''
+      - name: Site + hosting build (admin under /dashboard/)
+        run: bash scripts/build-hosting.sh
+      - name: Mobile web export (tolerant)
+        continue-on-error: true
+        run: |
+          if node -e "process.exit(require('./apps/mobile/package.json').scripts?.['export:web'] ? 0 : 1)" 2>/dev/null; then
+            npm run export:web -w @raqeem/mobile || echo "::warning::تصدير تطبيق الويب فشل (غير حاجب)."
+          else
+            echo "::notice::لا يوجد سكربت export:web في apps/mobile — تخطّي."
+          fi
+
+  functions:
+    name: Edge functions (Deno)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check functions
+        working-directory: supabase/functions
+        run: |
+          shopt -s nullglob
+          files=(*/index.ts _shared/*.ts _shared/payments/*.ts)
+          if [ ${#files[@]} -eq 0 ]; then echo "::notice::لا دوال خادم — تخطّي."; exit 0; fi
+          deno check "${files[@]}"
+      - name: Function tests
+        working-directory: supabase/functions
+        run: |
+          if [ -d ../tests/functions ]; then
+            deno test --allow-env --allow-net=127.0.0.1 ../tests/functions/
+          else
+            echo "::notice::لا اختبارات دوال — تخطّي."
+          fi
+
+  database:
+    name: Database (migrations, seed, RLS tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run supabase/tests/run.sh
+        run: |
+          if [ ! -f supabase/tests/run.sh ]; then
+            echo "::notice::supabase/tests/run.sh غير موجود — تخطّي."
+            exit 0
+          fi
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client >/dev/null || true
+          fi
+          if ! command -v psql >/dev/null || ! pg_isready -h localhost -p 5432 -q; then
+            echo "::notice::Postgres غير متاح على هذا المشغّل — تخطّي اختبارات قاعدة البيانات."
+            exit 0
+          fi
+          # دوال الخادم تُفحص في مهمة functions، فلا نمرر deno هنا
+          bash supabase/tests/run.sh

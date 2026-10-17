@@ -1,0 +1,122 @@
+# يبني تطبيق رقيم لأندرويد (APK للتنزيل المباشر + AAB لـ Google Play) وينشرهما في Releases باسم android-<رقم التشغيل>.
+# يدوي فقط: Actions ← Build Android ← Run workflow.
+# التوقيع: signing/raqeem-release.keystore.enc (من «Create Signing Key») مع السر SIGNING_PASSPHRASE؛ بدونه يُبنى بمفتاح debug مع تحذير.
+# متغيرات عامة: SUPABASE_URL, SUPABASE_ANON_KEY, MEDIA_BASE_URL, SITE_URL. سر اختياري: GOOGLE_SERVICES_JSON (الإشعارات).
+name: Build Android
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-android
+  cancel-in-progress: false
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      APK_BUILD: ${{ github.run_number }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_MEDIA_BASE: ${{ vars.MEDIA_BASE_URL }}
+      EXPO_PUBLIC_SITE_URL: ${{ vars.SITE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: npm ci
+
+      - name: Check configuration
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          [ -n "$EXPO_PUBLIC_SUPABASE_URL" ] || echo "::warning::المتغير SUPABASE_URL غير مضبوط — التطبيق سيعمل في وضع العرض."
+          [ -n "$GOOGLE_SERVICES_JSON" ] || echo "::warning::السر GOOGLE_SERVICES_JSON غير مضاف — النسخة بلا إشعارات فورية."
+
+      - name: Generate Android project (expo prebuild)
+        working-directory: apps/mobile
+        env:
+          CI: 1
+          # app.config.ts يكتب google-services.json من هذا المتغير
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: npx expo prebuild --platform android --no-install --clean
+
+      - name: Release signing
+        id: sign
+        env:
+          SIGNING_PASSPHRASE: ${{ secrets.SIGNING_PASSPHRASE }}
+        run: |
+          ENC=signing/raqeem-release.keystore.enc
+          if [ -f "$ENC" ] && [ -n "$SIGNING_PASSPHRASE" ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:SIGNING_PASSPHRASE -in "$ENC" -out "$RUNNER_TEMP/raqeem.keystore"
+            # كلمة السر لا تُكتب في GITHUB_ENV؛ تُمرَّر لخطوة البناء وحدها
+            echo "RAQEEM_KEYSTORE=$RUNNER_TEMP/raqeem.keystore" >> "$GITHUB_ENV"
+            echo "RAQEEM_KEY_ALIAS=raqeem" >> "$GITHUB_ENV"
+            RAQEEM_KEYSTORE="$RUNNER_TEMP/raqeem.keystore" RAQEEM_KEY_ALIAS=raqeem \
+              RAQEEM_STORE_PASSWORD="$SIGNING_PASSPHRASE" RAQEEM_KEY_PASSWORD="$SIGNING_PASSPHRASE" node scripts/apply-signing.js
+            echo "mode=release" >> "$GITHUB_OUTPUT"
+          elif [ -f "$ENC" ]; then
+            echo "::error::مفتاح التوقيع موجود لكن السر SIGNING_PASSPHRASE غير مضاف. لا نبني بمفتاح مختلف حتى لا ينكسر التحديث."
+            exit 1
+          else
+            echo "::warning::لا يوجد مفتاح توقيع خاص (signing/raqeem-release.keystore.enc) — النسخة موقّعة بمفتاح debug ولا تصلح لـ Google Play. شغّل «Create Signing Key»."
+            echo "mode=debug" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build APK + AAB
+        working-directory: apps/mobile/android
+        env:
+          RAQEEM_STORE_PASSWORD: ${{ secrets.SIGNING_PASSPHRASE }}
+          RAQEEM_KEY_PASSWORD: ${{ secrets.SIGNING_PASSPHRASE }}
+        run: |
+          printf '\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g\n' >> gradle.properties
+          ./gradlew assembleRelease bundleRelease --no-daemon --stacktrace 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+          exit ${PIPESTATUS[0]}
+
+      - name: Show error details
+        if: failure()
+        run: grep -n -i -E "error|exception|caused by|what went wrong" "$RUNNER_TEMP/gradle.log" | grep -v -i warning | head -120 || true
+
+      - name: Collect outputs
+        run: |
+          mkdir -p out
+          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk out/raqeem.apk
+          cp apps/mobile/android/app/build/outputs/bundle/release/app-release.aab out/raqeem.aab
+          APKSIGNER=$(ls -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
+          if [ -n "$APKSIGNER" ]; then
+            echo "بصمة التوقيع (يجب أن تبقى ثابتة بين النسخ):"
+            "$APKSIGNER" verify --print-certs out/raqeem.apk | grep -E 'DN|SHA-256' || true
+          fi
+          ls -lh out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: raqeem-android-${{ github.run_number }}
+          path: out/
+          retention-days: 30
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-${{ github.run_number }}
+          name: رقيم لأندرويد — نسخة ${{ github.run_number }}
+          body: |
+            - raqeem.apk: للتثبيت المباشر على الهاتف.
+            - raqeem.aab: للرفع إلى Google Play.
+            التوقيع: ${{ steps.sign.outputs.mode == 'release' && 'مفتاح رقيم الخاص' || 'مفتاح debug (تجريبي، لا يصلح لـ Google Play)' }}
+            الفرع: ${{ github.ref_name }} — الكود: ${{ github.sha }}
+          prerelease: ${{ steps.sign.outputs.mode != 'release' }}
+          files: |
+            out/raqeem.apk
+            out/raqeem.aab
