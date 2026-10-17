@@ -16,6 +16,22 @@ export type Qty = number;
 
 // ============================================================ القيم الثابتة (enums في Postgres)
 
+/** العملات: الدينار أساس الحسابات، والدولار عملة ثانية بسعر صرف لكل مستند */
+export const CURRENCIES = ['IQD', 'USD'] as const;
+export type CurrencyCode = (typeof CURRENCIES)[number];
+
+export const MONEY_ACCOUNT_KINDS = ['cash', 'bank', 'wallet'] as const;
+export type MoneyAccountKind = (typeof MONEY_ACCOUNT_KINDS)[number];
+
+export const QUOTATION_STATUSES = ['draft', 'sent', 'accepted', 'converted', 'expired', 'cancelled'] as const;
+export type QuotationStatus = (typeof QUOTATION_STATUSES)[number];
+
+export const STOCK_VOUCHER_KINDS = ['in', 'out', 'sample_out', 'sample_return', 'damage'] as const;
+export type StockVoucherKind = (typeof STOCK_VOUCHER_KINDS)[number];
+
+export const PRICE_TIERS = ['retail', 'wholesale'] as const;
+export type PriceTier = (typeof PRICE_TIERS)[number];
+
 export const PROFILE_KINDS = ['customer', 'staff'] as const;
 export type ProfileKind = (typeof PROFILE_KINDS)[number];
 
@@ -33,6 +49,10 @@ export const MOVEMENT_KINDS = [
   'transfer_in', // نقل وارد
   'transfer_out', // نقل صادر
   'stocktake', // فرق الجرد
+  'manual_in', // سند إدخال مخزني (هدية، تصحيح، إنتاج…)
+  'manual_out', // سند إخراج مخزني (استعمال داخلي…)
+  'sample_out', // خروج عينة (لزبون أو معرض)
+  'sample_return', // رجوع عينة
 ] as const;
 export type MovementKind = (typeof MOVEMENT_KINDS)[number];
 
@@ -185,6 +205,7 @@ export interface CustomerBalance {
   returns_total: Money;
   paid_total: Money; // ما دفعه (صافي بعد المسترد)
   balance: Money;
+  balance_usd: Money; // رصيد مستندات الدولار منفصل (لا يُخلط بالدينار)
   last_activity_at: ISODate | null;
 }
 
@@ -195,6 +216,7 @@ export interface SupplierBalance {
   returns_total: Money;
   paid_total: Money;
   balance: Money;
+  balance_usd: Money; // رصيد مستندات الدولار منفصل (لا يُخلط بالدينار)
   last_activity_at: ISODate | null;
 }
 
@@ -241,6 +263,7 @@ export interface Product {
   option_names: string[]; // أسماء الخيارات بالترتيب: ['اللون','المقاس']
   has_variants: boolean;
   track_serials: boolean; // تتبع الأرقام التسلسلية (أجهزة)
+  track_expiry: boolean; // تتبع الدفعات وتواريخ الصلاحية (يُباع الأقرب انتهاءً أولاً FEFO)
   is_published: boolean; // يظهر في المتجر
   is_featured: boolean;
   allow_request: boolean; // زر «اطلب توفيره» عند النفاد
@@ -291,12 +314,101 @@ export interface ProductImage {
   created_at: ISODate;
 }
 
+// ============================================================ الفروع والحسابات المالية
+
+export interface Branch {
+  id: UUID;
+  name: string; // «فرع بغداد الرئيسي»
+  address: string | null;
+  phone: string | null;
+  is_default: boolean;
+  is_active: boolean;
+  created_at: ISODate;
+}
+
+/** صندوق نقدي أو حساب مصرفي أو محفظة (زين كاش…) — لكل واحد عملة */
+export interface MoneyAccount {
+  id: UUID;
+  name: string;
+  kind: MoneyAccountKind;
+  currency: CurrencyCode;
+  branch_id: UUID | null;
+  opening_balance: Money;
+  is_default: boolean; // الصندوق الافتراضي لنقطة البيع
+  is_active: boolean;
+  created_at: ISODate;
+}
+
+/** view: money_account_balances */
+export interface MoneyAccountBalance {
+  account_id: UUID;
+  balance: Money; // بعملة الحساب
+  balance_iqd: Money;
+}
+
+export interface AccountTransfer {
+  id: UUID;
+  number: string;
+  from_account_id: UUID;
+  to_account_id: UUID;
+  amount: Money; // بعملة حساب المصدر
+  exchange_rate: number; // عند اختلاف العملتين
+  note: string | null;
+  created_by: UUID | null;
+  created_at: ISODate;
+}
+
 // ============================================================ المخزون
+
+/** وحدات التعبئة: باركود الكرتونة = ١٢ قطعة مثلاً */
+export interface VariantUnit {
+  id: UUID;
+  variant_id: UUID;
+  unit_name: string; // كرتونة، علبة، درزن
+  factor: number; // عدد القطع
+  barcode: string | null; // فريد عبر كل الباركودات
+  price: Money | null; // سعر الوحدة (null = factor × سعر القطعة)
+  created_at: ISODate;
+}
+
+/** دفعة بتاريخ صلاحية (للمنتجات track_expiry) */
+export interface StockLot {
+  id: UUID;
+  variant_id: UUID;
+  warehouse_id: UUID;
+  lot_code: string;
+  expiry_date: string | null; // YYYY-MM-DD
+  qty: Qty;
+  created_at: ISODate;
+}
+
+/** سند مخزني يدوي: إدخال، إخراج، عينة، تالف */
+export interface StockVoucher {
+  id: UUID;
+  number: string; // SV-000123
+  kind: StockVoucherKind;
+  warehouse_id: UUID;
+  customer_id: UUID | null; // لمن خرجت العينة
+  reason: string;
+  note: string | null;
+  created_by: UUID | null;
+  created_at: ISODate;
+}
+
+export interface StockVoucherItem {
+  voucher_id: UUID;
+  variant_id: UUID;
+  qty: Qty;
+  unit_cost: Money | null;
+  lot_code: string | null;
+  expiry_date: string | null;
+}
 
 export interface Warehouse {
   id: UUID;
   name: string;
   code: string; // قصير: MAIN، SHOP…
+  branch_id: UUID | null;
   address: string | null;
   is_default: boolean;
   is_sellable: boolean; // يدخل رصيده في «المتوفر» بالمتجر
@@ -374,6 +486,40 @@ export interface StocktakeItem {
   counted_qty: Qty | null; // العدّ الفعلي
 }
 
+// ============================================================ عروض الأسعار
+
+export interface Quotation {
+  id: UUID;
+  number: string; // Q-000123
+  status: QuotationStatus;
+  customer_id: UUID | null;
+  customer_name: string | null; // لزبون غير مسجل
+  warehouse_id: UUID;
+  currency: CurrencyCode;
+  exchange_rate: number;
+  subtotal: Money;
+  discount: Money;
+  total: Money;
+  valid_until: string | null; // YYYY-MM-DD
+  note: string | null;
+  invoice_id: UUID | null; // بعد التحويل لفاتورة
+  created_by: UUID | null;
+  created_at: ISODate;
+}
+
+export interface QuotationItem {
+  id: UUID;
+  quotation_id: UUID;
+  variant_id: UUID;
+  name: string;
+  variant_title: string | null;
+  qty: Qty;
+  unit_price: Money;
+  discount: Money;
+  line_total: Money;
+  price_tier: PriceTier;
+}
+
 // ============================================================ الفواتير والمال
 
 export interface Invoice {
@@ -387,6 +533,10 @@ export interface Invoice {
   order_id: UUID | null;
   return_of: UUID | null; // الفاتورة الأصلية للإرجاع
   warehouse_id: UUID;
+  branch_id: UUID | null;
+  quotation_id: UUID | null; // إن حُوّلت من عرض سعر
+  currency: CurrencyCode; // عملة الفاتورة
+  exchange_rate: number; // دينار لكل دولار وقت الفاتورة (للتحويل والتقارير)
   subtotal: Money; // مجموع البنود بعد خصوماتها
   discount: Money; // خصم على الفاتورة كلها
   delivery_fee: Money;
@@ -415,8 +565,13 @@ export interface InvoiceItem {
   unit_price: Money;
   discount: Money; // خصم على البند كله
   line_total: Money; // qty * unit_price - discount
-  unit_cost: Money; // متوسط التكلفة لحظة البيع
+  unit_cost: Money; // متوسط التكلفة لحظة البيع (بالدينار)
   serials: string[];
+  price_tier: PriceTier; // مفرد أو جملة
+  unit_name: string | null; // وحدة التعبئة إن بيعت بالكرتونة مثلاً
+  unit_factor: number; // كم قطعة في الوحدة (١ للقطعة)
+  lot_code: string | null; // الدفعة (للمنتجات بتاريخ صلاحية)
+  expiry_date: string | null; // YYYY-MM-DD
 }
 
 export interface Payment {
@@ -424,7 +579,11 @@ export interface Payment {
   number: string; // RC-000123 (قبض) / PV-000123 (صرف)
   direction: PaymentDirection;
   method: PaymentMethod;
-  amount: Money; // موجب دائماً
+  amount: Money; // موجب دائماً، بعملة الدفعة
+  currency: CurrencyCode;
+  exchange_rate: number;
+  amount_iqd: Money; // المكافئ بالدينار (عمود محسوب)
+  account_id: UUID | null; // الصندوق أو الحساب المصرفي أو المحفظة
   customer_id: UUID | null;
   supplier_id: UUID | null;
   invoice_id: UUID | null;
@@ -441,6 +600,9 @@ export interface Expense {
   id: UUID;
   category: string;
   amount: Money;
+  currency: CurrencyCode;
+  exchange_rate: number;
+  account_id: UUID | null;
   method: PaymentMethod;
   note: string | null;
   spent_at: ISODate;
@@ -696,6 +858,14 @@ export interface AuditEntry {
 
 // ============================================================ قيم الإعدادات (app_settings.value)
 
+/** app_settings.currency */
+export interface CurrencySettings {
+  base: 'IQD';
+  usd_enabled: boolean; // إظهار الدولار في الفواتير والدفعات والأرصدة
+  usd_rate: number; // سعر صرف اليوم (دينار لكل دولار) — يتغير يومياً من اللوحة
+  usd_rate_updated_at: ISODate | null;
+}
+
 export interface StoreSettings {
   name: string;
   legal_name: string | null;
@@ -780,6 +950,8 @@ export interface DashboardSummary {
   out_of_stock_count: number;
   receivables: Money; // ديون الزبائن
   payables: Money; // ديون الموردين
+  purchases_total: Money;
+  cash_balance: Money; // مجموع أرصدة الصناديق والحسابات بالدينار المكافئ
   cash_in: Money;
   cash_out: Money;
   expenses_total: Money;
