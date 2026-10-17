@@ -1,0 +1,141 @@
+# ينشر قاعدة البيانات (migrations + seed) ودوال الخادم وأسرارها ويربط الإشعارات — بلا حاسوب.
+# الأسرار المطلوبة: SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_REF, SUPABASE_DB_PASSWORD (انظر system/08-setup-guide.md §٥).
+# اختيارية: FIREBASE_SERVICE_ACCOUNT (تُضبط في الدوال باسم FCM_SERVICE_ACCOUNT)، PUSH_WEBHOOK_SECRET، WAYL_*، PAYMENT_*، R2_*، MEDIA_PUBLIC_URL.
+name: Deploy Supabase
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, claude/happy-rubin-s67gcc]
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/deploy-supabase.yml'
+
+concurrency:
+  group: deploy-supabase
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required secrets
+        id: check
+        run: |
+          missing=""
+          [ -n "$SUPABASE_ACCESS_TOKEN" ] || missing="$missing SUPABASE_ACCESS_TOKEN"
+          [ -n "$PROJECT_REF" ] || missing="$missing SUPABASE_PROJECT_REF"
+          [ -n "$SUPABASE_DB_PASSWORD" ] || missing="$missing SUPABASE_DB_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::notice::أسرار غير مضافة بعد:$missing — تخطّي النشر. راجع system/08-setup-guide.md §٥."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: supabase/setup-cli@v1
+        if: steps.check.outputs.ok == 'true'
+        with:
+          version: latest
+
+      - name: Link project
+        if: steps.check.outputs.ok == 'true'
+        run: supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Push migrations + seed
+        if: steps.check.outputs.ok == 'true'
+        run: |
+          # الملفات آمنة لإعادة التشغيل، والـ seed يستعمل on conflict do nothing
+          supabase db push --include-all --include-seed --password "$SUPABASE_DB_PASSWORD" --yes
+
+      - name: Set function secrets (present ones only)
+        if: steps.check.outputs.ok == 'true'
+        env:
+          FCM_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PUSH_WEBHOOK_SECRET: ${{ secrets.PUSH_WEBHOOK_SECRET }}
+          PAYMENT_PROVIDER: ${{ secrets.PAYMENT_PROVIDER }}
+          PAYMENT_REDIRECT_URL: ${{ secrets.PAYMENT_REDIRECT_URL }}
+          WAYL_API_KEY: ${{ secrets.WAYL_API_KEY }}
+          WAYL_WEBHOOK_SECRET: ${{ secrets.WAYL_WEBHOOK_SECRET }}
+          WAYL_BASE_URL: ${{ secrets.WAYL_BASE_URL }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+          MEDIA_PUBLIC_URL: ${{ secrets.MEDIA_PUBLIC_URL }}
+        run: |
+          # الفارغة لا تُكتب حتى لا تمسح قيماً مضبوطة سابقاً
+          f="$RUNNER_TEMP/secrets.env"
+          : > "$f"
+          for k in FCM_SERVICE_ACCOUNT PUSH_WEBHOOK_SECRET PAYMENT_PROVIDER PAYMENT_REDIRECT_URL WAYL_API_KEY WAYL_WEBHOOK_SECRET WAYL_BASE_URL \
+                   R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET R2_PUBLIC_URL MEDIA_PUBLIC_URL; do
+            v="${!k}"
+            if [ -n "$v" ]; then
+              # JSON حساب Firebase متعدد الأسطر ← سطر واحد
+              printf '%s=%s\n' "$k" "$(printf '%s' "$v" | tr -d '\n\r')" >> "$f"
+              echo "✓ $k"
+            fi
+          done
+          if [ -s "$f" ]; then supabase secrets set --env-file "$f" --project-ref "$PROJECT_REF"; else echo "::notice::لا أسرار دوال لضبطها."; fi
+          rm -f "$f"
+
+      - name: Deploy functions
+        if: steps.check.outputs.ok == 'true'
+        run: |
+          for dir in supabase/functions/*/; do
+            name=$(basename "$dir")
+            [ "$name" = "_shared" ] && continue
+            [ -f "$dir/index.ts" ] || continue
+            echo "== $name"
+            # إعداد verify_jwt لكل دالة يُقرأ من supabase/config.toml
+            for try in 1 2 3; do
+              supabase functions deploy "$name" --project-ref "$PROJECT_REF" --use-api && break
+              [ "$try" = 3 ] && exit 1
+              echo "إعادة المحاولة بعد ١٠ ثوانٍ"; sleep 10
+            done
+          done
+
+      - name: Wire push notifications (private.settings)
+        if: steps.check.outputs.ok == 'true'
+        env:
+          PUSH_WEBHOOK_SECRET: ${{ secrets.PUSH_WEBHOOK_SECRET }}
+        run: |
+          if [ -z "$PUSH_WEBHOOK_SECRET" ]; then
+            echo "::notice::السر PUSH_WEBHOOK_SECRET غير مضاف — الإشعارات لن تُربط بقاعدة البيانات."
+            exit 0
+          fi
+          url="https://$PROJECT_REF.supabase.co/functions/v1/push"
+          secret_sql=$(printf '%s' "$PUSH_WEBHOOK_SECRET" | sed "s/'/''/g")
+          sql="insert into private.settings (key, value) values ('push_url', '$url'), ('push_secret', '$secret_sql') on conflict (key) do update set value = excluded.value;"
+          # عبر واجهة الإدارة (لا يُطبع السر في السجل)
+          jq -n --arg q "$sql" '{query: $q}' | curl -sS --fail-with-body -o /dev/null -X POST \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data @-
+          echo "✓ الإشعارات مربوطة: $url"
+
+      - name: Smoke test (public read)
+        if: steps.check.outputs.ok == 'true'
+        env:
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          base="https://$PROJECT_REF.supabase.co"
+          if [ -n "$SUPABASE_ANON_KEY" ]; then
+            code=$(curl -sS -o "$RUNNER_TEMP/smoke.json" -w '%{http_code}' "$base/rest/v1/app_settings?select=key&is_public=eq.true" \
+              -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+            echo "GET app_settings → $code: $(head -c 300 "$RUNNER_TEMP/smoke.json")"
+            [ "$code" = 200 ] || { echo "::error::فشل اختبار القراءة العامة ($code)"; exit 1; }
+          else
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "$base/functions/v1/push")
+            echo "GET functions/v1/push → $code (المتغير SUPABASE_ANON_KEY غير مضبوط؛ نكتفي بالوصول للدوال)"
+            [ "$code" -lt 500 ] || { echo "::error::الدوال لا تستجيب ($code)"; exit 1; }
+          fi
