@@ -19,17 +19,17 @@
  */
 import {
   normalizeArabic, tokens,
-  type Branch, type CurrencyCode, type CurrencySettings, type Customer, type MoneyAccount, type StockLot, type StockVoucher, type StockVoucherKind,
+  type Branch, type CurrencyCode,
   type Invoice, type InvoiceItem, type LowStockRow, type MovementKind, type Payment, type PaymentMethod, type Product, type ProductVariant,
   type StockLevel, type StockMovement, type Stocktake, type StocktakeItem, type Supplier, type SupplierBalance, type Transfer, type Warehouse,
 } from '@raqeem/shared';
 import { IS_DEMO } from '../../lib/env';
 import { demoDelay, demoId } from '../../lib/demo-db';
 import { AppError, rpc, sb } from '../../lib/supabase';
-import { DEMO_STAFF, ddb, demoApplyMovement, demoBranchOf, demoCurrency, demoNow, demoRecomputeAll, demoTransaction, nextDocNumber, type DemoDb } from './demo';
+import { DEMO_STAFF, ddb, demoApplyMovement, demoBranchOf, demoNow, demoRecomputeAll, demoTransaction, nextDocNumber, type DemoDb } from './demo';
 
-const like = (s: string) => `%${s.replace(/[%_,()]/g, ' ').trim()}%`;
-const vTitle = (t: string | null | undefined) => (t && t !== 'افتراضي' ? t : null);
+export const like = (s: string) => `%${s.replace(/[%_,()]/g, ' ').trim()}%`;
+export const vTitle = (t: string | null | undefined) => (t && t !== 'افتراضي' ? t : null);
 
 // ------------------------------------------------------------------ المخازن
 
@@ -371,7 +371,7 @@ function demoMovementRow(db: DemoDb, m: StockMovement): MovementRow {
 }
 
 let staffCache: Record<string, string> | null = null;
-async function staffMap(): Promise<Record<string, string>> {
+export async function staffMap(): Promise<Record<string, string>> {
   if (staffCache) return staffCache;
   const list = await listStaff().catch(() => []);
   staffCache = Object.fromEntries(list.map((s) => [s.id, s.full_name]));
