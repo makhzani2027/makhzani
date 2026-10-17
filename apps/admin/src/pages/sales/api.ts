@@ -6,12 +6,16 @@
  *   p = {
  *     warehouse_id: uuid,
  *     customer_id: uuid | null,              // null = «زبون نقدي»
- *     items: [{ variant_id: uuid, qty: number,
- *               unit_price?: number,         // فقط إن غيّره الكاشير (pos.price_override)
+ *     currency: 'IQD' | 'USD',               // عملة الفاتورة
+ *     exchange_rate: number,                 // دينار لكل دولار (سعر اليوم من app_settings.currency)
+ *     items: [{ variant_id: uuid, qty: number, // qty بالقطع؛ مسح باركود الكرتونة يضيف factor قطعة
+ *               price_tier: 'retail' | 'wholesale', // الجملة من wholesale_price
+ *               unit_price?: number,         // بعملة الفاتورة — فقط إن غيّره الكاشير (pos.price_override)
  *               discount?: number,           // خصم على البند كله بالمبلغ (pos.discount)
  *               serials?: string[] }],       // للمنتجات track_serials (العدد = qty)
  *     discount?: number,                     // خصم على الفاتورة (pos.discount)
- *     payments: [{ method: PaymentMethod, amount: number, reference?: string }],
+ *     payments: [{ method: PaymentMethod, amount: number, currency: 'IQD'|'USD', account_id: uuid|null, reference?: string }],
+ *                                            // «الواصل بالدولار» = دفعة currency:'USD' على فاتورة بالدينار (تُحوَّل بسعر الفاتورة)
  *                                            // نقداً: المبلغ الذي سلّمه الزبون (قد يزيد) والخادم يحسب الفكة
  *                                            // مجموع أقل من الإجمالي = الباقي آجل (يتطلب زبوناً وضمن credit_limit)
  *     note?: string
@@ -23,14 +27,14 @@ import {
   canTransition, isoDay, roundMoney, startOfBaghdadDay, tender, baghdadParts, BAGHDAD_OFFSET_MIN,
   type CashSession, type DashboardSummary, type Invoice, type InvoiceKind, type InvoiceChannel, type LowStockRow, type Order, type OrderItem,
   type OrderStatus, type Payment, type PaymentMethod, type ProductRequest, type RequestStatus, type SalesPoint, type TopProductRow, type Customer,
-  type Supplier, type InvoiceItem, type OrderEvent,
+  type Supplier, type InvoiceItem, type OrderEvent, type Quotation, type QuotationItem, type QuotationStatus, type CurrencyCode, type PriceTier,
 } from '@raqeem/shared';
 import { IS_DEMO } from '../../lib/env';
-import { demoDb, demoDelay, demoChanged } from '../../lib/demo-db';
+import { demoDb, demoDelay, demoChanged, demoId } from '../../lib/demo-db';
 import { AppError, rpc, sb } from '../../lib/supabase';
 import {
-  demoAddPayment, demoAudit, demoCreateInvoice, demoCustomerBalance, demoMoveStock, demoOrderEvent, demoSessionTotals, ledger,
-  oldestDueInvoice, recalcInvoice, staffName, variantCost,
+  demoAccountBalance, demoAddPayment, demoAudit, demoCreateInvoice, demoRate, convert, demoCustomerBalance, demoMoveStock, demoOrderEvent, demoSessionTotals, ledger,
+  nextDoc, oldestDueInvoice, recalcInvoice, staffName, variantCost,
 } from './data/ledger';
 import { getSetting } from './data/app-settings';
 import { staffNames } from './data/lookups';
@@ -50,15 +54,19 @@ export async function dashboardSummary(r: DateRange): Promise<DashboardSummary> 
   const sales = inv.filter((i) => i.kind === 'sale');
   const rets = inv.filter((i) => i.kind === 'sale_return');
   const sum = (a: Invoice[], f: (i: Invoice) => number) => a.reduce((s, i) => s + f(i), 0);
+  const iq = (i: Invoice, v: number) => (i.currency === 'USD' ? v * i.exchange_rate : v);
+  const purchases = inv.filter((i) => i.kind === 'purchase');
   const pays = ledger.payments.filter((p) => !p.voided_at && inRange(p.created_at, r));
   const receivables = demoDb.customers.reduce((s, c) => s + Math.max(0, demoCustomerBalance(c.id).balance), 0);
   const { demoSupplierBalance } = await import('./data/ledger');
   const payables = demoDb.suppliers.reduce((s, x) => s + Math.max(0, demoSupplierBalance(x.id).balance), 0);
   return {
-    sales_total: sum(sales, (i) => i.total),
+    sales_total: roundMoney(sum(sales, (i) => iq(i, i.total))),
     sales_count: sales.length,
-    returns_total: sum(rets, (i) => i.total),
-    profit: sum(sales, (i) => i.total - i.delivery_fee - i.cost_total) - sum(rets, (i) => i.total - i.cost_total),
+    returns_total: roundMoney(sum(rets, (i) => iq(i, i.total))),
+    purchases_total: roundMoney(sum(purchases, (i) => iq(i, i.total))),
+    cash_balance: demoDb.money_accounts.filter((a) => a.is_active).reduce((s, a) => s + demoAccountBalance(a).balance_iqd, 0),
+    profit: roundMoney(sum(sales, (i) => iq(i, i.total - i.delivery_fee) - i.cost_total) - sum(rets, (i) => iq(i, i.total) - i.cost_total)),
     orders_new: demoDb.orders.filter((o) => o.status === 'pending').length,
     orders_open: demoDb.orders.filter((o) => ['confirmed', 'preparing', 'ready', 'out_for_delivery'].includes(o.status)).length,
     requests_new: demoDb.product_requests.filter((x) => x.status === 'new').length,
@@ -66,9 +74,9 @@ export async function dashboardSummary(r: DateRange): Promise<DashboardSummary> 
     out_of_stock_count: demoDb.product_variants.filter((v) => v.is_active && v.available_qty <= 0).length,
     receivables,
     payables,
-    cash_in: pays.filter((p) => p.direction === 'in').reduce((s, p) => s + p.amount, 0),
-    cash_out: pays.filter((p) => p.direction === 'out').reduce((s, p) => s + p.amount, 0),
-    expenses_total: ledger.expenses.filter((e) => inRange(e.spent_at, r)).reduce((s, e) => s + e.amount, 0),
+    cash_in: pays.filter((p) => p.direction === 'in').reduce((s, p) => s + p.amount_iqd, 0),
+    cash_out: pays.filter((p) => p.direction === 'out').reduce((s, p) => s + p.amount_iqd, 0),
+    expenses_total: ledger.expenses.filter((e) => inRange(e.spent_at, r)).reduce((s, e) => s + e.amount * (e.currency === 'USD' ? e.exchange_rate : 1), 0),
   };
 }
 
@@ -110,8 +118,9 @@ export async function salesSeries(r: DateRange, bucket: Bucket): Promise<SalesPo
       if (i.status !== 'posted' || !inRange(i.created_at, r) || (i.kind !== 'sale' && i.kind !== 'sale_return')) continue;
       const k = bucketStart(i.created_at, bucket);
       const p = m.get(k) ?? { bucket: new Date(k).toISOString(), sales: 0, returns: 0, profit: 0, invoices: 0 };
-      if (i.kind === 'sale') { p.sales += i.total; p.invoices += 1; p.profit = (p.profit ?? 0) + i.total - i.delivery_fee - i.cost_total; }
-      else { p.returns += i.total; p.profit = (p.profit ?? 0) - (i.total - i.cost_total); }
+      const k2 = i.currency === 'USD' ? i.exchange_rate : 1;
+      if (i.kind === 'sale') { p.sales += i.total * k2; p.invoices += 1; p.profit = (p.profit ?? 0) + (i.total - i.delivery_fee) * k2 - i.cost_total; }
+      else { p.returns += i.total * k2; p.profit = (p.profit ?? 0) - (i.total * k2 - i.cost_total); }
       m.set(k, p);
     }
     pts = [...m.values()];
@@ -122,14 +131,15 @@ export async function salesSeries(r: DateRange, bucket: Bucket): Promise<SalesPo
 export async function topProducts(r: DateRange, lim = 8): Promise<TopProductRow[]> {
   if (!IS_DEMO) return (await rpc<TopProductRow[]>('top_products', { from: r.from, to: r.to, lim })) ?? [];
   await demoDelay(160);
-  const ids = new Set(ledger.invoices.filter((i) => i.kind === 'sale' && i.status === 'posted' && inRange(i.created_at, r)).map((i) => i.id));
+  const rates = new Map(ledger.invoices.filter((i) => i.kind === 'sale' && i.status === 'posted' && inRange(i.created_at, r)).map((i) => [i.id, i.currency === 'USD' ? i.exchange_rate : 1]));
   const m = new Map<string, TopProductRow>();
   for (const it of ledger.invoice_items) {
-    if (!ids.has(it.invoice_id)) continue;
+    const k = rates.get(it.invoice_id);
+    if (k === undefined) continue;
     const row = m.get(it.variant_id) ?? { product_id: it.product_id, variant_id: it.variant_id, name: it.name, variant_title: it.variant_title, qty: 0, revenue: 0, profit: 0 };
-    row.qty += it.qty;
-    row.revenue += it.line_total;
-    row.profit = (row.profit ?? 0) + it.line_total - it.unit_cost * it.qty;
+    row.qty += it.qty * it.unit_factor;
+    row.revenue += it.line_total * k;
+    row.profit = (row.profit ?? 0) + it.line_total * k - it.unit_cost * it.qty * it.unit_factor;
     m.set(it.variant_id, row);
   }
   return [...m.values()].sort((a, b) => b.revenue - a.revenue).slice(0, lim);
@@ -217,7 +227,6 @@ export async function openCashSession(float: number): Promise<CashSession> {
   if (!IS_DEMO) return rpc<CashSession>('open_cash_session', { float });
   await demoDelay();
   if (ledger.cash_sessions.some((s) => s.status === 'open' && s.opened_by === 'demo-owner')) throw new AppError('لديك جلسة صندوق مفتوحة بالفعل.');
-  const { demoId } = await import('../../lib/demo-db');
   const s: CashSession = { id: demoId(), status: 'open', opened_by: 'demo-owner', opened_at: nowIso(), opening_float: float, closed_by: null, closed_at: null, expected_cash: null, counted_cash: null, note: null };
   ledger.cash_sessions.push(s);
   return s;
@@ -240,11 +249,18 @@ export async function closeCashSession(counted: number, note: string | null): Pr
 export async function posCheckout(p: CheckoutPayload): Promise<CheckoutResult> {
   if (!IS_DEMO) return rpc<CheckoutResult>('pos_checkout', { p });
   await demoDelay(260);
+  return demoCheckout(p, 'pos');
+}
+
+/** بيع العرض: نفس قواعد pos_checkout (المخزون، السريالات، الآجل وحد الدين، الفكة من النقد فقط) */
+async function demoCheckout(p: CheckoutPayload, channel: InvoiceChannel, quotationId: string | null = null): Promise<CheckoutResult> {
   if (!p.items.length) throw new AppError('السلة فارغة.');
   const inv = await getSetting('inventory');
   const pos = await getSetting('pos');
   const session = ledger.cash_sessions.find((s) => s.status === 'open' && s.opened_by === 'demo-owner') ?? null;
-  if (pos.require_cash_session && !session) throw new AppError('افتح جلسة الصندوق أولاً قبل البيع.');
+  if (channel === 'pos' && pos.require_cash_session && !session) throw new AppError('افتح جلسة الصندوق أولاً قبل البيع.');
+  const currency = p.currency ?? 'IQD';
+  const rate = currency === 'USD' ? p.exchange_rate ?? demoRate() : 1;
   const lines = p.items.map((it) => {
     const v = demoDb.product_variants.find((x) => x.id === it.variant_id);
     if (!v || !v.is_active) throw new AppError('أحد المنتجات لم يعد متاحاً للبيع.');
@@ -254,25 +270,38 @@ export async function posCheckout(p: CheckoutPayload): Promise<CheckoutResult> {
     const avail = lvl ? lvl.qty - lvl.reserved : 0;
     if (!inv.allow_negative_stock && avail < it.qty) throw new AppError(`الكمية غير متوفرة: «${prod.name}» — المتوفر ${avail} فقط.`);
     if (prod.track_serials && (it.serials?.length ?? 0) !== it.qty) throw new AppError(`أدخل ${it.qty} من الأرقام التسلسلية لـ «${prod.name}».`);
-    return { variant_id: v.id, qty: it.qty, unit_price: it.unit_price ?? v.price, discount: it.discount ?? 0, serials: it.serials ?? [] };
+    const tier = it.price_tier ?? 'retail';
+    const baseIqd = tier === 'wholesale' ? v.wholesale_price ?? v.price : v.price;
+    const unit = it.unit_price ?? roundMoney(baseIqd / rate, currency);
+    return { variant_id: v.id, qty: it.qty, unit_price: unit, discount: it.discount ?? 0, serials: it.serials ?? [], price_tier: tier };
   });
   const subtotal = lines.reduce((s, l) => s + Math.max(0, l.unit_price * l.qty - l.discount), 0);
-  const total = roundMoney(subtotal - Math.min(p.discount ?? 0, subtotal));
-  const t = tender(total, p.payments);
+  const total = roundMoney(subtotal - Math.min(p.discount ?? 0, subtotal), currency);
+  // كل دفعة تُحوَّل لعملة الفاتورة قبل حساب المتبقي والفكة
+  const inInvoiceCur = p.payments.map((x) => ({ method: x.method, amount: convert(x.amount, x.currency ?? currency, currency, rate) }));
+  const t = tender(total, inInvoiceCur, currency);
   const cashCust = demoDb.customers.find((c) => c.is_cash_customer)!;
   const customerId = p.customer_id ?? cashCust.id;
   if (t.remaining > 0) {
     const c = demoDb.customers.find((x) => x.id === customerId);
     if (!c || c.is_cash_customer) throw new AppError('البيع بالآجل يحتاج اختيار زبون مسجّل.');
-    const bal = demoCustomerBalance(c.id).balance;
-    if (c.credit_limit !== null && bal + t.remaining > c.credit_limit) throw new AppError(`يتجاوز حد الدين لهذا الزبون (${c.credit_limit} د.ع). الرصيد الحالي ${bal} د.ع.`);
+    const b = demoCustomerBalance(c.id);
+    const remIqd = t.remaining * rate;
+    if (c.credit_limit !== null && b.balance + b.balance_usd * demoRate() + remIqd > c.credit_limit) throw new AppError(`يتجاوز حد الدين لهذا الزبون (${c.credit_limit} د.ع). الرصيد الحالي ${b.balance} د.ع.`);
   }
-  const invc = demoCreateInvoice({ kind: 'sale', channel: 'pos', customer_id: customerId, warehouse_id: p.warehouse_id, lines, discount: p.discount ?? 0, note: p.note ?? null, cash_session_id: session?.id ?? null });
+  const invc = demoCreateInvoice({ kind: 'sale', channel, customer_id: customerId, warehouse_id: p.warehouse_id, lines, discount: p.discount ?? 0, note: p.note ?? null, cash_session_id: session?.id ?? null, currency, exchange_rate: rate, quotation_id: quotationId });
+  // الفكة (بعملة الفاتورة) تُخصم من الدفعات النقدية
   let changeLeft = t.change;
   for (const pay of p.payments.filter((x) => x.amount > 0)) {
+    const payCur = pay.currency ?? currency;
     let amount = pay.amount;
-    if (pay.method === 'cash' && changeLeft > 0) { const c = Math.min(changeLeft, amount); amount -= c; changeLeft -= c; }
-    if (amount > 0) demoAddPayment({ direction: 'in', method: pay.method, amount, reference: pay.reference ?? null, customer_id: customerId, invoice_id: invc.id, cash_session_id: session?.id ?? null });
+    if (pay.method === 'cash' && changeLeft > 0) {
+      const asPay = convert(changeLeft, currency, payCur, rate);
+      const c = Math.min(asPay, amount);
+      amount -= c;
+      changeLeft -= convert(c, payCur, currency, rate);
+    }
+    if (amount > 0.004) demoAddPayment({ direction: 'in', method: pay.method, amount, currency: payCur, exchange_rate: payCur === 'USD' ? rate === 1 ? demoRate() : rate : 1, account_id: pay.account_id ?? undefined, reference: pay.reference ?? null, customer_id: customerId, invoice_id: invc.id, cash_session_id: pay.method === 'cash' ? session?.id ?? null : null });
   }
   for (const l of lines) {
     demoMoveStock(l.variant_id, p.warehouse_id, -l.qty);
@@ -663,4 +692,143 @@ export async function searchProducts(q: string, limit = 12): Promise<ProductLite
 /** اليوم بتوقيت بغداد كفترة */
 export function todayRange(): DateRange {
   return { from: startOfBaghdadDay().toISOString(), to: startOfBaghdadDay(Date.now(), 1).toISOString() };
+}
+
+// ================================================================== عروض الأسعار
+
+export interface QuotationRow extends Quotation { display_name: string; customer_phone: string | null; items_count: number }
+export interface QuotationFull { quotation: Quotation; items: QuotationItem[]; customer: Customer | null; invoice_number: string | null }
+
+/**
+ * save_quotation(p jsonb) — إنشاء/تعديل:
+ *   { id?, customer_id|null, customer_name|null, warehouse_id, currency, exchange_rate, valid_until|null, discount, note|null, status,
+ *     items:[{ variant_id, qty, unit_price, discount, price_tier }] }  ← { id, number }
+ *   تغيير الحالة فقط: { id, status } بلا items.
+ */
+export interface QuotationPayload {
+  id?: string; customer_id: string | null; customer_name: string | null; warehouse_id: string; currency: CurrencyCode; exchange_rate: number;
+  valid_until: string | null; discount: number; note: string | null; status: QuotationStatus;
+  items: { variant_id: string; qty: number; unit_price: number; discount: number; price_tier: PriceTier }[];
+}
+
+function quotationName(q: Quotation, c: Customer | undefined | null) { return c?.name ?? q.customer_name ?? 'زبون'; }
+
+export async function listQuotations(status: QuotationStatus | 'all', q: string): Promise<QuotationRow[]> {
+  const t = q.trim();
+  if (IS_DEMO) {
+    await demoDelay();
+    return ledger.quotations
+      .filter((x) => status === 'all' || x.status === status)
+      .map((x) => {
+        const c = demoDb.customers.find((y) => y.id === x.customer_id);
+        return { ...x, display_name: quotationName(x, c), customer_phone: c?.phone ?? null, items_count: ledger.quotation_items.filter((i) => i.quotation_id === x.id).length };
+      })
+      .filter((x) => !t || x.number.toLowerCase().includes(t.toLowerCase()) || x.display_name.includes(t))
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+  let query = sb().from('quotations').select('*, customers(name,phone), quotation_items(id)').order('created_at', { ascending: false }).limit(300);
+  if (status !== 'all') query = query.eq('status', status);
+  const s = t.replace(/[%_,()]/g, '');
+  if (s) query = query.or(`number.ilike.%${s}%,customer_name.ilike.%${s}%`);
+  const { data, error } = await query;
+  if (error) throw error;
+  type R = Quotation & { customers: { name: string; phone: string | null } | null; quotation_items: { id: string }[] };
+  return ((data ?? []) as R[]).map(({ customers, quotation_items, ...x }) => ({ ...x, display_name: customers?.name ?? x.customer_name ?? 'زبون', customer_phone: customers?.phone ?? null, items_count: quotation_items?.length ?? 0 }));
+}
+
+export async function getQuotation(id: string): Promise<QuotationFull> {
+  if (IS_DEMO) {
+    await demoDelay();
+    const quotation = ledger.quotations.find((x) => x.id === id);
+    if (!quotation) throw new AppError('عرض السعر غير موجود.');
+    return {
+      quotation, items: ledger.quotation_items.filter((i) => i.quotation_id === id), customer: demoDb.customers.find((c) => c.id === quotation.customer_id) ?? null,
+      invoice_number: quotation.invoice_id ? ledger.invoices.find((i) => i.id === quotation.invoice_id)?.number ?? null : null,
+    };
+  }
+  const { data, error } = await sb().from('quotations').select('*').eq('id', id).maybeSingle();
+  if (error) throw error;
+  if (!data) throw new AppError('عرض السعر غير موجود.');
+  const quotation = data as Quotation;
+  const [items, cust, inv] = await Promise.all([
+    sb().from('quotation_items').select('*').eq('quotation_id', id),
+    quotation.customer_id ? sb().from('customers').select('*').eq('id', quotation.customer_id).maybeSingle() : Promise.resolve({ data: null }),
+    quotation.invoice_id ? sb().from('invoices').select('number').eq('id', quotation.invoice_id).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  return { quotation, items: (items.data ?? []) as QuotationItem[], customer: (cust.data as Customer | null) ?? null, invoice_number: (inv.data as { number: string } | null)?.number ?? null };
+}
+
+export async function saveQuotation(p: QuotationPayload): Promise<{ id: string; number: string }> {
+  if (!p.customer_id && !p.customer_name?.trim()) throw new AppError('اختر زبوناً أو اكتب اسمه.');
+  if (!p.items.length) throw new AppError('أضف منتجاً واحداً على الأقل.');
+  if (!IS_DEMO) return rpc('save_quotation', { p });
+  await demoDelay(220);
+  const items = p.items.map((i) => ({ ...i, line_total: roundMoney(Math.max(0, i.unit_price * i.qty - i.discount), p.currency) }));
+  const subtotal = roundMoney(items.reduce((s, i) => s + i.line_total, 0), p.currency);
+  const discount = Math.min(Math.max(p.discount, 0), subtotal);
+  let q = p.id ? ledger.quotations.find((x) => x.id === p.id) : undefined;
+  if (q && q.status === 'converted') throw new AppError('لا يمكن تعديل عرض حُوّل لفاتورة.');
+  if (!q) {
+    q = { id: demoId(), number: nextDoc('quotation'), status: p.status, customer_id: null, customer_name: null, warehouse_id: p.warehouse_id, currency: p.currency, exchange_rate: p.exchange_rate, subtotal: 0, discount: 0, total: 0, valid_until: null, note: null, invoice_id: null, created_by: 'demo-owner', created_at: nowIso() };
+    ledger.quotations.push(q);
+  }
+  const qid = q.id;
+  Object.assign(q, { status: p.status, customer_id: p.customer_id, customer_name: p.customer_id ? null : p.customer_name?.trim() ?? null, warehouse_id: p.warehouse_id, currency: p.currency, exchange_rate: p.exchange_rate, subtotal, discount, total: roundMoney(subtotal - discount, p.currency), valid_until: p.valid_until, note: p.note });
+  ledger.quotation_items = ledger.quotation_items.filter((i) => i.quotation_id !== qid);
+  for (const i of items) {
+    const v = demoDb.product_variants.find((x) => x.id === i.variant_id);
+    const prod = v && demoDb.products.find((x) => x.id === v.product_id);
+    ledger.quotation_items.push({ id: demoId(), quotation_id: qid, variant_id: i.variant_id, name: prod?.name ?? 'منتج', variant_title: v && v.title !== 'افتراضي' ? v.title : null, qty: i.qty, unit_price: i.unit_price, discount: i.discount, line_total: i.line_total, price_tier: i.price_tier });
+  }
+  demoAudit(p.id ? 'update' : 'insert', 'quotations', qid, { number: q.number, total: q.total });
+  return { id: qid, number: q.number };
+}
+
+export async function setQuotationStatus(id: string, status: QuotationStatus): Promise<void> {
+  if (!IS_DEMO) { await rpc('save_quotation', { p: { id, status } }); return; }
+  await demoDelay();
+  const q = ledger.quotations.find((x) => x.id === id);
+  if (!q) throw new AppError('عرض السعر غير موجود.');
+  if (q.status === 'converted') throw new AppError('حُوّل هذا العرض لفاتورة ولا تتغير حالته.');
+  q.status = status;
+}
+
+/** convert_quotation(id, payments jsonb) ← فاتورة بيع بأسعار العرض نفسها (نفس منطق pos_checkout) */
+export async function convertQuotation(id: string, payments: CheckoutPayload['payments']): Promise<CheckoutResult> {
+  if (!IS_DEMO) return rpc<CheckoutResult>('convert_quotation', { id, payments });
+  await demoDelay(260);
+  const q = ledger.quotations.find((x) => x.id === id);
+  if (!q) throw new AppError('عرض السعر غير موجود.');
+  if (q.status === 'converted') throw new AppError('حُوّل هذا العرض لفاتورة من قبل.');
+  if (q.status === 'cancelled') throw new AppError('العرض ملغي.');
+  if (!q.customer_id && payments.reduce((s, p) => s + convert(p.amount, p.currency ?? q.currency, q.currency, q.exchange_rate), 0) < q.total - 0.004) {
+    throw new AppError('العرض لزبون غير مسجّل: يجب دفع المبلغ كاملاً أو ربطه بزبون للبيع بالآجل.');
+  }
+  const items = ledger.quotation_items.filter((i) => i.quotation_id === id);
+  const res = await demoCheckout({
+    warehouse_id: q.warehouse_id, customer_id: q.customer_id, currency: q.currency, exchange_rate: q.exchange_rate, discount: q.discount,
+    items: items.map((i) => ({ variant_id: i.variant_id, qty: i.qty, unit_price: i.unit_price, discount: i.discount, price_tier: i.price_tier, serials: autoSerials(i.variant_id, q.warehouse_id, i.qty) })),
+    payments, note: `من عرض السعر ${q.number}`,
+  }, 'manual', q.id);
+  q.status = 'converted';
+  q.invoice_id = res.invoice_id;
+  return res;
+}
+
+/** في العرض: يختار أول سريالات متوفرة تلقائياً عند تحويل عرض سعر لمنتج بأرقام تسلسلية */
+function autoSerials(variantId: string, warehouseId: string, qty: number): string[] | undefined {
+  const v = demoDb.product_variants.find((x) => x.id === variantId);
+  const tracked = v && demoDb.products.find((p) => p.id === v.product_id)?.track_serials;
+  if (!tracked) return undefined;
+  return ledger.serials.filter((s) => s.variant_id === variantId && s.status === 'in_stock' && (!s.warehouse_id || s.warehouse_id === warehouseId)).slice(0, qty).map((s) => s.serial);
+}
+
+/** وحدة تعبئة بباركودها (كرتونة…) ← النسخة وعدد القطع */
+export async function findUnitByBarcode(code: string): Promise<{ variant_id: string; factor: number; unit_name: string } | null> {
+  if (IS_DEMO) {
+    const u = ledger.variant_units.find((x) => x.barcode === code);
+    return u ? { variant_id: u.variant_id, factor: u.factor, unit_name: u.unit_name } : null;
+  }
+  const { data } = await sb().from('variant_units').select('variant_id,factor,unit_name').eq('barcode', code).maybeSingle();
+  return (data as { variant_id: string; factor: number; unit_name: string } | null) ?? null;
 }

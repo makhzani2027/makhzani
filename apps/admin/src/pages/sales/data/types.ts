@@ -3,7 +3,7 @@
  * الأعمدة الأصلية من @raqeem/shared/types حرفياً؛ ما يُضاف هنا أسماء للعرض فقط.
  */
 import type {
-  Customer, Invoice, InvoiceItem, Order, OrderEvent, OrderItem, Payment, Supplier, PaymentMethod, PaymentDirection,
+  Customer, Invoice, InvoiceItem, Order, OrderEvent, OrderItem, Payment, Supplier, PaymentMethod, PaymentDirection, CurrencyCode, PriceTier,
 } from '@raqeem/shared';
 
 export interface InvoiceRow extends Invoice {
@@ -82,14 +82,27 @@ export interface PosItem {
 
 export interface PayLine {
   method: PaymentMethod;
-  amount: number;
+  amount: number; // بعملة الدفعة
+  currency?: CurrencyCode; // افتراضياً عملة الفاتورة
+  account_id?: string | null; // الصندوق/الحساب (افتراضياً حسب الطريقة)
   reference?: string;
+}
+
+export interface CheckoutItem {
+  variant_id: string;
+  qty: number; // بالقطع (مسح باركود الكرتونة يضيف factor قطعة)
+  unit_price?: number; // بعملة الفاتورة — فقط عند تغيير السعر يدوياً
+  discount?: number;
+  serials?: string[];
+  price_tier?: PriceTier; // 'retail' | 'wholesale' (الجملة من wholesale_price)
 }
 
 export interface CheckoutPayload {
   warehouse_id: string;
   customer_id: string | null;
-  items: { variant_id: string; qty: number; unit_price?: number; discount?: number; serials?: string[] }[];
+  currency?: CurrencyCode; // عملة الفاتورة (افتراضياً IQD)
+  exchange_rate?: number; // دينار لكل دولار (عند USD أو دفعات بالدولار)
+  items: CheckoutItem[];
   discount?: number;
   payments: PayLine[];
   note?: string;
@@ -98,13 +111,16 @@ export interface CheckoutPayload {
 export interface CheckoutResult {
   invoice_id: string;
   number: string;
-  change: number;
+  change: number; // بعملة الفاتورة
 }
 
 export interface RecordPaymentPayload {
   direction: PaymentDirection;
   method: PaymentMethod;
   amount: number;
+  currency?: CurrencyCode;
+  exchange_rate?: number;
+  account_id?: string | null;
   customer_id?: string | null;
   supplier_id?: string | null;
   invoice_id?: string | null;

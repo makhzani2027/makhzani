@@ -4,8 +4,8 @@
  * حتى تظهر الرئيسية والتقارير والديون بأرقام معقولة. كل الكتابة في العرض تمر من الدوال أدناه.
  */
 import {
-  formatDocNumber, startOfBaghdadDay, roundMoney,
-  type AuditEntry, type CashSession, type CustomerBalance, type DocKind, type Expense, type Invoice, type InvoiceChannel,
+  formatDocNumber, startOfBaghdadDay, roundMoney, internalEan13,
+  type AccountTransfer, type CurrencyCode, type MoneyAccount, type PriceTier, type Quotation, type QuotationItem, type VariantUnit, type AuditEntry, type CashSession, type CustomerBalance, type DocKind, type Expense, type Invoice, type InvoiceChannel,
   type InvoiceItem, type InvoiceKind, type NotificationCampaign, type OrderEvent, type OrderStatus, type Payment,
   type PaymentDirection, type PaymentMethod, type Profile, type Review, type Serial, type SupplierBalance,
 } from '@raqeem/shared';
@@ -38,12 +38,34 @@ export interface DemoLedger {
   reviews: Review[];
   staff: Profile[];
   serials: Serial[];
+  quotations: Quotation[];
+  quotation_items: QuotationItem[];
+  account_transfers: AccountTransfer[];
+  /** وحدات التعبئة (كرتونة…) — جدولها لوكيل الكتالوج؛ نسخة عرض هنا لمسح باركود الكرتونة في نقطة البيع */
+  variant_units: VariantUnit[];
 }
 
 export const ledger: DemoLedger = {
   invoices: [], invoice_items: [], payments: [], expenses: [], cash_sessions: [], order_events: [],
   audit_log: [], campaigns: [], reviews: [], staff: [], serials: [],
+  quotations: [], quotation_items: [], account_transfers: [], variant_units: [],
 };
+
+/** سعر صرف العرض (دينار لكل دولار) — من إعداد currency */
+export const demoRate = () => Number((demoDb.settings.currency as { usd_rate?: number } | undefined)?.usd_rate ?? 1310);
+
+/** الحساب الافتراضي لطريقة دفع وعملة (الصندوق للنقد، المصرف للبطاقة والحوالة، المحفظة لزين كاش) */
+export function demoAccountFor(method: string, currency: CurrencyCode = 'IQD'): MoneyAccount | undefined {
+  const acc = demoDb.money_accounts.filter((a) => a.is_active);
+  if (method === 'cash') return acc.find((a) => a.kind === 'cash' && a.currency === currency && (currency !== 'IQD' || a.is_default)) ?? acc.find((a) => a.kind === 'cash' && a.currency === currency);
+  if (method === 'zaincash' || method === 'asiapay' || method === 'qicard') return acc.find((a) => a.kind === 'wallet' && a.currency === currency) ?? acc.find((a) => a.kind === 'bank');
+  return acc.find((a) => a.kind === 'bank' && a.currency === currency) ?? acc.find((a) => a.kind === 'bank');
+}
+
+/** تحويل مبلغ بين العملتين بسعر محدد (دينار لكل دولار) */
+export const convert = (amount: number, from: CurrencyCode, to: CurrencyCode, rate: number) =>
+  from === to ? amount : from === 'USD' ? amount * rate : amount / rate;
+
 
 const counters: Partial<Record<DocKind, number>> = {};
 export function nextDoc(kind: DocKind): string {
@@ -91,13 +113,17 @@ export const variantCost = (variantId: string) => demoDb.variant_costs.find((c) 
 
 // ------------------------------------------------------------------ الفواتير والدفعات
 
-export interface DemoLine { variant_id: string; qty: number; unit_price: number; discount?: number; serials?: string[]; unit_cost?: number; name?: string; variant_title?: string | null; sku?: string; product_id?: string }
+export interface DemoLine {
+  variant_id: string; qty: number; unit_price: number; discount?: number; serials?: string[]; unit_cost?: number; name?: string; variant_title?: string | null;
+  sku?: string; product_id?: string; price_tier?: PriceTier; unit_name?: string | null; unit_factor?: number;
+}
 
 export function demoCreateInvoice(o: {
   kind: InvoiceKind; channel: InvoiceChannel; customer_id?: string | null; supplier_id?: string | null; warehouse_id?: string;
   lines: DemoLine[]; discount?: number; delivery_fee?: number; note?: string | null; created_by?: string | null; created_at?: string;
-  cash_session_id?: string | null; order_id?: string | null; return_of?: string | null;
+  cash_session_id?: string | null; order_id?: string | null; return_of?: string | null; currency?: CurrencyCode; exchange_rate?: number; quotation_id?: string | null;
 }): Invoice {
+  const currency = o.currency ?? 'IQD';
   const id = demoId();
   const docKind: DocKind = o.kind;
   const items: InvoiceItem[] = o.lines.map((l) => {
@@ -108,16 +134,18 @@ export function demoCreateInvoice(o: {
     return {
       id: demoId(), invoice_id: id, variant_id: l.variant_id, product_id: p?.id ?? l.product_id ?? '', name: l.name ?? p?.name ?? 'منتج',
       variant_title: l.variant_title !== undefined ? l.variant_title : v && v.title !== 'افتراضي' ? v.title : null, sku: l.sku ?? v?.sku ?? '',
-      qty: l.qty, unit_price: l.unit_price, discount: disc, line_total: roundMoney(gross - disc), unit_cost: l.unit_cost ?? variantCost(l.variant_id), serials: l.serials ?? [],
+      qty: l.qty, unit_price: l.unit_price, discount: disc, line_total: roundMoney(gross - disc, currency), unit_cost: l.unit_cost ?? variantCost(l.variant_id), serials: l.serials ?? [],
+      price_tier: l.price_tier ?? 'retail', unit_name: l.unit_name ?? null, unit_factor: l.unit_factor ?? 1, lot_code: null, expiry_date: null,
     };
   });
   const subtotal = items.reduce((s, i) => s + i.line_total, 0);
   const discount = Math.min(Math.max(o.discount ?? 0, 0), subtotal);
   const fee = o.delivery_fee ?? 0;
-  const total = roundMoney(subtotal - discount + fee);
+  const total = roundMoney(subtotal - discount + fee, currency);
   const inv: Invoice = {
     id, number: nextDoc(docKind), kind: o.kind, channel: o.channel, status: 'posted', customer_id: o.customer_id ?? null, supplier_id: o.supplier_id ?? null,
     order_id: o.order_id ?? null, return_of: o.return_of ?? null, warehouse_id: o.warehouse_id ?? demoDb.warehouses[0].id,
+    branch_id: demoDb.branches[0]?.id ?? null, quotation_id: o.quotation_id ?? null, currency, exchange_rate: currency === 'USD' ? o.exchange_rate ?? demoRate() : 1,
     subtotal, discount, delivery_fee: fee, total, paid: 0, due: total, cost_total: roundMoney(items.reduce((s, i) => s + i.unit_cost * i.qty, 0)),
     note: o.note ?? null, cash_session_id: o.cash_session_id ?? null, created_by: o.created_by ?? 'demo-owner', created_at: o.created_at ?? iso(Date.now()),
     voided_at: null, voided_by: null, void_reason: null,
@@ -132,18 +160,22 @@ export function recalcInvoice(inv: Invoice) {
   const isOut = inv.kind === 'purchase' || inv.kind === 'sale_return';
   const paid = ledger.payments
     .filter((p) => p.invoice_id === inv.id && !p.voided_at)
-    .reduce((s, p) => s + ((p.direction === 'out') === isOut ? p.amount : -p.amount), 0);
-  inv.paid = roundMoney(paid);
-  inv.due = roundMoney(inv.total - inv.paid);
+    .reduce((s, p) => s + ((p.direction === 'out') === isOut ? 1 : -1) * convert(p.amount, p.currency, inv.currency, inv.currency === 'USD' ? inv.exchange_rate : p.exchange_rate), 0);
+  inv.paid = roundMoney(paid, inv.currency);
+  inv.due = roundMoney(inv.total - inv.paid, inv.currency);
 }
 
 export function demoAddPayment(o: {
   direction: PaymentDirection; method: PaymentMethod; amount: number; customer_id?: string | null; supplier_id?: string | null;
   invoice_id?: string | null; order_id?: string | null; cash_session_id?: string | null; reference?: string | null; note?: string | null;
-  created_by?: string | null; created_at?: string;
+  created_by?: string | null; created_at?: string; currency?: CurrencyCode; exchange_rate?: number; account_id?: string | null;
 }): Payment {
+  const currency = o.currency ?? 'IQD';
+  const rate = currency === 'USD' ? o.exchange_rate ?? demoRate() : 1;
+  const amount = roundMoney(o.amount, currency);
   const p: Payment = {
-    id: demoId(), number: nextDoc(o.direction === 'in' ? 'receipt' : 'voucher'), direction: o.direction, method: o.method, amount: roundMoney(o.amount),
+    id: demoId(), number: nextDoc(o.direction === 'in' ? 'receipt' : 'voucher'), direction: o.direction, method: o.method, amount,
+    currency, exchange_rate: rate, amount_iqd: roundMoney(amount * rate), account_id: o.account_id !== undefined ? o.account_id : demoAccountFor(o.method, currency)?.id ?? null,
     customer_id: o.customer_id ?? null, supplier_id: o.supplier_id ?? null, invoice_id: o.invoice_id ?? null, order_id: o.order_id ?? null,
     cash_session_id: o.cash_session_id ?? null, reference: o.reference ?? null, note: o.note ?? null, created_by: o.created_by ?? 'demo-owner',
     created_at: o.created_at ?? iso(Date.now()), voided_at: null,
@@ -163,40 +195,70 @@ export function oldestDueInvoice(customerId: string): Invoice | undefined {
 
 // ------------------------------------------------------------------ الأرصدة (مثل views)
 
+/** حصة دفعة في رصيد عملة: المرتبطة بفاتورة تُحسب بعملة الفاتورة، وغير المرتبطة بعملتها */
+function paymentBucket(p: Payment): { currency: CurrencyCode; amount: number } {
+  const inv = p.invoice_id ? ledger.invoices.find((i) => i.id === p.invoice_id) : undefined;
+  const cur = inv?.currency ?? p.currency;
+  return { currency: cur, amount: convert(p.amount, p.currency, cur, cur === 'USD' && inv ? inv.exchange_rate : p.exchange_rate) };
+}
+
 export function demoCustomerBalance(customerId: string): CustomerBalance {
-  let sales = 0, returns = 0, paid = 0;
+  let sales = 0, returns = 0, paid = 0, usd = 0;
   let last: string | null = null;
   for (const i of ledger.invoices) {
     if (i.customer_id !== customerId || i.status !== 'posted') continue;
-    if (i.kind === 'sale') sales += i.total;
-    else if (i.kind === 'sale_return') returns += i.total;
-    else continue;
+    if (i.kind !== 'sale' && i.kind !== 'sale_return') continue;
+    if (i.currency === 'USD') usd += (i.kind === 'sale' ? 1 : -1) * i.total;
+    else if (i.kind === 'sale') sales += i.total;
+    else returns += i.total;
     if (!last || i.created_at > last) last = i.created_at;
   }
   for (const p of ledger.payments) {
     if (p.customer_id !== customerId || p.voided_at) continue;
-    paid += p.direction === 'in' ? p.amount : -p.amount;
+    const b = paymentBucket(p);
+    const v = p.direction === 'in' ? b.amount : -b.amount;
+    if (b.currency === 'USD') usd -= v; else paid += v;
     if (!last || p.created_at > last) last = p.created_at;
   }
-  return { customer_id: customerId, sales_total: sales, returns_total: returns, paid_total: paid, balance: roundMoney(sales - returns - paid), last_activity_at: last };
+  return { customer_id: customerId, sales_total: sales, returns_total: returns, paid_total: roundMoney(paid), balance: roundMoney(sales - returns - paid), balance_usd: roundMoney(usd, 'USD'), last_activity_at: last };
 }
 
 export function demoSupplierBalance(supplierId: string): SupplierBalance {
-  let purchases = 0, returns = 0, paid = 0;
+  let purchases = 0, returns = 0, paid = 0, usd = 0;
   let last: string | null = null;
   for (const i of ledger.invoices) {
     if (i.supplier_id !== supplierId || i.status !== 'posted') continue;
-    if (i.kind === 'purchase') purchases += i.total;
-    else if (i.kind === 'purchase_return') returns += i.total;
-    else continue;
+    if (i.kind !== 'purchase' && i.kind !== 'purchase_return') continue;
+    if (i.currency === 'USD') usd += (i.kind === 'purchase' ? 1 : -1) * i.total;
+    else if (i.kind === 'purchase') purchases += i.total;
+    else returns += i.total;
     if (!last || i.created_at > last) last = i.created_at;
   }
   for (const p of ledger.payments) {
     if (p.supplier_id !== supplierId || p.voided_at) continue;
-    paid += p.direction === 'out' ? p.amount : -p.amount;
+    const b = paymentBucket(p);
+    const v = p.direction === 'out' ? b.amount : -b.amount;
+    if (b.currency === 'USD') usd -= v; else paid += v;
     if (!last || p.created_at > last) last = p.created_at;
   }
-  return { supplier_id: supplierId, purchases_total: purchases, returns_total: returns, paid_total: paid, balance: roundMoney(purchases - returns - paid), last_activity_at: last };
+  return { supplier_id: supplierId, purchases_total: purchases, returns_total: returns, paid_total: roundMoney(paid), balance: roundMoney(purchases - returns - paid), balance_usd: roundMoney(usd, 'USD'), last_activity_at: last };
+}
+
+/** رصيد كل صندوق/حساب: الافتتاحي + القبض − الصرف − المصروفات ± التحويلات (بعملة الحساب) */
+export function demoAccountBalance(a: MoneyAccount): { balance: number; balance_iqd: number } {
+  const rate = demoRate();
+  let b = a.opening_balance;
+  for (const p of ledger.payments) if (p.account_id === a.id && !p.voided_at) b += (p.direction === 'in' ? 1 : -1) * convert(p.amount, p.currency, a.currency, p.exchange_rate || rate);
+  for (const e of ledger.expenses) if (e.account_id === a.id) b -= convert(e.amount, e.currency, a.currency, e.exchange_rate || rate);
+  for (const t of ledger.account_transfers) {
+    if (t.from_account_id === a.id) b -= t.amount;
+    if (t.to_account_id === a.id) {
+      const from = demoDb.money_accounts.find((x) => x.id === t.from_account_id);
+      b += from ? convert(t.amount, from.currency, a.currency, t.exchange_rate) : t.amount;
+    }
+  }
+  b = roundMoney(b, a.currency);
+  return { balance: b, balance_iqd: roundMoney(a.currency === 'USD' ? b * rate : b) };
 }
 
 /** المتوقع في درج الصندوق: الافتتاحي + نقد داخل − نقد خارج − مصروفات نقدية في الجلسة */
@@ -305,7 +367,7 @@ function seed() {
     const addExpense = (category: string, amount: number, method: PaymentMethod, note: string | null, hour = 13) => {
       const at = day + hour * HOUR;
       if (at > now) return;
-      events.push({ at, run: () => ledger.expenses.push({ id: demoId(), category, amount, method, note, spent_at: iso(at), cash_session_id: method === 'cash' ? sess.id : null, created_by: 'demo-owner', created_at: iso(at) }) });
+      events.push({ at, run: () => ledger.expenses.push({ id: demoId(), category, amount, currency: 'IQD', exchange_rate: 1, account_id: demoAccountFor(method)?.id ?? null, method, note, spent_at: iso(at), cash_session_id: method === 'cash' ? sess.id : null, created_by: 'demo-owner', created_at: iso(at) }) });
     };
     if (dayOfMonth === 1) { addExpense('إيجار', 1500000, 'bank_transfer', 'إيجار المحل والمخزن'); addExpense('رواتب', 2400000, 'bank_transfer', 'رواتب الموظفين الأربعة', 14); }
     if (dayOfMonth === 5) addExpense('كهرباء', 185000, 'cash', 'فاتورة الكهرباء الوطنية');
@@ -451,4 +513,63 @@ function seed() {
   audits.forEach((a, i) => ledger.audit_log.push({ ...a, id: audits.length - i }));
 }
 
+/** إضافات القرار ١٨: باركودات، وحدات تعبئة، فواتير بالدولار، عروض أسعار، تحويلات بين الصناديق */
+function seedExtras() {
+  const now = Date.now();
+  const rate = demoRate();
+  // البيانات التجريبية المشتركة بلا باركود — نعطيها باركوداً داخلياً حتى يعمل المسح في العرض
+  demoDb.product_variants.forEach((v, i) => { if (!v.barcode) v.barcode = internalEan13(1000 + i); });
+  const units: [number, string, number][] = [[1, 'كرتونة', 20], [4, 'علبة', 12], [5, 'علبة', 12]];
+  for (const [idx, unit_name, factor] of units) {
+    const v = demoDb.product_variants[idx];
+    if (!v) continue;
+    ledger.variant_units.push({ id: demoId(), variant_id: v.id, unit_name, factor, barcode: internalEan13(5000 + idx), price: Math.round((v.price * factor * 0.9) / 1000) * 1000, created_at: iso(now) });
+  }
+
+  // تاجر الجملة يشتري بالدولار أحياناً (رصيد دولار منفصل)
+  const trader = demoDb.customers.find((c) => c.tags.includes('جملة'));
+  if (trader) {
+    const at = startOfBaghdadDay(now, -12).getTime() + 13 * 3600_000;
+    const v = demoDb.product_variants[1];
+    const inv = demoCreateInvoice({ kind: 'sale', channel: 'manual', customer_id: trader.id, currency: 'USD', exchange_rate: rate, created_at: iso(at), note: 'طلبية جملة بالدولار',
+      lines: [{ variant_id: v.id, qty: 100, unit_price: Math.round(((v.wholesale_price ?? v.price * 0.8) / rate) * 100) / 100, price_tier: 'wholesale' }] });
+    demoAddPayment({ direction: 'in', method: 'cash', amount: 300, currency: 'USD', exchange_rate: rate, customer_id: trader.id, invoice_id: inv.id, created_at: iso(at) });
+  }
+
+  // عروض أسعار
+  const cust = demoDb.customers.filter((c) => !c.is_cash_customer);
+  const qSeeds: { status: Quotation['status']; daysAgo: number; customer: number | null; name?: string; lines: [number, number, PriceTier][]; currency?: CurrencyCode }[] = [
+    { status: 'sent', daysAgo: 1, customer: 2, lines: [[0, 10, 'wholesale'], [1, 30, 'wholesale'], [2, 5, 'retail']] },
+    { status: 'draft', daysAgo: 0, customer: null, name: 'شركة البناء الحديث', lines: [[11, 2, 'retail'], [12, 1, 'retail']] },
+    { status: 'accepted', daysAgo: 3, customer: 0, lines: [[6, 1, 'retail'], [7, 1, 'retail']] },
+    { status: 'expired', daysAgo: 25, customer: 1, lines: [[14, 3, 'retail']], currency: 'USD' },
+  ];
+  for (const q of qSeeds) {
+    const id = demoId();
+    const currency = q.currency ?? 'IQD';
+    const items: QuotationItem[] = q.lines.map(([vi, qty, tier]) => {
+      const v = demoDb.product_variants[vi];
+      const p = demoDb.products.find((x) => x.id === v.product_id)!;
+      const base = tier === 'wholesale' ? v.wholesale_price ?? Math.round((v.price * 0.88) / 500) * 500 : v.price;
+      const unit = currency === 'USD' ? Math.round((base / rate) * 100) / 100 : base;
+      return { id: demoId(), quotation_id: id, variant_id: v.id, name: p.name, variant_title: v.title === 'افتراضي' ? null : v.title, qty, unit_price: unit, discount: 0, line_total: roundMoney(unit * qty, currency), price_tier: tier };
+    });
+    const subtotal = items.reduce((s, i) => s + i.line_total, 0);
+    const created = startOfBaghdadDay(now, -q.daysAgo).getTime() + 11 * 3600_000;
+    const valid = new Date(created + 7 * 86_400_000);
+    ledger.quotations.push({
+      id, number: nextDoc('quotation'), status: q.status, customer_id: q.customer !== null ? cust[q.customer]?.id ?? null : null, customer_name: q.name ?? null,
+      warehouse_id: demoDb.warehouses[0].id, currency, exchange_rate: currency === 'USD' ? rate : 1, subtotal, discount: 0, total: subtotal,
+      valid_until: valid.toISOString().slice(0, 10), note: q.status === 'sent' ? 'الأسعار تشمل التوصيل داخل بغداد' : null, invoice_id: null, created_by: 'staff-1', created_at: iso(Math.min(created, now)),
+    });
+    ledger.quotation_items.push(...items);
+  }
+
+  // تحويلات بين الصناديق
+  const [cashIqd, cashUsd, bank] = demoDb.money_accounts;
+  if (cashIqd && bank) ledger.account_transfers.push({ id: demoId(), number: nextDoc('account_transfer'), from_account_id: cashIqd.id, to_account_id: bank.id, amount: 3000000, exchange_rate: 1, note: 'إيداع مبيعات الأسبوع', created_by: 'demo-owner', created_at: iso(now - 4 * 86_400_000) });
+  if (cashIqd && cashUsd) ledger.account_transfers.push({ id: demoId(), number: nextDoc('account_transfer'), from_account_id: cashIqd.id, to_account_id: cashUsd.id, amount: 655000, exchange_rate: 1310, note: 'شراء ٥٠٠ دولار', created_by: 'demo-owner', created_at: iso(now - 9 * 86_400_000) });
+}
+
 seed();
+seedExtras();
