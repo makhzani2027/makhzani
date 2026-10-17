@@ -42,7 +42,7 @@
    - `Project URL` مثل `https://abcdxyz.supabase.co` · `anon public` key · `Project ref` (الجزء `abcdxyz`).
 4. **Authentication ← URL Configuration**:
    - Site URL: `https://raqeemiq.web.app/dashboard/`
-   - Redirect URLs (أضف كلاً منها): `raqeem://auth-callback` · `exp://**` · `http://localhost:5173/**` · `https://raqeemiq.web.app/**`
+   - Redirect URLs (أضف كلاً منها): `raqeem://auth-callback` · `raqeem://payment-return` · `exp://**` · `http://localhost:5173/**` · `https://raqeemiq.web.app/**`
 5. **Authentication ← Sign In / Providers ← Email**: فعّل Email، وعطّل «Allow new users to sign up» (الموظفون يُنشؤون من اللوحة فقط؛ الزبائن عبر Google).
 6. لا تنفّذ أي SQL بيدك: سير العمل في الخطوة ٥ يبني قاعدة البيانات كلها تلقائياً.
 7. **Access token** (لسير العمل): https://supabase.com/dashboard/account/tokens ← **Generate new token** ← الاسم `github` ← انسخه (يظهر مرة).
@@ -85,8 +85,16 @@
 | `SUPABASE_ANON_KEY` | anon public key |
 | `FIREBASE_PROJECT_ID` | `raqeemiq` |
 
+**أسرار إضافية حسب الحاجة**: `PAYMENT_PROVIDER` (`wayl` أو `mock`)، `PAYMENT_REDIRECT_URL`، `R2_PUBLIC_URL`، `MEDIA_PUBLIC_URL`، و`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` (من الخطوة ٣، إن أردت ضبط Google عبر سير العمل بدل لوحة Supabase).
+
 ثم: **Actions ← Deploy Supabase ← Run workflow** ← انتظر ✅ (يبني الجداول والصلاحيات والدوال والبيانات الأولية ويربط الإشعارات).
 ثم: **Actions ← Deploy Site ← Run workflow** ← افتح `https://raqeemiq.web.app` و`https://raqeemiq.web.app/dashboard/`.
+
+> **ربط الإشعارات** (يفعله سير العمل تلقائياً؛ يدوياً إن احتجت) في SQL Editor:
+> ```sql
+> insert into private.settings values ('push_url','https://<ref>.supabase.co/functions/v1/push'), ('push_secret','<PUSH_WEBHOOK_SECRET>')
+> on conflict do nothing;
+> ```
 
 ## ٦. اجعل نفسك المالك
 1. في Supabase: **Authentication ← Users ← Add user ← Create new user**: بريدك + كلمة سر قوية + ✅ Auto Confirm.
