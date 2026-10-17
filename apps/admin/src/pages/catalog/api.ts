@@ -8,14 +8,15 @@
  *   description: text|null, category_id: uuid|null, brand_id: uuid|null, unit: text,
  *   tags: text[], specs: [{label, value}], warranty: text|null,
  *   option_names: text[],            // ['اللون','المقاس'] — فارغة للمنتج البسيط
- *   has_variants: bool, track_serials: bool, is_published: bool, is_featured: bool, allow_request: bool,
+ *   has_variants: bool, track_serials: bool, track_expiry: bool, is_published: bool, is_featured: bool, allow_request: bool,
  *   images: [{key, alt, sort}],      // بالترتيب؛ الأولى = الغلاف (cover_key). ما غاب منها يُحذف
  *   variants: [{
  *     id?: uuid,                     // غيابه = نسخة جديدة. النسخ الموجودة التي لم تُرسل: تُحذف إن لم تكن لها حركات وإلا is_active=false
  *     title, options: {اسم الخيار: القيمة}, sku, barcode|null,
  *     price, compare_at_price|null, wholesale_price|null,
  *     cost?: number,                 // يُرسل فقط إن كان للموظف costs.view (وإلا لا يُلمس variant_costs)
- *     min_stock, is_active, sort
+ *     min_stock, is_active, sort,
+ *     units: [{id?, unit_name, factor, barcode|null, price|null}]   // وحدات التعبئة (variant_units) — تُستبدل كلها؛ الباركود فريد عبر النسخ والوحدات
  *   }],
  *   opening_stock?: [{variant_sku, warehouse_id, qty, unit_cost}]   // للمنتج الجديد فقط ← حركات opening
  * }
@@ -24,7 +25,7 @@
  */
 import {
   internalEan13, matchScore, normalizeArabic, slugify, suggestSku, tokens,
-  type Brand, type Category, type InvoiceSettings, type Product, type ProductImage, type ProductSpec, type ProductVariant, type Serial, type SerialStatus,
+  type Brand, type Category, type InvoiceSettings, type VariantUnit, type Product, type ProductImage, type ProductSpec, type ProductVariant, type Serial, type SerialStatus,
 } from '@raqeem/shared';
 import { IS_DEMO } from '../../lib/env';
 import { demoDelay, demoId } from '../../lib/demo-db';
@@ -63,7 +64,10 @@ export interface UpsertVariant {
   min_stock: number;
   is_active: boolean;
   sort: number;
+  units: UnitDraft[];
 }
+
+export interface UnitDraft { id?: string; unit_name: string; factor: number; barcode: string | null; price: number | null }
 
 export interface UpsertProductPayload {
   id?: string;
@@ -79,6 +83,7 @@ export interface UpsertProductPayload {
   option_names: string[];
   has_variants: boolean;
   track_serials: boolean;
+  track_expiry: boolean;
   is_published: boolean;
   is_featured: boolean;
   allow_request: boolean;
@@ -91,6 +96,7 @@ export interface ProductFull {
   product: Product;
   variants: ProductVariant[];
   images: ProductImage[];
+  units: VariantUnit[];
   /** متوسط التكلفة لكل نسخة — null إن لم يملك costs.view */
   costs: Record<string, number> | null;
 }
@@ -106,8 +112,12 @@ export interface VariantHit {
   price: number;
   cover_key: string | null;
   track_serials: boolean;
+  track_expiry: boolean;
   min_stock: number;
   available_qty: number;
+  /** إن مُسح باركود وحدة تعبئة (كرتونة…): اسمها وعدد قطعها. القطعة: null و١ */
+  unit_name: string | null;
+  factor: number;
 }
 
 const variantLabel = (title: string) => (title === 'افتراضي' ? '' : title);
@@ -229,7 +239,8 @@ export async function getProduct(id: string, withCosts: boolean): Promise<Produc
     if (!product) throw new AppError('لم نجد هذا المنتج. ربما حُذف أو الرابط غير صحيح.');
     const variants = db.product_variants.filter((v) => v.product_id === id).sort((a, b) => a.sort - b.sort);
     const costs = withCosts ? Object.fromEntries(variants.map((v) => [v.id, db.variant_costs.find((c) => c.variant_id === v.id)?.avg_cost ?? 0])) : null;
-    return structuredClone({ product, variants, images: db.product_images.filter((i) => i.product_id === id).sort((a, b) => a.sort - b.sort), costs });
+    const units = db.variant_units.filter((u) => variants.some((v) => v.id === u.variant_id));
+    return structuredClone({ product, variants, images: db.product_images.filter((i) => i.product_id === id).sort((a, b) => a.sort - b.sort), units, costs });
   }
   const [p, v, im] = await Promise.all([
     sb().from('products').select('*').eq('id', id).maybeSingle(),
@@ -245,7 +256,13 @@ export async function getProduct(id: string, withCosts: boolean): Promise<Produc
     const { data } = await sb().from('variant_costs').select('variant_id,avg_cost').in('variant_id', variants.map((x) => x.id));
     costs = Object.fromEntries((data ?? []).map((c) => [c.variant_id as string, Number(c.avg_cost)]));
   }
-  return { product: p.data as Product, variants, images: (im.data ?? []) as ProductImage[], costs };
+  let units: VariantUnit[] = [];
+  if (variants.length) {
+    const { data, error: ue } = await sb().from('variant_units').select('*').in('variant_id', variants.map((x) => x.id)).order('factor');
+    if (ue) throw ue;
+    units = (data ?? []) as VariantUnit[];
+  }
+  return { product: p.data as Product, variants, images: (im.data ?? []) as ProductImage[], units, costs };
 }
 
 /** حفظ المنتج كاملاً باستدعاء واحد (انظر العقد أعلى الملف). يعيد معرّف المنتج */
@@ -258,9 +275,11 @@ export async function upsertProduct(p: UpsertProductPayload): Promise<string> {
   const db = ddb();
   // القيود الفريدة كما في قاعدة البيانات
   const others = db.product_variants.filter((v) => v.product_id !== p.id);
+  const otherIds = new Set(others.map((o) => o.id));
+  const takenCodes = new Set([...others.map((o) => o.barcode), ...db.variant_units.filter((u) => otherIds.has(u.variant_id)).map((u) => u.barcode)].filter(Boolean));
   for (const v of p.variants) {
     if (others.some((o) => o.sku.toLowerCase() === v.sku.toLowerCase())) throw new AppError(`رمز SKU «${v.sku}» مستخدم في منتج آخر. غيّره وحاول مجدداً.`);
-    if (v.barcode && others.some((o) => o.barcode === v.barcode)) throw new AppError(`الباركود ${v.barcode} مستخدم في منتج آخر.`);
+    for (const code of [v.barcode, ...v.units.map((u) => u.barcode)]) if (code && takenCodes.has(code)) throw new AppError(`الباركود ${code} مستخدم في منتج آخر.`);
   }
   const now = demoNow();
   const existing = p.id ? db.products.find((x) => x.id === p.id) : undefined;
@@ -270,7 +289,7 @@ export async function upsertProduct(p: UpsertProductPayload): Promise<string> {
   if (db.products.some((x) => x.slug === slug && x.id !== id)) slug = `${slug}-${id.slice(-4)}`;
   const base = {
     name: p.name.trim(), slug, description: p.description, category_id: p.category_id, brand_id: p.brand_id, unit: p.unit, tags: p.tags, specs: p.specs,
-    warranty: p.warranty, option_names: p.option_names, has_variants: p.has_variants, track_serials: p.track_serials, is_published: p.is_published,
+    warranty: p.warranty, option_names: p.option_names, has_variants: p.has_variants, track_serials: p.track_serials, track_expiry: p.track_expiry, is_published: p.is_published,
     is_featured: p.is_featured, allow_request: p.allow_request, cover_key: p.images[0]?.key ?? null, updated_at: now,
   };
   return demoTransaction(db, () => {
@@ -291,6 +310,8 @@ export async function upsertProduct(p: UpsertProductPayload): Promise<string> {
         db.product_variants.push({ id: vid, product_id: id, ...fields, image_key: null, available_qty: 0, weight_g: null, created_at: now });
       }
       keep.add(vid);
+      db.variant_units = db.variant_units.filter((u) => u.variant_id !== vid);
+      for (const u of v.units) db.variant_units.push({ id: u.id ?? demoId(), variant_id: vid, unit_name: u.unit_name, factor: u.factor, barcode: u.barcode, price: u.price, created_at: now });
       if (v.cost !== undefined) {
         const c = db.variant_costs.find((x) => x.variant_id === vid);
         if (c) { if (c.avg_cost !== v.cost) { c.avg_cost = v.cost; c.last_cost = v.cost; c.updated_at = now; } }
@@ -399,8 +420,8 @@ export async function searchVariants(q: string, limit = 12): Promise<VariantHit[
     }
     return out.sort((a, b) => b.s - a.s).slice(0, limit).map((x) => x.h);
   }
-  const sel = 'id,product_id,title,sku,barcode,price,min_stock,available_qty,products!inner(name,cover_key,track_serials,archived_at)';
-  type Row = ProductVariant & { products: Pick<Product, 'name' | 'cover_key' | 'track_serials' | 'archived_at'> };
+  const sel = 'id,product_id,title,sku,barcode,price,min_stock,available_qty,products!inner(name,cover_key,track_serials,track_expiry,archived_at)';
+  type Row = ProductVariant & { products: Pick<Product, 'name' | 'cover_key' | 'track_serials' | 'track_expiry' | 'archived_at'> };
   const toHit = (r: Row): VariantHit => hitOf({ ...r.products, id: r.product_id }, r);
   const [byCode, byName] = await Promise.all([
     sb().from('product_variants').select(sel).or(`sku.ilike.${like(term)},barcode.eq.${term.replace(/[^\w-]/g, '')}`).is('products.archived_at', null).limit(limit),
@@ -421,8 +442,13 @@ export async function searchVariants(q: string, limit = 12): Promise<VariantHit[
   return hits.slice(0, limit);
 }
 
-function hitOf(p: Pick<Product, 'id' | 'name' | 'cover_key' | 'track_serials'>, v: Pick<ProductVariant, 'id' | 'title' | 'sku' | 'barcode' | 'price' | 'min_stock' | 'available_qty'>): VariantHit {
-  return { variant_id: v.id, product_id: p.id, name: p.name, title: variantLabel(v.title), sku: v.sku, barcode: v.barcode, price: Number(v.price), cover_key: p.cover_key, track_serials: p.track_serials, min_stock: Number(v.min_stock), available_qty: Number(v.available_qty) };
+type HitProduct = Pick<Product, 'id' | 'name' | 'cover_key' | 'track_serials'> & { track_expiry?: boolean };
+function hitOf(p: HitProduct, v: Pick<ProductVariant, 'id' | 'title' | 'sku' | 'barcode' | 'price' | 'min_stock' | 'available_qty'>, unit?: Pick<VariantUnit, 'unit_name' | 'factor'> | null): VariantHit {
+  return {
+    variant_id: v.id, product_id: p.id, name: p.name, title: variantLabel(v.title), sku: v.sku, barcode: v.barcode, price: Number(v.price), cover_key: p.cover_key,
+    track_serials: p.track_serials, track_expiry: !!p.track_expiry, min_stock: Number(v.min_stock), available_qty: Number(v.available_qty),
+    unit_name: unit?.unit_name ?? null, factor: unit ? Number(unit.factor) : 1,
+  };
 }
 
 /** مطابقة تامة لرمز ممسوح (باركود أو SKU) */
@@ -431,15 +457,22 @@ export async function findVariantByCode(code: string): Promise<VariantHit | null
   if (!c) return null;
   if (IS_DEMO) {
     const db = ddb();
-    const v = db.product_variants.find((x) => x.barcode === c || x.sku.toLowerCase() === c.toLowerCase());
+    const unit = db.variant_units.find((u) => u.barcode === c);
+    const v = unit ? db.product_variants.find((x) => x.id === unit.variant_id) : db.product_variants.find((x) => x.barcode === c || x.sku.toLowerCase() === c.toLowerCase());
     const p = v && db.products.find((x) => x.id === v.product_id);
-    return v && p && !p.archived_at ? hitOf(p, v) : null;
+    return v && p && !p.archived_at ? hitOf(p, v, unit) : null;
+  }
+  // باركود وحدة تعبئة (كرتونة = عدة قطع)
+  if (/^[\w-]{4,}$/.test(c)) {
+    const { data: u } = await sb().from('variant_units').select('unit_name,factor,product_variants!inner(id,product_id,title,sku,barcode,price,min_stock,available_qty,products!inner(name,cover_key,track_serials,track_expiry))').eq('barcode', c).limit(1);
+    const row = (u?.[0] ?? null) as unknown as ({ unit_name: string; factor: number; product_variants: ProductVariant & { products: Pick<Product, 'name' | 'cover_key' | 'track_serials' | 'track_expiry'> } }) | null;
+    if (row) return hitOf({ ...row.product_variants.products, id: row.product_variants.product_id }, row.product_variants, row);
   }
   const { data, error } = await sb().from('product_variants')
-    .select('id,product_id,title,sku,barcode,price,min_stock,available_qty,products!inner(name,cover_key,track_serials,archived_at)')
+    .select('id,product_id,title,sku,barcode,price,min_stock,available_qty,products!inner(name,cover_key,track_serials,track_expiry,archived_at)')
     .or(`barcode.eq.${c.replace(/[^\w-]/g, '')},sku.ilike.${c.replace(/[%_,()]/g, '')}`).limit(1);
   if (error) throw error;
-  const r = (data?.[0] ?? null) as unknown as (ProductVariant & { products: Pick<Product, 'name' | 'cover_key' | 'track_serials'> }) | null;
+  const r = (data?.[0] ?? null) as unknown as (ProductVariant & { products: Pick<Product, 'name' | 'cover_key' | 'track_serials' | 'track_expiry'> }) | null;
   return r ? hitOf({ ...r.products, id: r.product_id }, r) : null;
 }
 
@@ -454,9 +487,9 @@ export async function variantsByIds(ids: string[]): Promise<VariantHit[]> {
       return v && p ? [hitOf(p, v)] : [];
     });
   }
-  const { data, error } = await sb().from('product_variants').select('id,product_id,title,sku,barcode,price,min_stock,available_qty,products!inner(name,cover_key,track_serials)').in('id', ids);
+  const { data, error } = await sb().from('product_variants').select('id,product_id,title,sku,barcode,price,min_stock,available_qty,products!inner(name,cover_key,track_serials,track_expiry)').in('id', ids);
   if (error) throw error;
-  return ((data ?? []) as unknown as (ProductVariant & { products: Pick<Product, 'name' | 'cover_key' | 'track_serials'> })[]).map((r) => hitOf({ ...r.products, id: r.product_id }, r));
+  return ((data ?? []) as unknown as (ProductVariant & { products: Pick<Product, 'name' | 'cover_key' | 'track_serials' | 'track_expiry'> })[]).map((r) => hitOf({ ...r.products, id: r.product_id }, r));
 }
 
 // ------------------------------------------------------------------ الأقسام والعلامات
