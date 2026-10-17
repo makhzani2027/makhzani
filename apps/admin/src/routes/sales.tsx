@@ -26,6 +26,12 @@ const Cash = lazy(() => import('../pages/finance/Cash'));
 const Expenses = lazy(() => import('../pages/finance/Expenses'));
 const Reports = lazy(() => import('../pages/finance/Reports'));
 
+const Storefront = lazy(() => import('../pages/store/Storefront'));
+const Coupons = lazy(() => import('../pages/store/Coupons'));
+const Delivery = lazy(() => import('../pages/store/Delivery'));
+const Notifications = lazy(() => import('../pages/store/Notifications'));
+const Reviews = lazy(() => import('../pages/store/Reviews'));
+
 export const salesRoutes: AppRoute[] = [
   { path: '/', label: 'نظرة عامة', icon: 'grid', group: 'home', perm: 'dashboard.view', element: Overview, order: 0 },
   { path: '/pos', label: 'نقطة البيع', icon: 'pos', group: 'sales', perm: 'pos.sell', element: Pos, order: 1, full: true },
@@ -47,11 +53,11 @@ export const salesRoutes: AppRoute[] = [
   { path: '/cash', label: 'الصندوق', icon: 'cash', group: 'finance', perm: 'finance.view', element: Cash, order: 6 },
   { path: '/expenses', label: 'المصروفات', icon: 'expense', group: 'finance', perm: 'finance.view', element: Expenses, order: 7 },
   { path: '/reports', label: 'التقارير', icon: 'chartBar', group: 'finance', perm: 'reports.view', element: Reports, order: 8 },
-  { path: '/storefront', label: 'واجهة المتجر', icon: 'layout', group: 'store', perm: 'store.manage', element: Soon, order: 1 },
-  { path: '/coupons', label: 'الكوبونات', icon: 'ticket', group: 'store', perm: 'store.manage', element: Soon, order: 2 },
-  { path: '/delivery', label: 'التوصيل والدفع', icon: 'truck', group: 'store', perm: 'store.manage', element: Soon, order: 3 },
-  { path: '/notifications', label: 'الإشعارات', icon: 'megaphone', group: 'store', perm: 'notifications.send', element: Soon, order: 4 },
-  { path: '/reviews', label: 'التقييمات', icon: 'star', group: 'store', perm: 'products.write', element: Soon, order: 5 },
+  { path: '/storefront', label: 'واجهة المتجر', icon: 'layout', group: 'store', perm: 'store.manage', element: Storefront, order: 1 },
+  { path: '/coupons', label: 'الكوبونات', icon: 'ticket', group: 'store', perm: 'store.manage', element: Coupons, order: 2 },
+  { path: '/delivery', label: 'التوصيل والدفع', icon: 'truck', group: 'store', perm: 'store.manage', element: Delivery, order: 3 },
+  { path: '/notifications', label: 'الإشعارات', icon: 'megaphone', group: 'store', perm: 'notifications.send', element: Notifications, order: 4 },
+  { path: '/reviews', label: 'التقييمات', icon: 'star', group: 'store', perm: 'products.write', element: Reviews, order: 5 },
   { path: '/staff', label: 'المستخدمون', icon: 'idCard', group: 'system', perm: 'staff.manage', element: Soon, order: 1 },
   { path: '/settings', label: 'الإعدادات', icon: 'settings', group: 'system', perm: 'settings.manage', element: Soon, order: 2 },
   { path: '/audit', label: 'سجل العمليات', icon: 'history', group: 'system', perm: 'audit.view', element: Soon, order: 3 },
