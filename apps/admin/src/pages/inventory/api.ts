@@ -263,7 +263,7 @@ export async function listStagnant(days: number, withCost: boolean): Promise<Sta
   const rows = await rpc<Record<string, unknown>[]>('stagnant_products', { days, lim: 300 });
   return rows.map((r) => ({
     variant_id: String(r.variant_id ?? ''), product_id: String(r.product_id ?? ''), name: String(r.name ?? ''), variant_title: vTitle(r.variant_title as string | null),
-    sku: String(r.sku ?? ''), qty: Number(r.qty ?? 0), last_sale_at: (r.last_sale_at as string | null) ?? null,
+    sku: String(r.sku ?? ''), qty: Number(r.qty ?? 0), last_sale_at: (r.last_sold_at as string | null) ?? null,
     value: withCost && r.cost_value !== undefined ? Number(r.cost_value) : null,
   }));
 }
@@ -277,6 +277,9 @@ export interface AdjustPayload {
   qty: number;
   kind: 'adjustment' | 'damage' | 'opening';
   note: string;
+  unit_cost?: number;
+  lot_code?: string;
+  expiry_date?: string;
 }
 
 export async function adjustStock(p: AdjustPayload): Promise<void> {
@@ -287,7 +290,7 @@ export async function adjustStock(p: AdjustPayload): Promise<void> {
   const cur = db.stock_levels.find((l) => l.variant_id === p.variant_id && l.warehouse_id === p.warehouse_id)?.qty ?? 0;
   const delta = p.mode === 'set' ? p.qty - cur : p.kind === 'damage' ? -Math.abs(p.qty) : p.qty;
   if (delta === 0) throw new AppError('الكمية الجديدة تساوي الرصيد الحالي، فلا شيء لتعديله.');
-  demoTransaction(db, () => demoApplyMovement(db, { variant_id: p.variant_id, warehouse_id: p.warehouse_id, qty: delta, kind: p.kind, ref_type: 'adjustment', note: p.note.trim() }));
+  demoTransaction(db, () => demoApplyMovement(db, { variant_id: p.variant_id, warehouse_id: p.warehouse_id, qty: delta, kind: p.kind, ref_type: 'adjustment', note: p.note.trim(), unit_cost: p.unit_cost ?? null, lot_code: p.lot_code ?? null, expiry_date: p.expiry_date ?? null }));
 }
 
 /** رصيد نسخة في مخزن (للنافذة السريعة) */
@@ -713,36 +716,32 @@ export async function supplierStatement(supplierId: string, from: string, to: st
     const entries: Omit<StatementRow, 'balance'>[] = [
       ...db.invoices.filter((i) => i.supplier_id === supplierId && i.status === 'posted' && i.currency === currency).map((i) => ({
         currency: i.currency, at: i.created_at, kind: i.kind === 'purchase_return' ? 'purchase_return' as const : 'purchase' as const, number: i.number, ref_id: i.id,
-        debit: i.kind === 'purchase_return' ? i.total : 0, credit: i.kind === 'purchase_return' ? 0 : i.total, note: i.note,
+        debit: i.kind === 'purchase_return' ? 0 : i.total, credit: i.kind === 'purchase_return' ? i.total : 0, note: i.note,
       })),
       ...db.payments.filter((p) => p.supplier_id === supplierId && !p.voided_at && p.currency === currency).map((p) => ({
         currency: p.currency, at: p.created_at, kind: p.direction === 'out' ? 'payment' as const : 'refund' as const, number: p.number, ref_id: p.invoice_id,
-        debit: p.direction === 'out' ? p.amount : 0, credit: p.direction === 'in' ? p.amount : 0, note: p.note,
+        debit: p.direction === 'in' ? p.amount : 0, credit: p.direction === 'out' ? p.amount : 0, note: p.note,
       })),
     ].sort((a, b) => a.at.localeCompare(b.at));
     let bal = 0;
     let opening = 0;
     const rows: StatementRow[] = [];
     for (const e of entries) {
-      bal += e.credit - e.debit;
+      bal += e.debit - e.credit;
       if (from && e.at < dayStart(from)) { opening = bal; continue; }
       if (to && e.at > dayEnd(to)) continue;
       rows.push({ ...e, balance: bal });
     }
     return { opening, rows };
   }
-  const raw = await rpc<Record<string, unknown>[] | { opening?: number; rows?: Record<string, unknown>[] }>('supplier_statement', { supplier_id: supplierId, from: from ? dayStart(from) : null, to: to ? dayEnd(to) : null });
-  const list = (Array.isArray(raw) ? raw : raw.rows ?? []).filter((r) => String(r.currency ?? 'IQD') === currency);
-  const rows = list.map((r) => {
-    const kind = String(r.kind ?? r.type ?? 'other');
-    return {
-      currency,
-      at: String(r.at ?? r.created_at ?? r.date ?? ''), kind: (['purchase', 'purchase_return', 'payment', 'refund'].includes(kind) ? kind : 'other') as StatementRow['kind'],
-      number: String(r.number ?? r.ref_number ?? ''), ref_id: (r.ref_id as string | null) ?? (r.invoice_id as string | null) ?? null,
-      debit: Number(r.debit ?? 0), credit: Number(r.credit ?? 0), balance: Number(r.balance ?? 0), note: (r.note as string | null) ?? (r.description as string | null) ?? null,
-    };
-  });
-  const opening = !Array.isArray(raw) && raw.opening !== undefined ? Number(raw.opening) : rows.length ? rows[0].balance - rows[0].credit + rows[0].debit : 0;
+  // الشكل الفعلي: {supplier_id, opening:{IQD,USD}, rows:[{at, doc_type, doc_id, number, description, currency, debit, credit, balance}], closing:{IQD,USD}}
+  const raw = await rpc<{ opening: Record<CurrencyCode, number>; rows: { at: string; doc_type: string; doc_id: string | null; number: string; description: string | null; currency: CurrencyCode; debit: number; credit: number; balance: number }[] }>(
+    'supplier_statement', { supplier_id: supplierId, from: from ? dayStart(from) : null, to: to ? dayEnd(to) : null });
+  const rows: StatementRow[] = (raw.rows ?? []).filter((r) => r.currency === currency).map((r) => ({
+    currency, at: r.at, kind: (r.doc_type === 'purchase' || r.doc_type === 'purchase_return' ? r.doc_type : r.doc_type === 'payment' ? (Number(r.credit) > 0 ? 'payment' : 'refund') : 'other') as StatementRow['kind'],
+    number: r.number, ref_id: r.doc_id, debit: Number(r.debit), credit: Number(r.credit), balance: Number(r.balance), note: r.description,
+  }));
+  const opening = Number(raw.opening?.[currency] ?? 0);
   return { opening, rows };
 }
 
@@ -768,7 +767,7 @@ export async function recordSupplierPayment(p: SupplierPaymentPayload): Promise<
     direction: 'out' as const, method: p.method, amount: p.amount, currency: p.currency, exchange_rate: p.currency === 'USD' ? p.exchange_rate : 1, account_id: p.account_id,
     supplier_id: p.supplier_id, invoice_id: p.invoice_id, reference: p.reference, note: p.note,
   };
-  if (!IS_DEMO) return rpc('record_payment', { p: payload });
+  if (!IS_DEMO) { const r = await rpc<{ id: string; number: string }>('record_payment', { p: payload }); return { payment_id: r.id, number: r.number }; }
   await demoDelay(220);
   const db = ddb();
   if (p.invoice_id) {
