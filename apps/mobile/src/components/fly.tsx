@@ -1,9 +1,11 @@
 import { useFocusEffect } from 'expo-router';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from 'react';
 import { View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { tap, easeEmph } from './motion';
+
+export type ViewRef = ComponentRef<typeof View>;
 import { Portal } from './portal';
 
 /**
@@ -14,8 +16,8 @@ interface Rect { x: number; y: number; w: number; h: number }
 interface Flight { id: number; from: Rect; to: Rect; node: ReactNode }
 
 interface FlyValue {
-  fly: (from: RefObject<View | null>, node: ReactNode) => void;
-  register: (ref: RefObject<View | null>) => () => void;
+  fly: (from: RefObject<ViewRef | null>, node: ReactNode) => void;
+  register: (ref: RefObject<ViewRef | null>) => () => void;
   landed: number;
 }
 
@@ -23,25 +25,25 @@ const Ctx = createContext<FlyValue | null>(null);
 
 export type Measurable = { measureInWindow(cb: (x: number, y: number, w: number, h: number) => void): void };
 
-const measure = (ref: RefObject<View | null>) => new Promise<Rect | null>((resolve) => {
+const measure = (ref: RefObject<ViewRef | null>) => new Promise<Rect | null>((resolve) => {
   const v = ref.current;
   if (!v) return resolve(null);
   (v as unknown as Measurable).measureInWindow((x, y, w, h) => resolve(w > 0 ? { x, y, w, h } : null));
 });
 
 export function FlyProvider({ children }: { children: ReactNode }) {
-  const targets = useRef<RefObject<View | null>[]>([]);
+  const targets = useRef<RefObject<ViewRef | null>[]>([]);
   const [flights, setFlights] = useState<Flight[]>([]);
   const [landed, setLanded] = useState(0);
   const reduced = useReducedMotion();
   const seq = useRef(0);
 
-  const register = useCallback((ref: RefObject<View | null>) => {
+  const register = useCallback((ref: RefObject<ViewRef | null>) => {
     targets.current = [...targets.current.filter((r) => r !== ref), ref];
     return () => { targets.current = targets.current.filter((r) => r !== ref); };
   }, []);
 
-  const fly = useCallback(async (fromRef: RefObject<View | null>, node: ReactNode) => {
+  const fly = useCallback(async (fromRef: RefObject<ViewRef | null>, node: ReactNode) => {
     tap('medium');
     const target = targets.current[targets.current.length - 1];
     const [from, to] = await Promise.all([measure(fromRef), target ? measure(target) : Promise.resolve(null)]);
@@ -116,7 +118,7 @@ export function useFly() {
 
 /** أيقونة سلة تستقبل الطيران؛ focus = تُسجَّل فقط والشاشة ظاهرة (رأس صفحة المنتج) */
 export function useCartTarget(kind: 'always' | 'focus' = 'always') {
-  const ref = useRef<View>(null);
+  const ref = useRef<ViewRef>(null);
   const { register } = useFly();
   useEffect(() => (kind === 'always' ? register(ref) : undefined), [kind, register]);
   useFocusEffect(useCallback(() => (kind === 'focus' ? register(ref) : undefined), [kind, register]));
