@@ -33,7 +33,7 @@ do $$ begin create type public.profile_kind as enum ('customer', 'staff'); excep
 do $$ begin create type public.profile_status as enum ('active', 'blocked'); exception when duplicate_object then null; end $$;
 do $$ begin
   create type public.movement_kind as enum ('opening', 'purchase', 'purchase_return', 'sale', 'sale_return',
-    'adjustment', 'damage', 'transfer_in', 'transfer_out', 'stocktake');
+    'adjustment', 'damage', 'transfer_in', 'transfer_out', 'stocktake', 'manual_in', 'manual_out', 'sample_out', 'sample_return');
 exception when duplicate_object then null; end $$;
 do $$ begin create type public.invoice_kind as enum ('sale', 'sale_return', 'purchase', 'purchase_return'); exception when duplicate_object then null; end $$;
 do $$ begin create type public.invoice_channel as enum ('pos', 'online', 'manual'); exception when duplicate_object then null; end $$;
@@ -63,6 +63,16 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 do $$ begin create type public.cash_session_status as enum ('open', 'closed'); exception when duplicate_object then null; end $$;
 do $$ begin create type public.doc_status as enum ('draft', 'applied', 'cancelled'); exception when duplicate_object then null; end $$;
+-- إضافات القرار ١٨: العملتان، الصناديق، عروض الأسعار، السندات المخزنية، سعر الجملة/المفرد
+do $$ begin create type public.currency_code as enum ('IQD', 'USD'); exception when duplicate_object then null; end $$;
+do $$ begin create type public.money_account_kind as enum ('cash', 'bank', 'wallet'); exception when duplicate_object then null; end $$;
+do $$ begin
+  create type public.quotation_status as enum ('draft', 'sent', 'accepted', 'converted', 'expired', 'cancelled');
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create type public.stock_voucher_kind as enum ('in', 'out', 'sample_out', 'sample_return', 'damage');
+exception when duplicate_object then null; end $$;
+do $$ begin create type public.price_tier as enum ('retail', 'wholesale'); exception when duplicate_object then null; end $$;
 do $$ begin create type public.notification_kind as enum ('order', 'request', 'promo', 'system'); exception when duplicate_object then null; end $$;
 
 -- مشغّل عام لتحديث updated_at

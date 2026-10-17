@@ -43,11 +43,18 @@ language sql stable security definer set search_path = '' as $$
   from public.product_variants v join public.products p on p.id = v.product_id where v.id = p_variant
 $$;
 
--- الحركة المخزنية الوحيدة: تقفل الرصيد، تمنع السالب، تكتب الحركة بالرصيد بعدها، تحدّث المتوفر ومتوسط التكلفة.
--- p_qty موجب = دخول، سالب = خروج. تعيد الرصيد الجديد في هذا المخزن.
+-- الدفعات التي مسّتها آخر حركة في هذه المعاملة: [{lot_code, expiry_date, qty}] (للفاتورة والنقل والإرجاع)
+create or replace function private.last_lots() returns jsonb
+language sql stable set search_path = '' as $$
+  select coalesce(nullif(current_setting('raqeem.lots', true), ''), '[]')::jsonb
+$$;
+
+-- الحركة المخزنية الوحيدة: تقفل الرصيد، تمنع السالب، تكتب الحركة بالرصيد بعدها، تحدّث المتوفر ومتوسط التكلفة،
+-- وللمنتجات track_expiry: الدخول يضيف لدفعة (lot_code/expiry)، والخروج يستهلك الأقرب انتهاءً أولاً (FEFO)
+-- إلا إن حُددت دفعة بعينها. p_qty موجب = دخول، سالب = خروج. تعيد الرصيد الجديد في هذا المخزن.
 create or replace function private.apply_movement(
   p_variant uuid, p_warehouse uuid, p_qty numeric, p_kind public.movement_kind, p_unit_cost numeric,
-  p_ref_type text, p_ref_id uuid, p_note text
+  p_ref_type text, p_ref_id uuid, p_note text, p_lot_code text default null, p_expiry date default null
 ) returns numeric
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -56,6 +63,11 @@ declare
   v_new numeric;
   v_total numeric;
   v_cost numeric;
+  v_lots jsonb := '[]'::jsonb;
+  v_track boolean;
+  lot record;
+  remaining numeric;
+  take numeric;
 begin
   if p_qty is null or p_qty = 0 then
     raise exception using message = 'الكمية يجب أن تكون أكبر من صفر.', errcode = 'P0001';
@@ -80,6 +92,33 @@ begin
         private.variant_label(p_variant), private.fmt_qty(greatest(sl.qty - sl.reserved, 0)));
     end if;
   end if;
+
+  select p.track_expiry into v_track from public.product_variants v join public.products p on p.id = v.product_id where v.id = p_variant;
+  if v_track then
+    if p_qty > 0 then
+      insert into public.stock_lots as l (variant_id, warehouse_id, lot_code, expiry_date, qty)
+      values (p_variant, p_warehouse, coalesce(nullif(btrim(p_lot_code), ''), '-'), p_expiry, p_qty)
+      on conflict (variant_id, warehouse_id, lot_code, (coalesce(expiry_date, 'infinity'::date)))
+      do update set qty = l.qty + excluded.qty;
+      v_lots := jsonb_build_array(jsonb_build_object('lot_code', coalesce(nullif(btrim(p_lot_code), ''), '-'), 'expiry_date', p_expiry, 'qty', p_qty));
+    else
+      remaining := -p_qty;
+      for lot in
+        select l.id, l.lot_code, l.expiry_date, l.qty from public.stock_lots l
+        where l.variant_id = p_variant and l.warehouse_id = p_warehouse and l.qty > 0
+        order by (l.lot_code = coalesce(p_lot_code, '')) desc, l.expiry_date nulls last, l.created_at, l.id
+        for update
+      loop
+        exit when remaining <= 0;
+        take := least(remaining, lot.qty);
+        update public.stock_lots set qty = qty - take where id = lot.id;
+        v_lots := v_lots || jsonb_build_object('lot_code', lot.lot_code, 'expiry_date', lot.expiry_date, 'qty', take);
+        remaining := remaining - take;
+      end loop;
+      -- رصيد قديم بلا دفعات (قبل تفعيل التتبع) يخرج بلا دفعة
+    end if;
+  end if;
+  perform set_config('raqeem.lots', v_lots::text, true);
 
   insert into public.variant_costs (variant_id) values (p_variant) on conflict do nothing;
   select * into c from public.variant_costs vc where vc.variant_id = p_variant for update;

@@ -21,7 +21,8 @@ create table if not exists public.stock_movements (
   qty numeric(14,3) not null check (qty <> 0),
   balance_after numeric(14,3) not null,
   unit_cost numeric(14,2),
-  ref_type text check (ref_type is null or ref_type in ('invoice', 'order', 'adjustment', 'transfer', 'stocktake')),
+  -- 'voucher' إضافة على العقد (سندات القرار ١٨)
+  ref_type text check (ref_type is null or ref_type in ('invoice', 'order', 'adjustment', 'transfer', 'stocktake', 'voucher')),
   ref_id uuid,
   note text,
   created_by uuid,
@@ -95,4 +96,46 @@ create table if not exists public.stocktake_items (
   expected_qty numeric(14,3) not null default 0,
   counted_qty numeric(14,3) check (counted_qty is null or counted_qty >= 0),
   primary key (stocktake_id, variant_id)
+);
+
+-- =============================================================================
+-- إضافات القرار ١٨: الدفعات بتاريخ صلاحية (FEFO) والسندات المخزنية اليدوية
+-- =============================================================================
+
+-- رصيد الدفعة يحدّثه apply_movement فقط (للمنتجات track_expiry)
+create table if not exists public.stock_lots (
+  id uuid primary key default gen_random_uuid(),
+  variant_id uuid not null references public.product_variants (id) on delete cascade,
+  warehouse_id uuid not null references public.warehouses (id) on delete restrict,
+  lot_code text not null default '-',
+  expiry_date date,
+  qty numeric(14,3) not null default 0 check (qty >= 0),
+  created_at timestamptz not null default now()
+);
+create unique index if not exists stock_lots_key on public.stock_lots (variant_id, warehouse_id, lot_code, coalesce(expiry_date, 'infinity'::date));
+create index if not exists stock_lots_fefo_idx on public.stock_lots (variant_id, warehouse_id, expiry_date nulls last, created_at) where qty > 0;
+create index if not exists stock_lots_expiry_idx on public.stock_lots (expiry_date) where qty > 0;
+
+create table if not exists public.stock_vouchers (
+  id uuid primary key default gen_random_uuid(),
+  number text not null,
+  kind public.stock_voucher_kind not null,
+  warehouse_id uuid not null references public.warehouses (id),
+  customer_id uuid references public.customers (id),
+  reason text not null check (length(btrim(reason)) > 0),
+  note text,
+  created_by uuid,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists stock_vouchers_number_key on public.stock_vouchers (number);
+create index if not exists stock_vouchers_created_idx on public.stock_vouchers (created_at desc);
+
+create table if not exists public.stock_voucher_items (
+  voucher_id uuid not null references public.stock_vouchers (id) on delete cascade,
+  variant_id uuid not null references public.product_variants (id),
+  qty numeric(14,3) not null check (qty > 0),
+  unit_cost numeric(14,2) check (unit_cost is null or unit_cost >= 0),
+  lot_code text,
+  expiry_date date,
+  primary key (voucher_id, variant_id)
 );

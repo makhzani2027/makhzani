@@ -43,6 +43,7 @@ create table if not exists public.products (
   option_names text[] not null default '{}',
   has_variants boolean not null default false,
   track_serials boolean not null default false,
+  track_expiry boolean not null default false,
   is_published boolean not null default false,
   is_featured boolean not null default false,
   allow_request boolean not null default true,
@@ -107,6 +108,7 @@ create table if not exists public.warehouses (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   code text not null,
+  branch_id uuid references public.branches (id) on delete set null,
   address text,
   is_default boolean not null default false,
   is_sellable boolean not null default true,
@@ -115,6 +117,45 @@ create table if not exists public.warehouses (
 );
 create unique index if not exists warehouses_code_key on public.warehouses (upper(code));
 create unique index if not exists warehouses_default_key on public.warehouses (is_default) where is_default;
+
+-- وحدات التعبئة (القرار ١٨): باركود الكرتونة = factor قطعة
+create table if not exists public.variant_units (
+  id uuid primary key default gen_random_uuid(),
+  variant_id uuid not null references public.product_variants (id) on delete cascade,
+  unit_name text not null check (length(btrim(unit_name)) > 0),
+  factor numeric(14,3) not null check (factor > 0),
+  barcode text,
+  price numeric(14,2) check (price is null or price >= 0),
+  created_at timestamptz not null default now()
+);
+create index if not exists variant_units_variant_idx on public.variant_units (variant_id);
+create unique index if not exists variant_units_barcode_key on public.variant_units (barcode) where barcode is not null;
+
+-- الباركود فريد عبر النسخ ووحدات التعبئة معاً (قفل استشاري على الرمز يمنع سباق إدراجين متزامنين)
+create or replace function private.check_barcode_unique() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if new.barcode is null then return new; end if;
+  new.barcode := btrim(new.barcode);
+  if new.barcode = '' then new.barcode := null; return new; end if;
+  perform pg_advisory_xact_lock(hashtext('barcode:' || new.barcode));
+  if tg_table_name = 'product_variants' then
+    if exists (select 1 from public.variant_units u where u.barcode = new.barcode) then
+      raise exception using message = 'الباركود ' || new.barcode || ' مستعمل لوحدة تعبئة أخرى.', errcode = 'P0001';
+    end if;
+  else
+    if exists (select 1 from public.product_variants v where v.barcode = new.barcode) then
+      raise exception using message = 'الباركود ' || new.barcode || ' مستعمل لمنتج آخر.', errcode = 'P0001';
+    end if;
+  end if;
+  return new;
+end $$;
+drop trigger if exists barcode_unique on public.product_variants;
+create trigger barcode_unique before insert or update of barcode on public.product_variants
+  for each row execute function private.check_barcode_unique();
+drop trigger if exists barcode_unique on public.variant_units;
+create trigger barcode_unique before insert or update of barcode on public.variant_units
+  for each row execute function private.check_barcode_unique();
 
 -- تسلسلات الباركود الداخلي و SKU التلقائي
 create sequence if not exists private.barcode_seq;

@@ -164,6 +164,18 @@ begin
   end if;
 end $$;
 
+-- الفروع (القرار ١٨): فرع افتراضي واحد
+create table if not exists public.branches (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (length(btrim(name)) > 0),
+  address text,
+  phone text,
+  is_default boolean not null default false,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists branches_default_key on public.branches (is_default) where is_default;
+
 -- قراءة إعداد (jsonb) — للدوال الداخلية
 create or replace function private.setting(k text) returns jsonb
 language sql stable security definer set search_path = '' as $$
@@ -171,9 +183,36 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- تقريب المال: الدينار بلا كسور، الدولار لسنتين — مثل roundMoney في shared
+-- (عملة المتجر من store.currency؛ والمستندات بعملة محددة تستعمل round_cur)
 create or replace function private.round_money(n numeric) returns numeric
 language sql stable set search_path = '' as $$
   select case when coalesce(private.setting('store') ->> 'currency', 'IQD') = 'USD' then round(n, 2) else round(n, 0) end
+$$;
+
+create or replace function private.round_cur(n numeric, cur public.currency_code) returns numeric
+language sql immutable set search_path = '' as $$
+  select case when cur = 'USD' then round(n, 2) else round(n, 0) end
+$$;
+
+-- سعر صرف اليوم (دينار لكل دولار) من app_settings.currency
+create or replace function private.usd_rate() returns numeric
+language plpgsql stable security definer set search_path = '' as $$
+declare r numeric := nullif(private.setting('currency') ->> 'usd_rate', '')::numeric;
+begin
+  if r is null or r <= 0 then
+    raise exception using message = 'سعر صرف الدولار غير مضبوط في الإعدادات.', errcode = 'P0001';
+  end if;
+  return r;
+end $$;
+
+-- يحوّل مبلغاً بين العملتين بسعر صرف (دينار لكل دولار) مع التقريب الصحيح للعملة الهدف
+create or replace function private.convert(amount numeric, from_cur public.currency_code, to_cur public.currency_code, rate numeric)
+returns numeric
+language sql immutable set search_path = '' as $$
+  select case
+    when from_cur = to_cur then amount
+    when to_cur = 'IQD' then round(amount * rate, 0)
+    else round(amount / rate, 2) end
 $$;
 
 -- الترقيم المتسلسل بقفل الصف — نفس formatDocNumber و DOC_PREFIX في shared: S-000123
@@ -186,7 +225,8 @@ begin
   prefix := case kind
     when 'sale' then 'S' when 'sale_return' then 'SR' when 'purchase' then 'P' when 'purchase_return' then 'PR'
     when 'order' then 'O' when 'receipt' then 'RC' when 'voucher' then 'PV' when 'request' then 'RQ'
-    when 'transfer' then 'TR' when 'stocktake' then 'ST' end;
+    when 'transfer' then 'TR' when 'stocktake' then 'ST' when 'quotation' then 'Q' when 'stock_voucher' then 'SV'
+    when 'account_transfer' then 'AT' end;
   if prefix is null then
     raise exception using message = 'نوع مستند غير معروف: ' || coalesce(kind, ''), errcode = 'P0001';
   end if;

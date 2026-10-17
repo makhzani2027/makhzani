@@ -47,13 +47,13 @@ else
   PORT=$(( 54000 + RANDOM % 900 ))
   as_pg "$PG_BIN/initdb -D '$TMP/data' -U postgres --auth=trust --encoding=UTF8 --locale=C.UTF-8 >'$TMP/initdb.log' 2>&1" \
     || { cat "$TMP/initdb.log"; exit 2; }
-  as_pg "$PG_BIN/pg_ctl -D '$TMP/data' -l '$TMP/server.log' -w -o \"-p $PORT -k $TMP -c listen_addresses='' -c fsync=off\" start >/dev/null" \
+  as_pg "$PG_BIN/pg_ctl -D '$TMP/data' -l '$TMP/server.log' -w -o \"-p $PORT -k $TMP -c listen_addresses='' -c fsync=off -c wal_level=logical\" start >/dev/null" \
     || { cat "$TMP/server.log"; exit 2; }
   ADMIN_URL="postgresql://postgres@/postgres?host=$TMP&port=$PORT"
 fi
 
 PSQL=(psql -X -q -v ON_ERROR_STOP=1)
-"${PSQL[@]}" "$ADMIN_URL" -c "drop database if exists $DB" -c "create database $DB" >/dev/null
+"${PSQL[@]}" "$ADMIN_URL" -c "set client_min_messages = warning" -c "drop database if exists $DB" -c "create database $DB" >/dev/null
 DB_URL="${ADMIN_URL/\/postgres\?//$DB?}"
 if [ "$DB_URL" = "$ADMIN_URL" ]; then DB_URL="${ADMIN_URL%/*}/$DB"; fi
 
