@@ -29,7 +29,9 @@ export const demoDb = {
   coupons: clone(d.demoCoupons),
   product_requests: clone(d.demoRequests),
   staff_roles: roles,
-  settings: { store: clone(d.demoStore), checkout: clone(d.demoCheckout) } as Record<string, unknown>,
+  branches: clone(d.demoBranches),
+  money_accounts: clone(d.demoMoneyAccounts),
+  settings: { store: clone(d.demoStore), checkout: clone(d.demoCheckout), currency: clone(d.demoCurrency) } as Record<string, unknown>,
 };
 
 export type DemoTable = Exclude<keyof typeof demoDb, 'settings'>;

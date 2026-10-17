@@ -57,6 +57,22 @@ doc_status, notification_kind`.
 | `audit_log` | id bigint | مشغّل `audit()` على جداول الموظفين |
 | `doc_counters` | kind | |
 
+### إضافات من صور المرجع (القرار ١٨)
+| الجدول | ملاحظات |
+|---|---|
+| `branches` | فروع المتجر؛ فرع افتراضي واحد. `warehouses.branch_id`، `invoices.branch_id` (من المخزن)، `money_accounts.branch_id` |
+| `money_accounts` | صناديق نقدية وحسابات مصرفية ومحافظ، لكل منها عملة (IQD/USD) ورصيد افتتاحي؛ صندوق افتراضي لنقطة البيع. `payments.account_id` و`expenses.account_id` |
+| `account_transfers` | تحويل بين الصناديق (مع سعر صرف إن اختلفت العملة) — دالة `transfer_money` |
+| `variant_units` | وحدات تعبئة بباركود خاص (كرتونة = ١٢ قطعة)؛ الباركود فريد عبر `product_variants.barcode` و`variant_units.barcode` معاً. المسح يضيف `factor` قطعة |
+| `stock_lots` | دفعات بتاريخ صلاحية للمنتجات `track_expiry`؛ الشراء ينشئ دفعة، والبيع يستهلك الأقرب انتهاءً (FEFO) تلقائياً داخل `apply_movement` |
+| `stock_vouchers` + `stock_voucher_items` | سندات مخزنية يدوية: إدخال، إخراج، خروج عينة، رجوع عينة، تالف — دالة `post_stock_voucher(p jsonb)` (inventory.adjust) بحركات `manual_in/manual_out/sample_out/sample_return/damage` |
+| `quotations` + `quotation_items` | عروض الأسعار (quotations.manage): `save_quotation(p jsonb)`، `convert_quotation(id, payments jsonb)` ← فاتورة بيع بنفس منطق `pos_checkout` (يعيد التحقق من المخزون والأسعار ما لم يُثبَّت السعر) |
+| العملات | `invoices.currency/exchange_rate`، `payments.currency/exchange_rate/amount_iqd` (مولّد)، `expenses.currency/exchange_rate`. الأرصدة (`customer_balances`, `supplier_balances`) تعطي `balance` بالدينار و`balance_usd` لمستندات الدولار **منفصلين**. سعر اليوم في `app_settings.currency` (`CurrencySettings`). التكلفة والأرباح دائماً بالدينار (تحويل بسعر المستند) |
+| `pos_checkout` | يقبل في البنود `price_tier` ('retail'/'wholesale' — الجملة من `wholesale_price`) و`unit_id` (وحدة تعبئة)، وفي الرأس `currency` و`account_id` لكل دفعة |
+| `money_account_balances` (view) | الرصيد بعملة الحساب وبالدينار المكافئ |
+| `dashboard_summary` | يضيف `purchases_total` و`cash_balance` (مجموع الصناديق والحسابات بالدينار) |
+| `near_expiry(days, lim)` | دفعات تنتهي خلال N يوم (inventory.view) |
+
 **Views** (`security_invoker = true`): `customer_balances`، `supplier_balances` (الأعمدة في types.ts)، `variant_stock` (variant + اسم المنتج + الأرصدة لكل مخزن — للوحة).
 
 ## الدوال المساعدة

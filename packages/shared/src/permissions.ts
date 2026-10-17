@@ -12,6 +12,7 @@ export const PERMISSION_GROUPS = [
       { key: 'pos.sell', label: 'البيع من نقطة البيع' },
       { key: 'pos.discount', label: 'إعطاء خصم في نقطة البيع' },
       { key: 'pos.price_override', label: 'تغيير سعر البيع يدوياً' },
+      { key: 'quotations.manage', label: 'عروض الأسعار' },
       { key: 'orders.view', label: 'رؤية طلبات التطبيق' },
       { key: 'orders.manage', label: 'إدارة الطلبات وتغيير حالتها' },
       { key: 'requests.manage', label: 'إدارة طلبات التوفير' },
@@ -75,7 +76,7 @@ export const DEFAULT_ROLES: { name: string; description: string; permissions: Pe
   {
     name: 'كاشير',
     description: 'نقطة البيع والزبائن والفواتير',
-    permissions: ['dashboard.view', 'pos.sell', 'pos.discount', 'orders.view', 'products.view', 'inventory.view', 'customers.view', 'customers.manage', 'invoices.view'],
+    permissions: ['dashboard.view', 'pos.sell', 'pos.discount', 'quotations.manage', 'orders.view', 'products.view', 'inventory.view', 'customers.view', 'customers.manage', 'invoices.view'],
   },
   {
     name: 'أمين مخزن',
