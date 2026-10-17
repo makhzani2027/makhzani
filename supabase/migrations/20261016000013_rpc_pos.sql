@@ -41,6 +41,7 @@ end $$;
 create or replace function private.post_sale(p jsonb, p_channel public.invoice_channel, p_quotation uuid, p_trusted boolean)
 returns jsonb
 language plpgsql security definer set search_path = '' as $$
+<<fn>>
 declare
   uid uuid := auth.uid();
   wh public.warehouses;
@@ -189,8 +190,8 @@ begin
   end if;
   inv_disc := private.round_cur(least(inv_disc, subtotal), cur);
   total := subtotal - inv_disc;
-  update public.invoices set subtotal = post_sale.subtotal, discount = inv_disc, total = post_sale.total,
-    cost_total = post_sale.cost_total where id = iid;
+  update public.invoices set subtotal = fn.subtotal, discount = inv_disc, total = fn.total,
+    cost_total = fn.cost_total where id = iid;
 
   -- الدفعات بعملة الفاتورة للمقارنة (tender)
   if p -> 'payments' is not null and jsonb_typeof(p -> 'payments') <> 'array' then

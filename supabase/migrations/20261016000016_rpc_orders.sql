@@ -7,6 +7,7 @@
 -- items:[{variant_id, qty, unit_price?, discount?, price_tier?}]} ← يعيد العرض مع بنوده
 create or replace function public.save_quotation(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
+<<fn>>
 declare
   qid uuid := nullif(p ->> 'id', '')::uuid;
   q public.quotations;
@@ -76,7 +77,7 @@ begin
   subtotal := private.round_cur(subtotal, cur);
   inv_disc := private.round_cur(least(greatest(coalesce(nullif(p ->> 'discount', '')::numeric, 0), 0), subtotal), cur);
   if inv_disc > 0 then perform private.require_perm('pos.discount'); end if;
-  update public.quotations set subtotal = save_quotation.subtotal, discount = inv_disc, total = save_quotation.subtotal - inv_disc where id = qid;
+  update public.quotations set subtotal = fn.subtotal, discount = inv_disc, total = fn.subtotal - inv_disc where id = qid;
   return (select to_jsonb(x) || jsonb_build_object('items', coalesce((select jsonb_agg(to_jsonb(i) order by i.name)
             from public.quotation_items i where i.quotation_id = x.id), '[]'::jsonb))
           from public.quotations x where x.id = qid);

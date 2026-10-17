@@ -49,6 +49,7 @@ end $$;
 -- serials?, lot_code?, expiry_date?}], discount?, payments?, note?} ← حركات شراء + متوسط تكلفة بالدينار + دفعات صرف
 create or replace function public.post_purchase(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
+<<fn>>
 declare
   uid uuid := auth.uid();
   sp public.suppliers;
@@ -148,7 +149,7 @@ begin
     cost_total := cost_total + round(piece_cost * qty * factor, 2);
   end loop;
 
-  update public.invoices set cost_total = post_purchase.cost_total where id = iid;
+  update public.invoices set cost_total = fn.cost_total where id = iid;
   perform private.add_payments(p -> 'payments', 'out', null, sp.id, iid, cur, rate);
   return (select jsonb_build_object('invoice_id', i.id, 'number', i.number, 'total', i.total, 'paid', i.paid, 'due', i.due, 'currency', i.currency)
           from public.invoices i where i.id = iid);
@@ -158,6 +159,7 @@ end $$;
 -- البنود نسبة من الأصل، وخصم الفاتورة الأصلية يوزَّع بالنسبة. الرصيد يعود (بيع) أو يخرج (شراء)
 create or replace function private.make_return(p_invoice uuid, p_items jsonb, p_refund jsonb, p_reason text) returns jsonb
 language plpgsql security definer set search_path = '' as $$
+<<fn>>
 declare
   uid uuid := auth.uid();
   o public.invoices;
@@ -246,8 +248,8 @@ begin
 
   subtotal := private.round_cur(subtotal, o.currency);
   disc := case when o.subtotal > 0 then least(private.round_cur(subtotal * o.discount / o.subtotal, o.currency), subtotal) else 0 end;
-  update public.invoices set subtotal = make_return.subtotal, discount = disc, total = make_return.subtotal - disc,
-    cost_total = make_return.cost_total where id = rid;
+  update public.invoices set subtotal = fn.subtotal, discount = disc, total = fn.subtotal - disc,
+    cost_total = fn.cost_total where id = rid;
 
   -- المبلغ المسترد (للزبون صرف، ومن المورد قبض) لا يتجاوز قيمة الإرجاع
   if p_refund is not null and jsonb_typeof(p_refund) = 'object' then
