@@ -42,7 +42,7 @@
    - `Project URL` مثل `https://abcdxyz.supabase.co` · `anon public` key · `Project ref` (الجزء `abcdxyz`).
 4. **Authentication ← URL Configuration**:
    - Site URL: `https://raqeemiq.web.app/dashboard/`
-   - Redirect URLs (أضف كلاً منها): `raqeem://auth-callback` · `exp://**` · `http://localhost:5173/**` · `https://raqeemiq.web.app/**`
+   - Redirect URLs (أضف كلاً منها): `raqeem://auth-callback` · `raqeem://payment-return` · `exp://**` · `http://localhost:5173/**` · `https://raqeemiq.web.app/**`
 5. **Authentication ← Sign In / Providers ← Email**: فعّل Email، وعطّل «Allow new users to sign up» (الموظفون يُنشؤون من اللوحة فقط؛ الزبائن عبر Google).
 6. لا تنفّذ أي SQL بيدك: سير العمل في الخطوة ٥ يبني قاعدة البيانات كلها تلقائياً.
 7. **Access token** (لسير العمل): https://supabase.com/dashboard/account/tokens ← **Generate new token** ← الاسم `github` ← انسخه (يظهر مرة).

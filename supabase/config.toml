@@ -45,6 +45,7 @@ enabled = true
 site_url = "https://raqeemiq.web.app/dashboard/"
 additional_redirect_urls = [
   "raqeem://auth-callback",
+  "raqeem://payment-return",
   "exp://**",
   "http://localhost:5173/**",
   "https://raqeemiq.web.app/**",
