@@ -16,6 +16,16 @@ const Orders = lazy(() => import('../pages/sales/Orders'));
 const OrderDetail = lazy(() => import('../pages/sales/OrderDetail'));
 const Requests = lazy(() => import('../pages/sales/Requests'));
 
+const Customers = lazy(() => import('../pages/finance/Customers'));
+const CustomerDetail = lazy(() => import('../pages/finance/CustomerDetail'));
+const Debts = lazy(() => import('../pages/finance/Debts'));
+const Receipts = lazy(() => import('../pages/finance/Receipts'));
+const Accounts = lazy(() => import('../pages/finance/Accounts'));
+const Statements = lazy(() => import('../pages/finance/Statements'));
+const Cash = lazy(() => import('../pages/finance/Cash'));
+const Expenses = lazy(() => import('../pages/finance/Expenses'));
+const Reports = lazy(() => import('../pages/finance/Reports'));
+
 export const salesRoutes: AppRoute[] = [
   { path: '/', label: 'نظرة عامة', icon: 'grid', group: 'home', perm: 'dashboard.view', element: Overview, order: 0 },
   { path: '/pos', label: 'نقطة البيع', icon: 'pos', group: 'sales', perm: 'pos.sell', element: Pos, order: 1, full: true },
@@ -28,15 +38,15 @@ export const salesRoutes: AppRoute[] = [
   { path: '/orders', label: 'الطلبات', icon: 'bag', group: 'sales', perm: 'orders.view', element: Orders, order: 5, badge: 'ordersNew' },
   { path: '/orders/:id', label: 'الطلب', icon: 'bag', group: 'sales', perm: 'orders.view', element: OrderDetail, nav: false },
   { path: '/requests', label: 'طلبات التوفير', icon: 'request', group: 'sales', perm: 'requests.manage', element: Requests, order: 6, badge: 'requestsNew' },
-  { path: '/customers', label: 'الزبائن', icon: 'users', group: 'finance', perm: 'customers.view', element: Soon, order: 1 },
-  { path: '/customers/:id', label: 'الزبون', icon: 'user', group: 'finance', perm: 'customers.view', element: Soon, nav: false },
-  { path: '/debts', label: 'الديون', icon: 'debt', group: 'finance', perm: 'finance.view', element: Soon, order: 2 },
-  { path: '/receipts', label: 'السندات', icon: 'wallet', group: 'finance', perm: 'finance.view', element: Soon, order: 3 },
-  { path: '/accounts', label: 'الصناديق والحسابات', icon: 'bank', group: 'finance', perm: 'finance.view', element: Soon, order: 4 },
-  { path: '/statements', label: 'الكشوفات', icon: 'fileText', group: 'finance', perm: 'finance.view', element: Soon, order: 5 },
-  { path: '/cash', label: 'الصندوق', icon: 'cash', group: 'finance', perm: 'finance.view', element: Soon, order: 6 },
-  { path: '/expenses', label: 'المصروفات', icon: 'expense', group: 'finance', perm: 'finance.view', element: Soon, order: 7 },
-  { path: '/reports', label: 'التقارير', icon: 'chartBar', group: 'finance', perm: 'reports.view', element: Soon, order: 8 },
+  { path: '/customers', label: 'الزبائن', icon: 'users', group: 'finance', perm: 'customers.view', element: Customers, order: 1 },
+  { path: '/customers/:id', label: 'الزبون', icon: 'user', group: 'finance', perm: 'customers.view', element: CustomerDetail, nav: false },
+  { path: '/debts', label: 'الديون', icon: 'debt', group: 'finance', perm: 'finance.view', element: Debts, order: 2 },
+  { path: '/receipts', label: 'السندات', icon: 'wallet', group: 'finance', perm: 'finance.view', element: Receipts, order: 3 },
+  { path: '/accounts', label: 'الصناديق والحسابات', icon: 'bank', group: 'finance', perm: 'finance.view', element: Accounts, order: 4 },
+  { path: '/statements', label: 'الكشوفات', icon: 'fileText', group: 'finance', perm: 'finance.view', element: Statements, order: 5 },
+  { path: '/cash', label: 'الصندوق', icon: 'cash', group: 'finance', perm: 'finance.view', element: Cash, order: 6 },
+  { path: '/expenses', label: 'المصروفات', icon: 'expense', group: 'finance', perm: 'finance.view', element: Expenses, order: 7 },
+  { path: '/reports', label: 'التقارير', icon: 'chartBar', group: 'finance', perm: 'reports.view', element: Reports, order: 8 },
   { path: '/storefront', label: 'واجهة المتجر', icon: 'layout', group: 'store', perm: 'store.manage', element: Soon, order: 1 },
   { path: '/coupons', label: 'الكوبونات', icon: 'ticket', group: 'store', perm: 'store.manage', element: Soon, order: 2 },
   { path: '/delivery', label: 'التوصيل والدفع', icon: 'truck', group: 'store', perm: 'store.manage', element: Soon, order: 3 },
