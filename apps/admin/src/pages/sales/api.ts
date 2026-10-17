@@ -407,7 +407,7 @@ export async function getInvoice(id: string): Promise<InvoiceFull> {
   };
 }
 
-export interface ReturnPayload { invoice_id: string; items: { invoice_item_id: string; qty: number }[]; refund?: { method: PaymentMethod; amount: number } | null; reason: string }
+export interface ReturnPayload { invoice_id: string; items: { invoice_item_id: string; qty: number; serials?: string[] }[]; refund?: { method: PaymentMethod; amount: number; account_id?: string | null; currency?: CurrencyCode } | null; reason: string }
 
 export async function postReturn(p: ReturnPayload): Promise<{ invoice_id: string; number: string }> {
   if (!IS_DEMO) return rpc('post_return', { p });

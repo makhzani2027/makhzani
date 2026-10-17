@@ -98,12 +98,12 @@ export async function listAudit(f: AuditFilter): Promise<{ rows: AuditRow[]; tot
   if (IS_DEMO) {
     await demoDelay();
     const all = ledger.audit_log.filter((a) => (!f.entity || a.entity === f.entity) && (!f.q || `${a.action} ${a.entity} ${a.entity_id ?? ''} ${JSON.stringify(a.data)}`.includes(f.q)));
-    return { rows: all.slice(f.page * f.pageSize, (f.page + 1) * f.pageSize).map((a) => ({ ...a, actor_name: staffName(a.actor_id) })), total: all.length, entities: [...new Set(ledger.audit_log.map((a) => a.entity))].sort() };
+    return { rows: all.slice((f.page - 1) * f.pageSize, f.page * f.pageSize).map((a) => ({ ...a, actor_name: staffName(a.actor_id) })), total: all.length, entities: [...new Set(ledger.audit_log.map((a) => a.entity))].sort() };
   }
   let q = sb().from('audit_log').select('*', { count: 'exact' }).order('created_at', { ascending: false });
   if (f.entity) q = q.eq('entity', f.entity);
   if (f.q.trim()) q = q.or(`action.ilike.%${f.q.trim().replace(/[%_,()]/g, '')}%,entity_id.ilike.%${f.q.trim().replace(/[%_,()]/g, '')}%`);
-  const { data, error, count } = await q.range(f.page * f.pageSize, (f.page + 1) * f.pageSize - 1);
+  const { data, error, count } = await q.range((f.page - 1) * f.pageSize, f.page * f.pageSize - 1);
   if (error) throw error;
   const ids = [...new Set((data ?? []).map((a) => a.actor_id).filter(Boolean))] as string[];
   const ps = ids.length ? await sb().from('profiles').select('id,full_name').in('id', ids) : { data: [] };

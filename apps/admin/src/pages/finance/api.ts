@@ -114,7 +114,7 @@ export async function listPayments(f: PaymentFilter): Promise<{ rows: PaymentRow
     rows = filtered;
     const inIqd = filtered.filter((p) => p.direction === 'in').reduce((s, p) => s + p.amount_iqd, 0);
     const outIqd = filtered.filter((p) => p.direction === 'out').reduce((s, p) => s + p.amount_iqd, 0);
-    return { rows: filtered.slice(f.page * f.pageSize, (f.page + 1) * f.pageSize), total: filtered.length, inIqd, outIqd };
+    return { rows: filtered.slice((f.page - 1) * f.pageSize, f.page * f.pageSize), total: filtered.length, inIqd, outIqd };
   }
   let query = sb().from('payments').select('*, customers(name), suppliers(name), invoices(number)', { count: 'exact' }).is('voided_at', null).order('created_at', { ascending: false });
   if (f.direction) query = query.eq('direction', f.direction);
@@ -123,7 +123,7 @@ export async function listPayments(f: PaymentFilter): Promise<{ rows: PaymentRow
   if (f.customerId) query = query.eq('customer_id', f.customerId);
   if (f.supplierId) query = query.eq('supplier_id', f.supplierId);
   if (f.q.trim()) query = query.or(`number.ilike.%${f.q.trim().replace(/[%_,()]/g, '')}%,note.ilike.%${f.q.trim().replace(/[%_,()]/g, '')}%`);
-  const { data, error, count } = await query.range(f.page * f.pageSize, (f.page + 1) * f.pageSize - 1);
+  const { data, error, count } = await query.range((f.page - 1) * f.pageSize, f.page * f.pageSize - 1);
   if (error) throw error;
   const names = await staffNames();
   type R = Payment & { customers: { name: string } | null; suppliers: { name: string } | null; invoices: { number: string } | null };
