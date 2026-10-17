@@ -20,6 +20,11 @@ begin
   else raise notice 'FAIL: % (got %, want %)', name, got, want; end if;
 end $$;
 
+-- قيمة واحدة بصلاحية postgres (تتجاوز RLS) — للتحقق من الحالة أثناء انتحال مستخدم
+create function test.peek(q text) returns text language plpgsql security definer as $$
+declare r text;
+begin execute q into r; return r; end $$;
+
 -- ينفّذ SQL ويتوقع خطأ يحوي النص
 create function test.throws(q text, expect text, name text) returns void language plpgsql as $$
 begin

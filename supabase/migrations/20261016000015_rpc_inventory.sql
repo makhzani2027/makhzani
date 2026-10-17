@@ -144,6 +144,7 @@ end $$;
 -- counted = null يحذف البند من الجرد
 create or replace function public.set_stocktake_count(id uuid, variant_id uuid, counted numeric) returns jsonb
 language plpgsql security definer set search_path = '' as $$
+#variable_conflict use_column
 declare
   s public.stocktakes;
   r public.stocktake_items;

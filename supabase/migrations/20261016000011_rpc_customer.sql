@@ -314,6 +314,7 @@ end $$;
 -- تقييم منتج: فقط بعد طلب مسلَّم يحويه (تقييم واحد لكل منتج يُحدَّث)
 create or replace function public.submit_review(product_id uuid, rating int, comment text default null) returns jsonb
 language plpgsql security definer set search_path = '' as $$
+#variable_conflict use_column
 declare
   uid uuid := auth.uid();
   oid uuid;

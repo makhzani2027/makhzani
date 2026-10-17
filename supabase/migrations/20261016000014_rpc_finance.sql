@@ -194,7 +194,7 @@ begin
   num := public.next_doc_number(rkind::text);
   insert into public.invoices (number, kind, channel, status, customer_id, supplier_id, order_id, return_of, warehouse_id, branch_id,
     currency, exchange_rate, note, cash_session_id, created_by)
-  values (num, rkind, case when o.channel = 'online' then 'online' else 'manual' end, 'posted', o.customer_id, o.supplier_id,
+  values (num, rkind, (case when o.channel = 'online' then 'online' else 'manual' end)::public.invoice_channel, 'posted', o.customer_id, o.supplier_id,
     o.order_id, o.id, o.warehouse_id, o.branch_id, o.currency, o.exchange_rate, left(btrim(p_reason), 500),
     case when uid is not null then private.open_session_of(uid) end, uid)
   returning id into rid;
