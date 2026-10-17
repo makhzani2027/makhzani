@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { Category } from '@raqeem/shared';
+import { formatMoney, type Category, type CurrencyCode } from '@raqeem/shared';
+import { useFmt } from '../../../lib/settings';
 import { useLoad } from '../../../lib/hooks';
 import { askConfirm } from '../../../ui';
 import { listBrands, listCategories } from '../api';
@@ -96,4 +97,10 @@ export function useQueryState<T extends Record<string, string>>(defaults: T): [T
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setSp]);
   return [value, set];
+}
+
+/** تنسيق مبلغ بعملة مستنده (الدينار أو الدولار) بشكل أرقام المتجر */
+export function useMoneyIn() {
+  const fmt = useFmt();
+  return useCallback((n: number | null | undefined, currency: CurrencyCode = 'IQD', bare = false) => formatMoney(n, { currency, digits: fmt.digits, bare }), [fmt.digits]);
 }

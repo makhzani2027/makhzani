@@ -6,6 +6,7 @@ import {
   Tabs, Textarea, askConfirm, toast,
 } from '../../ui';
 import { useAuth } from '../../lib/auth';
+import { IS_DEMO } from '../../lib/env';
 import { useAction, useLoad } from '../../lib/hooks';
 import { useFmt } from '../../lib/settings';
 import { imgUrl, uploadImage } from '../../lib/media';
@@ -467,7 +468,9 @@ function SpecsTab({ d, set, readOnly }: TabProps) {
 
 // ------------------------------------------------------------------ الأرقام التسلسلية
 
-function SerialsTab({ d, readOnly }: TabProps) {
+function SerialsTab({ d, readOnly: ro }: TabProps) {
+  // لا توجد دالة خادم لإضافة/تعديل السريالات يدوياً بعد (الجدول للقراءة فقط عبر RLS): تُسجَّل مع فاتورة الشراء
+  const readOnly = ro || !IS_DEMO;
   const fmt = useFmt();
   const meta = useCatalogMeta();
   const ids = d.variants.filter((v) => v.id).map((v) => v.id!);
@@ -476,7 +479,7 @@ function SerialsTab({ d, readOnly }: TabProps) {
   const [wh, setWh] = useState('');
   const [text, setText] = useState('');
   const add = useAction(addSerials);
-  if (!ids.length) return <Card><EmptyState icon="serial" title="احفظ المنتج أولاً" text="تُضاف الأرقام التسلسلية عادةً مع فاتورة الشراء. بعد الحفظ يمكنك إضافتها يدوياً هنا." /></Card>;
+  if (!ids.length) return <Card><EmptyState icon="serial" title="لا أرقام بعد" text="تُسجَّل الأرقام التسلسلية مع فاتورة الشراء: رقم لكل قطعة." /></Card>;
   const serials = text.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
   return (
     <>
@@ -486,7 +489,7 @@ function SerialsTab({ d, readOnly }: TabProps) {
             <Field label="النسخة"><Select value={variant} onChange={(e) => setVariant(e.target.value)} options={d.variants.filter((v) => v.id).map((v) => ({ value: v.id!, label: v.title === DEFAULT_TITLE ? v.sku : v.title }))} /></Field>
             <Field label="المخزن"><Select value={wh || meta.warehouses[0]?.id || ''} onChange={(e) => setWh(e.target.value)} options={meta.warehouses.map((w) => ({ value: w.id, label: w.name }))} /></Field>
           </div>
-          <Field label="الأرقام" hint="امسحها بالقارئ واحداً تلو الآخر، أو الصقها مفصولة بسطر أو فاصلة. كل رقم يزيد الرصيد قطعة.">
+          <Field label="الأرقام" hint="للقطع الموجودة فعلاً في المخزن (لا يتغير الرصيد). امسحها بالقارئ أو الصقها مفصولة بسطر أو فاصلة.">
             <Textarea rows={4} dir="ltr" value={text} onChange={(e) => setText(e.target.value)} data-scan-target="keep" />
           </Field>
           <Button variant="primary" disabled={!serials.length} loading={add.busy} onClick={async () => {
