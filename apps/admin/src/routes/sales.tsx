@@ -5,7 +5,6 @@
 import { lazy } from 'react';
 import type { AppRoute } from './types';
 
-const Soon = lazy(() => import('../pages/core/UnderConstruction'));
 const Overview = lazy(() => import('../pages/sales/Overview'));
 const Pos = lazy(() => import('../pages/sales/Pos'));
 const Invoices = lazy(() => import('../pages/sales/Invoices'));
@@ -31,6 +30,10 @@ const Coupons = lazy(() => import('../pages/store/Coupons'));
 const Delivery = lazy(() => import('../pages/store/Delivery'));
 const Notifications = lazy(() => import('../pages/store/Notifications'));
 const Reviews = lazy(() => import('../pages/store/Reviews'));
+
+const Staff = lazy(() => import('../pages/system/Staff'));
+const Settings = lazy(() => import('../pages/system/Settings'));
+const Audit = lazy(() => import('../pages/system/Audit'));
 
 export const salesRoutes: AppRoute[] = [
   { path: '/', label: 'نظرة عامة', icon: 'grid', group: 'home', perm: 'dashboard.view', element: Overview, order: 0 },
@@ -58,7 +61,7 @@ export const salesRoutes: AppRoute[] = [
   { path: '/delivery', label: 'التوصيل والدفع', icon: 'truck', group: 'store', perm: 'store.manage', element: Delivery, order: 3 },
   { path: '/notifications', label: 'الإشعارات', icon: 'megaphone', group: 'store', perm: 'notifications.send', element: Notifications, order: 4 },
   { path: '/reviews', label: 'التقييمات', icon: 'star', group: 'store', perm: 'products.write', element: Reviews, order: 5 },
-  { path: '/staff', label: 'المستخدمون', icon: 'idCard', group: 'system', perm: 'staff.manage', element: Soon, order: 1 },
-  { path: '/settings', label: 'الإعدادات', icon: 'settings', group: 'system', perm: 'settings.manage', element: Soon, order: 2 },
-  { path: '/audit', label: 'سجل العمليات', icon: 'history', group: 'system', perm: 'audit.view', element: Soon, order: 3 },
+  { path: '/staff', label: 'المستخدمون', icon: 'idCard', group: 'system', perm: 'staff.manage', element: Staff, order: 1 },
+  { path: '/settings', label: 'الإعدادات', icon: 'settings', group: 'system', perm: 'settings.manage', element: Settings, order: 2 },
+  { path: '/audit', label: 'سجل العمليات', icon: 'history', group: 'system', perm: 'audit.view', element: Audit, order: 3 },
 ];

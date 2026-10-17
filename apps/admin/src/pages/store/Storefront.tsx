@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { BANNER_LINK_KIND, HOME_SECTION_KIND, type Banner, type BannerLinkKind, type BannerPlacement, type HomeSection, type HomeSectionKind } from '@raqeem/shared';
 import { Badge, Button, Card, EmptyState, Field, IconButton, Input, Modal, NumberInput, PageHeader, Select, Skeleton, Switch, Thumb, askConfirm } from '../../ui';
 import { useAction, useLoad } from '../../lib/hooks';
-import { useSettings } from '../../lib/settings';
+import { useFmt, useSettings } from '../../lib/settings';
 import { imgUrl, uploadImage } from '../../lib/media';
 import { listCategories } from '../sales/data/lookups';
 import { banners, brandOptions, homeSections, productOptions, saveOrder } from './api';
@@ -13,6 +13,7 @@ const PLACEMENT: Record<BannerPlacement, string> = { home_hero: 'أعلى الر
 
 export default function Storefront() {
   const { store } = useSettings();
+  const fmt = useFmt();
   const bl = useLoad(banners.list, []);
   const sl = useLoad(homeSections.list, []);
   const [editB, setEditB] = useState<Banner | 'new' | null>(null);
@@ -55,7 +56,7 @@ export default function Storefront() {
               <div className="list">
                 {ss.map((s, i) => (
                   <div key={s.id} className="list-item">
-                    <span className="grow"><b>{s.title}</b><span className="meta"> · {HOME_SECTION_KIND[s.kind].label} · حتى {s.max_items} منتج</span></span>
+                    <span className="grow"><b>{s.title}</b><span className="meta"> · {HOME_SECTION_KIND[s.kind].label} · حتى {fmt.num(s.max_items)} منتج</span></span>
                     <Switch checked={s.is_active} onChange={(v) => void toggle('s', s.id, v)} label="" />
                     <IconButton icon="arrowUp" size="sm" label="أعلى" disabled={i === 0} onClick={() => void move('home_sections', ss, i, -1)} />
                     <IconButton icon="arrowDown" size="sm" label="أسفل" disabled={i === ss.length - 1} onClick={() => void move('home_sections', ss, i, 1)} />
