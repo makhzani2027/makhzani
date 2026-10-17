@@ -4,7 +4,7 @@ const enc = new TextEncoder();
 export const toHex = (buf: ArrayBuffer | Uint8Array) =>
   Array.from(buf instanceof Uint8Array ? buf : new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
 
-export async function hmac(key: string | Uint8Array, data: string): Promise<Uint8Array> {
+export async function hmac(key: string | Uint8Array<ArrayBuffer>, data: string): Promise<Uint8Array<ArrayBuffer>> {
   const k = await crypto.subtle.importKey('raw', typeof key === 'string' ? enc.encode(key) : key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   return new Uint8Array(await crypto.subtle.sign('HMAC', k, enc.encode(data)));
 }
