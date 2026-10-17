@@ -21,10 +21,12 @@ interface FlyValue {
 
 const Ctx = createContext<FlyValue | null>(null);
 
+export type Measurable = { measureInWindow(cb: (x: number, y: number, w: number, h: number) => void): void };
+
 const measure = (ref: RefObject<View | null>) => new Promise<Rect | null>((resolve) => {
   const v = ref.current;
   if (!v) return resolve(null);
-  v.measureInWindow((x, y, w, h) => resolve(w > 0 ? { x, y, w, h } : null));
+  (v as unknown as Measurable).measureInWindow((x, y, w, h) => resolve(w > 0 ? { x, y, w, h } : null));
 });
 
 export function FlyProvider({ children }: { children: ReactNode }) {

@@ -1,6 +1,6 @@
 import type { OrderPaymentStatus } from '@raqeem/shared';
 import type {
-  Address, AddressInput, Brand, CartLine, CartQuote, Category, DeliveryZone, Notification, Order, OrderDetail, OrderItem,
+  Address, AddressInput, Brand, CartLine, PaymentCreateResult, StoreQuote, StoreSearchResult, Category, DeliveryZone, Notification, Order, OrderDetail, OrderItem,
   PlaceOrderInput, PlaceOrderResult, Profile, ProfileInput, ProductRequest, PublicSettings, RequestInput, SearchParams,
   StoreHome, StoreProductCard, StoreProductDetail, VariantInfo,
 } from './types';
@@ -16,13 +16,14 @@ export interface Api {
   home(): Promise<StoreHome>;
   categories(): Promise<Category[]>;
   brands(): Promise<Brand[]>;
-  search(p: SearchParams): Promise<StoreProductCard[]>;
+  search(p: SearchParams): Promise<StoreSearchResult>;
   product(slugOrId: string): Promise<StoreProductDetail | null>;
   productCards(ids: string[]): Promise<StoreProductCard[]>;
   variants(ids: string[]): Promise<VariantInfo[]>;
   settings(): Promise<PublicSettings>;
   zones(): Promise<DeliveryZone[]>;
-  quote(items: { variant_id: string; qty: number }[], governorate: string | null, coupon: string | null): Promise<CartQuote>;
+  /** governorate = null ← استلام من المكتب (بلا أجرة) */
+  quote(items: { variant_id: string; qty: number }[], governorate: string | null, coupon: string | null): Promise<StoreQuote>;
 
   // ------------------------------------------------ الحساب
   profile(uid: string): Promise<Profile | null>;
@@ -49,7 +50,7 @@ export interface Api {
   /** يستدعي onChange عند أي تغيّر في الطلب أو أحداثه (لحظياً) — يعيد دالة الإلغاء */
   subscribeOrder(id: string, onChange: () => void): () => void;
   cancelOrder(id: string, reason: string | null): Promise<void>;
-  startPayment(orderId: string): Promise<{ checkout_url: string | null; paid?: boolean }>;
+  startPayment(orderId: string, redirectUrl: string | null): Promise<PaymentCreateResult>;
   paymentStatus(orderId: string): Promise<OrderPaymentStatus>;
   submitReview(productId: string, rating: number, comment: string | null): Promise<void>;
 

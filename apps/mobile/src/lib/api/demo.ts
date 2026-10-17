@@ -12,7 +12,7 @@ import {
   demoProducts, demoRequests, demoStore, demoVariants, demoZones,
 } from '@raqeem/shared/demo';
 import type { Api, OrderWithItems } from './api';
-import type { CartLine, PublicVariant, SearchParams, StoreProductCard, StoreReview, VariantInfo } from './types';
+import type { CartLine, PublicVariant, SearchParams, StoreProductCard, StoreQuote, StoreReview, StoreSearchResult, VariantInfo } from './types';
 
 export const DEMO_UID = '00000000-0000-4000-8010-000000000099';
 
@@ -35,9 +35,10 @@ function toCard(p: Product): StoreProductCard {
   return {
     id: p.id, slug: p.slug, name: p.name, cover_key: p.cover_key, category_id: p.category_id, brand_id: p.brand_id,
     brand_name: brandName(p.brand_id), price_min: Math.min(...prices), price_max: Math.max(...prices),
-    compare_at_price: cheapest?.compare_at_price ?? null, available_qty: vs.reduce((s, v) => s + Math.max(v.available_qty, 0), 0),
+    compare_at_price: cheapest?.compare_at_price ?? null, available_qty: vs.reduce((s, v) => s + Math.max(avail(v.id), 0), 0),
+    in_stock: vs.some((v) => avail(v.id) > 0), is_featured: p.is_featured, allow_request: p.allow_request, has_variants: p.has_variants,
     rating_avg: p.rating_avg, rating_count: p.rating_count, sold_count: p.sold_count, created_at: p.created_at,
-    variant_count: vs.length, default_variant_id: vs.length === 1 ? vs[0].id : null,
+    variants_count: vs.length, default_variant_id: vs.length === 1 ? vs[0].id : null,
   };
 }
 
@@ -48,7 +49,7 @@ function categoryTree(id: string): string[] {
   return [id, ...demoCategories.filter((c) => c.parent_id === id).map((c) => c.id)];
 }
 
-function search(p: SearchParams): StoreProductCard[] {
+function search(p: SearchParams): StoreSearchResult {
   let list = published();
   if (p.category) {
     const ids = categoryTree(p.category);
@@ -80,7 +81,7 @@ function search(p: SearchParams): StoreProductCard[] {
     return (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0) || Number(b.available_qty > 0) - Number(a.available_qty > 0) || b.sold_count - a.sold_count;
   });
   const off = p.off ?? 0;
-  return cards.slice(off, off + (p.lim ?? 20));
+  return { total: cards.length, items: cards.slice(off, off + (p.lim ?? 24)) };
 }
 
 const REVIEWERS = ['أحمد', 'سارة', 'حسين', 'مريم', 'علي', 'نور'];
@@ -94,7 +95,7 @@ function reviewsOf(p: Product): StoreReview[] {
     rating: i === 2 ? 4 : 5,
     comment: COMMENTS[(n + i) % COMMENTS.length],
     created_at: new Date(Date.now() - (i + 1) * 4 * 86_400_000).toISOString(),
-    author_name: REVIEWERS[(n + i) % REVIEWERS.length],
+    author: REVIEWERS[(n + i) % REVIEWERS.length],
   }));
 }
 
@@ -209,7 +210,7 @@ function variantInfo(id: string): VariantInfo | null {
   };
 }
 
-function quoteOf(items: { variant_id: string; qty: number }[], governorate: string | null, coupon: string | null) {
+function quoteOf(items: { variant_id: string; qty: number }[], governorate: string | null, coupon: string | null): StoreQuote {
   const lines = items.map((it) => {
     const v = demoVariants.find((x) => x.id === it.variant_id);
     const a = v ? avail(v.id) : 0;
@@ -225,11 +226,13 @@ function quoteOf(items: { variant_id: string; qty: number }[], governorate: stri
     deliveryFee: zone?.fee ?? 0,
     freeDeliveryOver: demoCheckout.free_delivery_over,
   });
-  const couponError = code && !c ? 'هذا الكوبون غير صالح' : totals.couponError;
+  const couponError = code && !c ? 'الكوبون غير صالح' : totals.couponError;
+  const deliveryError = governorate && !zone ? 'التوصيل غير متاح لهذه المحافظة حالياً' : null;
   return {
     lines, subtotal: totals.subtotal, discount: totals.discount, delivery_fee: totals.deliveryFee, total: totals.total,
     coupon_code: c && !totals.couponError ? c.code : null, coupon_error: couponError, min_order_total: demoCheckout.min_order_total,
-    ok: lines.every((l) => l.ok) && totals.subtotal - totals.discount >= demoCheckout.min_order_total && (!governorate || !!zone),
+    ok: lines.every((l) => l.ok) && totals.subtotal >= demoCheckout.min_order_total && !deliveryError,
+    delivery_error: deliveryError, items_count: lines.reduce((n, l) => n + l.qty, 0),
   };
 }
 
@@ -262,7 +265,11 @@ export const demoApi: Api & { signIn(): Profile; signOut(): void; currentProfile
       if (s.kind === 'manual') list = s.product_ids.map(card).filter((x): x is StoreProductCard => !!x);
       return { id: s.id, title: s.title, kind: s.kind, category_id: s.category_id, brand_id: s.brand_id, products: list.slice(0, s.max_items) };
     });
-    return { banners: demoBanners.filter((b) => b.is_active), categories: demoCategories.filter((c) => c.is_visible), sections };
+    return {
+      banners: demoBanners.filter((b) => b.is_active).sort((a, b) => a.placement.localeCompare(b.placement) || a.sort - b.sort),
+      categories: demoCategories.filter((c) => c.is_visible),
+      sections: sections.filter((s) => s.products.length > 0),
+    };
   },
   async categories() {
     await wait(80);
@@ -280,14 +287,14 @@ export const demoApi: Api & { signIn(): Profile; signOut(): void; currentProfile
     const p = published().find((x) => x.slug === slugOrId || x.id === slugOrId);
     if (!p) return null;
     const variants: PublicVariant[] = demo.variantsOf(p.id).map((v) => ({
-      id: v.id, product_id: v.product_id, title: v.title, options: v.options, sku: v.sku, price: v.price, compare_at_price: v.compare_at_price,
-      image_key: v.image_key, available_qty: avail(v.id), is_active: v.is_active, sort: v.sort,
+      id: v.id, title: v.title, options: v.options, sku: v.sku, barcode: v.barcode, price: v.price, compare_at_price: v.compare_at_price,
+      image_key: v.image_key, available_qty: Math.max(avail(v.id), 0), weight_g: v.weight_g, sort: v.sort,
     }));
     const related = published().filter((x) => x.category_id === p.category_id && x.id !== p.id).map(toCard).slice(0, 8);
     const more = related.length < 4 ? published().filter((x) => x.id !== p.id && !related.some((r) => r.id === x.id)).map(toCard).slice(0, 6 - related.length) : [];
     return {
       product: p, variants, images: [], brand: demoBrands.find((b) => b.id === p.brand_id) ?? null,
-      category: demoCategories.find((c) => c.id === p.category_id) ?? null, reviews: reviewsOf(p), related: [...related, ...more],
+      category: demoCategories.find((c) => c.id === p.category_id) ?? null, reviews: reviewsOf(p), similar: [...related, ...more],
     };
   },
   async productCards(ids) {
@@ -378,7 +385,9 @@ export const demoApi: Api & { signIn(): Profile; signOut(): void; currentProfile
     const q = quoteOf(input.items, address?.governorate ?? null, input.coupon_code);
     const bad = q.lines.find((l) => !l.ok);
     if (bad) fail(`${variantInfo(bad.variant_id)?.name ?? 'منتج'}: المتوفر ${bad.available_qty} فقط`);
-    if (q.subtotal - q.discount < q.min_order_total) fail('لم يصل الطلب إلى الحد الأدنى');
+    if (q.delivery_error) fail(q.delivery_error);
+    if (q.coupon_error) fail(q.coupon_error);
+    if (q.subtotal < q.min_order_total) fail('لم يصل الطلب إلى الحد الأدنى');
     const id = rid();
     const number = `O-${String(orderSeq++).padStart(6, '0')}`;
     const at = nowIso();
@@ -400,7 +409,7 @@ export const demoApi: Api & { signIn(): Profile; signOut(): void; currentProfile
     state.events.push({ id: rid(), order_id: id, status: 'pending', note: 'استلمنا طلبك', is_customer_visible: true, actor_id: null, created_at: at });
     state.cart.clear();
     if (input.payment_method !== 'online') simulateProgress(order);
-    return { order_id: id, number };
+    return { order_id: id, number, total: q.total, status: 'pending' as const, payment_method: input.payment_method };
   },
   async orders() {
     await wait(120);
@@ -435,7 +444,7 @@ export const demoApi: Api & { signIn(): Profile; signOut(): void; currentProfile
     o.payment_status = 'paid';
     simulateProgress(o);
     emitOrder(orderId);
-    return { checkout_url: null, paid: true };
+    return { transaction_id: null, checkout_url: null, amount: o.total, paid: true };
   },
   async paymentStatus(orderId) {
     return state.orders.find((x) => x.id === orderId)?.payment_status ?? 'unpaid';

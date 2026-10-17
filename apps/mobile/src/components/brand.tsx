@@ -55,7 +55,7 @@ export function PriceTag({ label, size = 'md', style }: { label: string; size?: 
         <Path d={d} fill={c.accent} />
         <Circle cx={w - point * 0.95} cy={h / 2} r={size === 'sm' ? 2.2 : 2.8} fill={c.card} />
       </Svg>
-      <View style={{ ...StyleSheet.absoluteFillObject, paddingEnd: point + 2, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ ...StyleSheet.absoluteFill, paddingEnd: point + 2, alignItems: 'center', justifyContent: 'center' }}>
         <T size={fs} weight="black" color={c.accentInk} style={{ lineHeight: h - 2, paddingBottom: 0 }} tabular>{label}</T>
       </View>
     </View>

@@ -28,9 +28,24 @@ export interface StoreProductCard {
   rating_count: number;
   sold_count: number;
   created_at: string;
+  in_stock: boolean;
+  is_featured: boolean;
+  allow_request: boolean;
+  has_variants: boolean;
   /** عدد النسخ الفعالة؛ إن كانت واحدة فهذه هي (للإضافة السريعة من البطاقة) */
-  variant_count: number;
+  variants_count: number;
   default_variant_id: string | null;
+}
+
+/** بانر كما يعيده store_home */
+export type StoreBanner = Pick<Banner, 'id' | 'title' | 'subtitle' | 'image_key' | 'link_kind' | 'link_value' | 'placement' | 'sort'>;
+/** قسم كما يعيده store_home */
+export type StoreCategory = Pick<Category, 'id' | 'parent_id' | 'name' | 'slug' | 'image_key' | 'icon' | 'sort'>;
+
+/** store_search(...) */
+export interface StoreSearchResult {
+  total: number;
+  items: StoreProductCard[];
 }
 
 export interface StoreHomeSection {
@@ -44,8 +59,8 @@ export interface StoreHomeSection {
 
 /** store_home() */
 export interface StoreHome {
-  banners: Banner[];
-  categories: Category[];
+  banners: StoreBanner[];
+  categories: StoreCategory[];
   sections: StoreHomeSection[];
 }
 
@@ -66,7 +81,7 @@ export interface SearchParams {
 /** نسخة كما يراها الزبون (بلا تكلفة ولا سعر جملة) */
 export type PublicVariant = Pick<
   ProductVariant,
-  'id' | 'product_id' | 'title' | 'options' | 'sku' | 'price' | 'compare_at_price' | 'image_key' | 'available_qty' | 'is_active' | 'sort'
+  'id' | 'title' | 'options' | 'sku' | 'barcode' | 'price' | 'compare_at_price' | 'image_key' | 'available_qty' | 'weight_g' | 'sort'
 >;
 
 export interface StoreReview {
@@ -74,18 +89,19 @@ export interface StoreReview {
   rating: number;
   comment: string | null;
   created_at: string;
-  author_name: string | null;
+  /** الاسم الأول للزبون أو «زبون» */
+  author: string;
 }
 
 /** store_product(slug_or_id) */
 export interface StoreProductDetail {
-  product: Product;
+  product: Omit<Product, 'created_by'>;
   variants: PublicVariant[];
-  images: ProductImage[];
-  brand: Brand | null;
-  category: Category | null;
+  images: Pick<ProductImage, 'id' | 'key' | 'alt' | 'sort'>[];
+  brand: Pick<Brand, 'id' | 'name' | 'slug' | 'logo_key'> | null;
+  category: Pick<Category, 'id' | 'name' | 'slug' | 'parent_id'> | null;
   reviews: StoreReview[];
-  related: StoreProductCard[];
+  similar: StoreProductCard[];
 }
 
 /** الإعدادات العامة (app_settings حيث is_public) */
@@ -129,6 +145,24 @@ export interface PlaceOrderInput {
 export interface PlaceOrderResult {
   order_id: string;
   number: string;
+  total: Money;
+  status: 'pending';
+  payment_method: OrderPaymentMethod;
+}
+
+/** quote_cart(...) = CartQuote + سبب تعذّر التوصيل + عدد القطع */
+export interface StoreQuote extends CartQuote {
+  delivery_error: string | null;
+  items_count: number;
+}
+
+/** payments {action:'create'} */
+export interface PaymentCreateResult {
+  transaction_id: string | null;
+  checkout_url: string | null;
+  amount: Money;
+  /** وضع العرض فقط: لا بوابة، يُعتبر مدفوعاً */
+  paid?: boolean;
 }
 
 export interface OrderDetail {

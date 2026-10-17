@@ -1,6 +1,6 @@
 import { layout, radius, type Tone } from '@raqeem/shared';
 import { router } from 'expo-router';
-import { forwardRef, type ReactNode } from 'react';
+import { forwardRef, type ComponentRef, type ReactNode } from 'react';
 import {
   ActivityIndicator, RefreshControl, ScrollView, TextInput, View,
   type StyleProp, type TextInputProps, type ViewStyle,
@@ -233,7 +233,7 @@ export function Button({
 
 // ---------------------------------------------------------------- الإدخال
 
-export const Input = forwardRef<TextInput, TextInputProps & { label?: string; hint?: string; error?: string | null; icon?: IconName; ltr?: boolean; prefix?: string }>(
+export const Input = forwardRef<ComponentRef<typeof TextInput>, TextInputProps & { label?: string; hint?: string; error?: string | null; icon?: IconName; ltr?: boolean; prefix?: string }>(
   function Input({ label, hint, error, icon, ltr, prefix, style, ...props }, ref) {
     const { c, tone } = useTheme();
     return (

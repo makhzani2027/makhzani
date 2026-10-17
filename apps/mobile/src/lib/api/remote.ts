@@ -2,12 +2,13 @@
  * التنفيذ الحقيقي على Supabase. الأسماء والمعاملات حرفياً من system/06-database.md.
  * الأخطاء العربية من قاعدة البيانات (raise exception) تمر كما هي إلى الشاشات.
  */
-import type { AppConfigSettings, CartQuote, CheckoutSettings, OrderPaymentStatus, StoreSettings } from '@raqeem/shared';
+import type { AppConfigSettings, CheckoutSettings, OrderPaymentStatus, StoreSettings } from '@raqeem/shared';
 import { callFunction, must, sb } from '../supabase';
 import type { Api, OrderWithItems } from './api';
 import type {
   Address, CartLine, Category, DeliveryZone, Notification, OrderDetail, OrderEvent, OrderItem, ProductRequest, Profile,
-  PublicSettings, StoreHome, StoreProductCard, StoreProductDetail, VariantInfo, Brand, Order,
+  PublicSettings, StoreHome, StoreProductCard, StoreProductDetail, VariantInfo, Brand, Order, PaymentCreateResult,
+  PlaceOrderResult, StoreQuote, StoreSearchResult,
 } from './types';
 
 const DEFAULT_STORE: StoreSettings = {
@@ -26,28 +27,25 @@ interface VariantRow { id: string; price: number; compare_at_price: number | nul
 interface ProductRow {
   id: string; slug: string; name: string; cover_key: string | null; category_id: string | null; brand_id: string | null;
   rating_avg: number; rating_count: number; sold_count: number; created_at: string;
+  is_featured: boolean; allow_request: boolean; has_variants: boolean; is_published: boolean; archived_at: string | null;
   brand: { name: string } | null; variants: VariantRow[];
 }
 
 function rowToCard(p: ProductRow): StoreProductCard {
   const vs = (p.variants ?? []).filter((v) => v.is_active);
   const cheapest = vs.reduce<VariantRow | null>((a, b) => (!a || b.price < a.price ? b : a), null);
+  const available = vs.reduce((s, v) => s + Math.max(0, v.available_qty), 0);
+  const cmp = cheapest?.compare_at_price ?? null;
   return {
     id: p.id, slug: p.slug, name: p.name, cover_key: p.cover_key, category_id: p.category_id, brand_id: p.brand_id,
     brand_name: p.brand?.name ?? null, price_min: cheapest?.price ?? 0, price_max: Math.max(0, ...vs.map((v) => v.price)),
-    compare_at_price: cheapest?.compare_at_price ?? null, available_qty: vs.reduce((s, v) => s + Math.max(0, v.available_qty), 0),
+    compare_at_price: cmp != null && cheapest && cmp > cheapest.price ? cmp : null, available_qty: available, in_stock: available > 0,
     rating_avg: p.rating_avg, rating_count: p.rating_count, sold_count: p.sold_count, created_at: p.created_at,
-    variant_count: vs.length, default_variant_id: vs.length === 1 ? vs[0].id : null,
+    is_featured: p.is_featured, allow_request: p.allow_request, has_variants: p.has_variants,
+    variants_count: vs.length, default_variant_id: vs.length === 1 ? vs[0].id : null,
   };
 }
 
-/** ‎place_order وأخواتها قد تعيد صفاً أو JSON أو معرفاً فقط — نقبل الأشكال الثلاثة */
-function idAndNumber(data: unknown): { id: string; number: string } {
-  const row = Array.isArray(data) ? data[0] : data;
-  if (typeof row === 'string') return { id: row, number: '' };
-  const r = (row ?? {}) as Record<string, unknown>;
-  return { id: String(r.order_id ?? r.request_id ?? r.id ?? ''), number: String(r.number ?? '') };
-}
 
 export const remoteApi: Api = {
   async home() {
@@ -66,20 +64,21 @@ export const remoteApi: Api = {
       q: p.q?.trim() || null, category: p.category ?? null, brand: p.brand ?? null, min_price: p.min_price ?? null,
       max_price: p.max_price ?? null, in_stock: p.in_stock ?? false, sort: p.sort ?? 'relevance', lim: p.lim ?? 20, off: p.off ?? 0,
     }));
-    return (data ?? []) as StoreProductCard[];
+    const r = (data ?? {}) as Partial<StoreSearchResult>;
+    return { total: r.total ?? 0, items: r.items ?? [] };
   },
   async product(slugOrId) {
     const data = await must(sb().rpc('store_product', { slug_or_id: slugOrId }));
     const d = data as StoreProductDetail | null;
     if (!d?.product) return null;
-    return { ...d, variants: d.variants ?? [], images: d.images ?? [], reviews: d.reviews ?? [], related: d.related ?? [] };
+    return { ...d, variants: d.variants ?? [], images: d.images ?? [], reviews: d.reviews ?? [], similar: d.similar ?? [] };
   },
   async productCards(ids) {
     if (!ids.length) return [];
     const rows = await must(sb().from('products')
-      .select('id, slug, name, cover_key, category_id, brand_id, rating_avg, rating_count, sold_count, created_at, brand:brands(name), variants:product_variants(id, price, compare_at_price, available_qty, is_active)')
+      .select('id, slug, name, cover_key, category_id, brand_id, rating_avg, rating_count, sold_count, created_at, is_featured, allow_request, has_variants, is_published, archived_at, brand:brands(name), variants:product_variants(id, price, compare_at_price, available_qty, is_active)')
       .in('id', ids));
-    const cards = ((rows ?? []) as unknown as ProductRow[]).map(rowToCard);
+    const cards = ((rows ?? []) as unknown as ProductRow[]).filter((p) => p.is_published && !p.archived_at).map(rowToCard);
     return ids.map((id) => cards.find((c) => c.id === id)).filter((c): c is StoreProductCard => !!c);
   },
   async variants(ids) {
@@ -87,7 +86,7 @@ export const remoteApi: Api = {
     type Row = { id: string; product_id: string; title: string; price: number; compare_at_price: number | null; image_key: string | null; available_qty: number; product: { name: string; slug: string; cover_key: string | null; category_id: string | null } | null };
     const rows = (await must(sb().from('product_variants')
       .select('id, product_id, title, price, compare_at_price, image_key, available_qty, product:products(name, slug, cover_key, category_id)')
-      .in('id', ids))) as unknown as Row[];
+      .in('id', ids).eq('is_active', true))) as unknown as Row[];
     return (rows ?? []).filter((r) => r.product).map((r): VariantInfo => ({
       variant_id: r.id, product_id: r.product_id, product_slug: r.product!.slug, name: r.product!.name,
       variant_title: r.title === 'افتراضي' ? null : r.title, price: r.price, compare_at_price: r.compare_at_price,
@@ -104,7 +103,7 @@ export const remoteApi: Api = {
   },
   async quote(items, governorate, coupon) {
     const data = await must(sb().rpc('quote_cart', { items, governorate, coupon_code: coupon?.trim() || null }));
-    return data as CartQuote;
+    return data as StoreQuote;
   },
 
   async profile(uid) {
@@ -116,7 +115,7 @@ export const remoteApi: Api = {
   async deleteAccount() {
     await must(sb().rpc('delete_my_account'));
     // حذف مستخدم auth نفسه يحتاج مفتاح الخدمة: دالة الخادم account
-    await callFunction('account', { action: 'delete' });
+    await callFunction('account', {});
   },
 
   async cartGet(uid) {
@@ -161,8 +160,7 @@ export const remoteApi: Api = {
       items: input.items, address_id: input.address_id, fulfillment: input.fulfillment, payment_method: input.payment_method,
       coupon_code: input.coupon_code, note: input.note,
     }));
-    const r = idAndNumber(data);
-    return { order_id: r.id, number: r.number };
+    return data as PlaceOrderResult;
   },
   async orders(uid) {
     const rows = await must(sb().from('orders').select('*, items:order_items(*)').eq('profile_id', uid).order('created_at', { ascending: false }).limit(60));
@@ -188,12 +186,12 @@ export const remoteApi: Api = {
   async cancelOrder(id, reason) {
     await must(sb().rpc('cancel_my_order', { order_id: id, reason }));
   },
-  async startPayment(orderId) {
-    const r = await callFunction<{ checkout_url?: string | null }>('payments', { action: 'create', order_id: orderId });
-    return { checkout_url: r?.checkout_url ?? null };
+  async startPayment(orderId, redirectUrl) {
+    const r = await callFunction<PaymentCreateResult>('payments', { action: 'create', order_id: orderId, ...(redirectUrl ? { redirect_url: redirectUrl } : {}) });
+    return { transaction_id: r?.transaction_id ?? null, checkout_url: r?.checkout_url ?? null, amount: r?.amount ?? 0 };
   },
   async paymentStatus(orderId) {
-    const r = (await must(sb().from('orders').select('payment_status').eq('id', orderId).single())) as { payment_status: OrderPaymentStatus };
+    const r = await callFunction<{ order_id: string; payment_status: OrderPaymentStatus }>('payments', { action: 'status', order_id: orderId });
     return r.payment_status;
   },
   async submitReview(productId, rating, comment) {
@@ -207,7 +205,8 @@ export const remoteApi: Api = {
     const data = await must(sb().rpc('create_product_request', {
       title: input.title, details: input.details, image_key: input.image_key, link_url: input.link_url, qty: input.qty, budget: input.budget,
     }));
-    return idAndNumber(data);
+    const r = data as { id: string; number: string; status: string };
+    return { id: r.id, number: r.number };
   },
   async uploadRequestImage(uid, bytes, contentType, ext) {
     const key = `requests/${uid}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.${ext}`;
