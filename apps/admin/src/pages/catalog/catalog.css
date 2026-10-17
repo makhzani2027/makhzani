@@ -184,3 +184,12 @@
 .table-plain th { color: var(--ink3); font-size: 12px; font-weight: 700; }
 .table-plain td.end, .table-plain th.end { text-align: left; }
 .scroll-x { overflow-x: auto; }
+
+/* ---------------------------------------------------------------- كل خيارات المخزون */
+.opt-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.opt-card { display: flex; align-items: center; gap: 14px; padding: 16px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-md); color: var(--ink); text-decoration: none; transition: border-color var(--t-fast) var(--ease); }
+.opt-card:hover { border-color: var(--accent); }
+.opt-card .opt-ic { width: 44px; height: 44px; flex: none; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: inline-flex; align-items: center; justify-content: center; }
+.opt-card .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.opt-card b { font-weight: 700; }
+.opt-card .grow span { font-size: 12.5px; color: var(--ink3); line-height: 1.6; }

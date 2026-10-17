@@ -16,11 +16,11 @@
  *     price, compare_at_price|null, wholesale_price|null,
  *     cost?: number,                 // يُرسل فقط إن كان للموظف costs.view (وإلا لا يُلمس variant_costs)
  *     min_stock, is_active, sort,
- *     units: [{id?, unit_name, factor, barcode|null, price|null}]   // وحدات التعبئة (variant_units) — تُستبدل كلها؛ الباركود فريد عبر النسخ والوحدات
- *   }],
- *   opening_stock?: [{variant_sku, warehouse_id, qty, unit_cost}]   // للمنتج الجديد فقط ← حركات opening
+ *     units: [{id?, unit_name, factor, barcode|null, price|null}],  // وحدات التعبئة (variant_units) — تُستبدل كلها؛ الباركود فريد عبر النسخ والوحدات
+ *     opening?: [{warehouse_id, qty, lot_code?, expiry_date?}]     // للنسخ الجديدة فقط ← حركات opening بتكلفة cost
+ *   }]
  * }
- * يعيد: المنتج (صف products، نقرأ منه id) أو uuid المنتج.
+ * يعيد: product_full = صف products + variants[] (مع units وcost) + images[] — نقرأ منه id.
  * ===========================================================================================
  */
 import {
@@ -65,6 +65,7 @@ export interface UpsertVariant {
   is_active: boolean;
   sort: number;
   units: UnitDraft[];
+  opening?: { warehouse_id: string; qty: number; lot_code?: string; expiry_date?: string }[];
 }
 
 export interface UnitDraft { id?: string; unit_name: string; factor: number; barcode: string | null; price: number | null }
@@ -89,7 +90,6 @@ export interface UpsertProductPayload {
   allow_request: boolean;
   images: { key: string; alt: string | null; sort: number }[];
   variants: UpsertVariant[];
-  opening_stock?: { variant_sku: string; warehouse_id: string; qty: number; unit_cost: number }[];
 }
 
 export interface ProductFull {
@@ -328,9 +328,9 @@ export async function upsertProduct(p: UpsertProductPayload): Promise<string> {
     p.images.forEach((im, i) => db.product_images.push({ id: demoId(), product_id: id, key: im.key, alt: im.alt, sort: i, created_at: now }));
     // الرصيد الافتتاحي للجديد فقط
     if (!existing) {
-      for (const o of p.opening_stock ?? []) {
-        const v = db.product_variants.find((x) => x.product_id === id && x.sku === o.variant_sku);
-        if (v && o.qty > 0) demoApplyMovement(db, { variant_id: v.id, warehouse_id: o.warehouse_id, qty: o.qty, kind: 'opening', unit_cost: o.unit_cost, ref_type: 'adjustment', note: 'رصيد افتتاحي' });
+      for (const pv of p.variants) {
+        const v = db.product_variants.find((x) => x.product_id === id && x.sku === pv.sku.trim());
+        for (const o of pv.opening ?? []) if (v && o.qty > 0) demoApplyMovement(db, { variant_id: v.id, warehouse_id: o.warehouse_id, qty: o.qty, kind: 'opening', unit_cost: pv.cost ?? null, ref_type: 'adjustment', note: 'رصيد افتتاحي', lot_code: o.lot_code ?? null, expiry_date: o.expiry_date ?? null });
       }
     }
     return id;
@@ -385,8 +385,9 @@ export async function nextBarcode(): Promise<string> {
     db.barcode_seq += 1;
     return internalEan13(db.barcode_seq);
   }
-  const seq = await rpc<number | string>('next_barcode');
-  return internalEan13(Number(seq));
+  // الخادم يعيد الباركود كاملاً (EAN-13 يبدأ بـ 20، فريد)
+  const code = await rpc<string | number>('next_barcode');
+  return /^\d{13}$/.test(String(code)) ? String(code) : internalEan13(Number(code));
 }
 
 /** رقم تسلسلي لاقتراح SKU (عدد النسخ + ١) */
