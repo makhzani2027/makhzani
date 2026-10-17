@@ -298,7 +298,7 @@ function PricingTab({ d, set, errors, tried, withCosts, readOnly }: TabProps) {
               <tr>
                 {multi ? <th>النسخة</th> : null}
                 <th>SKU</th><th>الباركود</th>
-                <th>السعر {multi && !readOnly ? <button type="button" className="link-btn small" onClick={() => applyAll('price')}>للكل</button> : null}</th>
+                <th>السعر {multi && !readOnly ? <button type="button" className="link-btn small" style={{ marginInlineStart: 6 }} onClick={() => applyAll('price')}>نسخ للكل</button> : null}</th>
                 <th>قبل الخصم</th><th>الجملة</th>
                 {withCosts ? <th>التكلفة</th> : null}
                 <th>حد التنبيه</th>

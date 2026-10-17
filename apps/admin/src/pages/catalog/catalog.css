@@ -64,7 +64,8 @@
 .vtable tr.focused td { background: var(--accent-soft); }
 .vtable tr.inactive td { opacity: .55; }
 .vtable .input { height: 38px; font-size: 13.5px; padding: 0 9px; }
-.vtable .input-wrap > .input:has(+ .suffix) { padding-inline-end: 34px; }
+/* الحقل الرقمي اتجاهه ltr فـ padding-inline-end يقع يميناً بينما اللاحقة (د.ع) يساراً: نحجز مكانها فعلياً */
+.vtable .input-wrap > .input.num:has(+ .suffix), .lines-table .input-wrap > .input.num:has(+ .suffix) { padding-left: 36px; padding-right: 9px; }
 .vtable .input-wrap > .suffix { inset-inline-end: 8px; font-size: 11.5px; }
 .vtable .w-sku { min-width: 130px; }
 .vtable .w-bar { min-width: 190px; }
