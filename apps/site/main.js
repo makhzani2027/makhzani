@@ -184,5 +184,72 @@
     if (a) e.preventDefault();
   });
 
+  // ------------------------------------------------------------ صفحة مشاركة المنتج /p/<slug>
+  // التطبيق يشارك ${SITE_URL}/p/<slug>؛ نقرأ المنتج من store_product العامة إن حُقنت بيانات Supabase، وإلا نعرض صفحة عامة.
+  const pv = document.querySelector('[data-product]');
+  if (pv) {
+    const one = (s) => pv.querySelector(s);
+    const raw = location.pathname.replace(/^\/p\/?/, '').split('/')[0] || new URLSearchParams(location.search).get('slug') || '';
+    let slug = '';
+    try { slug = decodeURIComponent(raw).trim(); } catch (e) { slug = ''; }
+    const money = (n) => ar(Math.round(Number(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')).replace(/,/g, '٬');
+    if (slug) one('[data-pv-open]').href = `raqeem://product/${encodeURIComponent(slug)}`;
+    const sb = window.RAQEEM_SUPABASE;
+    if (slug && sb && sb.url && sb.anonKey) {
+      pv.classList.add('is-loading');
+      fetch(`${sb.url}/rest/v1/rpc/store_product`, {
+        method: 'POST',
+        headers: { apikey: sb.anonKey, Authorization: `Bearer ${sb.anonKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug_or_id: slug }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null)
+        .then((d) => {
+          pv.classList.remove('is-loading');
+          const p = d && d.product;
+          if (!p) {
+            one('[data-pv-name]').textContent = 'هذا المنتج لم يعد متاحاً';
+            one('[data-pv-desc]').textContent = 'ربما بيع أو أوقف عرضه. افتح التطبيق لترى منتجات مشابهة وعروض اليوم.';
+            return;
+          }
+          if (p.slug) one('[data-pv-open]').href = `raqeem://product/${encodeURIComponent(p.slug)}`;
+          one('[data-pv-name]').textContent = p.name;
+          document.title = `${p.name} — رقيم`;
+          const crumb = [d.brand && d.brand.name, d.category && d.category.name].filter(Boolean).join(' · ');
+          if (crumb) one('[data-pv-crumb]').textContent = crumb;
+          const desc = (p.description || '').trim();
+          one('[data-pv-desc]').textContent = desc ? (desc.length > 320 ? `${desc.slice(0, 320).trim()}…` : desc) : 'افتحه في التطبيق لترى صوره وخياراته، واطلبه بالدفع عند الاستلام.';
+          const vs = (d.variants || []).filter((v) => v.price != null);
+          if (vs.length) {
+            const best = vs.reduce((a, b) => (Number(b.price) < Number(a.price) ? b : a));
+            one('[data-pv-amount]').textContent = (vs.length > 1 && vs.some((v) => Number(v.price) !== Number(best.price)) ? 'من ' : '') + money(best.price);
+            const was = Number(best.compare_at_price);
+            if (was > Number(best.price)) {
+              one('[data-pv-was]').textContent = `${money(was)} د.ع`;
+              one('[data-pv-was]').hidden = false;
+              one('[data-pv-off]').textContent = `خصم ${ar(Math.round((1 - Number(best.price) / was) * 100))}٪`;
+              one('[data-pv-off]').hidden = false;
+            }
+            one('[data-pv-price]').hidden = false;
+            const qty = vs.reduce((s, v) => s + Number(v.available_qty || 0), 0);
+            const st = one('[data-pv-stock]');
+            st.textContent = qty > 0 ? (qty <= 3 ? `متوفر · بقي ${ar(qty)} فقط` : 'متوفر') : 'نفد حالياً · اطلب توفيره من التطبيق';
+            st.classList.toggle('out', qty <= 0);
+            st.hidden = false;
+          }
+          const key = p.cover_key || (d.images && d.images[0] && d.images[0].key) || (vs[0] && vs[0].image_key);
+          if (key) {
+            const base = (sb.mediaBase || `${sb.url}/storage/v1/object/public/media`).replace(/\/$/, '');
+            const clean = String(key).replace(/^\/+/, '');
+            const src = /^https?:\/\//.test(clean) ? clean : `${base}/${/\.(webp|png|jpe?g|gif|svg|avif)$/i.test(clean) ? clean : `${clean}-md.webp`}`;
+            const img = one('[data-pv-img]');
+            img.alt = p.name;
+            img.onload = () => { img.hidden = false; one('[data-pv-ph]').hidden = true; };
+            img.src = src;
+          }
+        });
+    }
+  }
+
   $$('[data-year]').forEach((el) => { el.textContent = ar(new Date().getFullYear()); });
 })();

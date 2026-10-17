@@ -49,7 +49,10 @@ async function buildSite() {
   const sha = (() => { try { return execSync('git rev-parse --short HEAD', { cwd: root }).toString().trim(); } catch { return String(Date.now()); } })();
   const sbUrl = (process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
   const sbKey = (process.env.SUPABASE_ANON_KEY || '').trim();
-  const env = sbUrl && sbKey ? `<script>window.RAQEEM_SUPABASE=${JSON.stringify({ url: sbUrl, anonKey: sbKey })}</script>` : '';
+  const mediaBase = (process.env.MEDIA_BASE_URL || '').trim().replace(/\/+$/, '');
+  const env = sbUrl && sbKey
+    ? `<script>window.RAQEEM_SUPABASE=${JSON.stringify({ url: sbUrl, anonKey: sbKey, ...(mediaBase ? { mediaBase } : {}) })}</script>`
+    : '';
   const partial = (name) => fs.readFileSync(path.join(SRC, '_partials', `${name}.html`), 'utf8');
   const wedge = '<svg viewBox="0 0 70 64" aria-hidden="true"><path fill="currentColor" d="M70 5.5v53c0 3.6-3.4 5.8-6.5 4.3L3.2 35.2c-2.9-1.4-2.9-5.5 0-6.9L63.5 1.2C66.6-.3 70 1.9 70 5.5Z"/></svg>';
   const govs = GOVERNORATES.map((g) => `<li>${g.name}</li>`).join('');
@@ -68,19 +71,26 @@ async function buildSite() {
     s = s.replace(/(<ul[^>]*data-governorates[^>]*>)<\/ul>/g, `$1${govs}</ul>`);
     // فهرس الصفحات القانونية من عناوين h2 نفسها
     s = s.replace(/<nav data-toc([^>]*)><\/nav>/, (_, a) => {
-      const items = [...s.matchAll(/<h2 id="([\w-]+)">([\s\S]*?)<\/h2>/g)].map(([, id, t]) => `<a href="#${id}">${t.replace(/<[^>]+>/g, '')}</a>`);
+      const body = s.slice(s.indexOf('<article class="doc">'), s.indexOf('</article>'));
+      const items = [...body.matchAll(/<h2 id="([\w-]+)">([\s\S]*?)<\/h2>/g)].map(([, id, t]) => `<a href="#${id}">${t.replace(/<[^>]+>/g, '')}</a>`);
       return `<nav${a}>${items.join('')}</nav>`;
     });
     s = s.replace('<!--@env-->', env);
     s = s.replace(/href="\/style\.css"/g, `href="/style.css?v=${sha}"`).replace(/src="\/main\.js"/g, `src="/main.js?v=${sha}"`);
     const left = s.match(/data-icon=|data-logo|data-glyph|data-wedge|<!--@/);
     if (left) fail(`${file}: علامة بناء لم تُستبدل (${left[0]})`);
+    fs.mkdirSync(path.dirname(path.join(OUT, file)), { recursive: true });
     fs.writeFileSync(path.join(OUT, file), s);
   };
 
   for (const f of fs.readdirSync(SRC)) {
     const full = path.join(SRC, f);
-    if (f.startsWith('_') || f === 'download-config.json' || fs.statSync(full).isDirectory()) continue;
+    if (f.startsWith('_') || f === 'download-config.json') continue;
+    // مجلدات الصفحات (p/ لصفحة مشاركة المنتج): ملفات HTML فيها تمر بالمعالجة نفسها
+    if (fs.statSync(full).isDirectory()) {
+      for (const g of fs.readdirSync(full)) if (g.endsWith('.html')) html(`${f}/${g}`);
+      continue;
+    }
     if (f.endsWith('.html')) html(f);
     else if (f === 'style.css') fs.writeFileSync(path.join(OUT, f), fs.readFileSync(full, 'utf8').replace('/*@tokens*/', tokens));
     else if (f === 'main.js') {

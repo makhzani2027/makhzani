@@ -27,13 +27,17 @@ const views = [
       for (const p of pages) {
         const page = await ctx.newPage();
         const errors = [];
-        page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+        // صفحة 404 تُرجع الحالة 404 عمداً: لا نعدّ تحميلها الأول خطأ
+        page.on('console', (m) => { if (m.type() === 'error' && !(p === '/nope' && /status of 404/.test(m.text()))) errors.push(m.text()); });
         page.on('pageerror', (e) => errors.push(String(e)));
         await page.goto(base + p, { waitUntil: 'networkidle' });
         // نمرّر الصفحة كلها حتى تظهر عناصر «الظهور عند التمرير»
         await page.evaluate(async () => {
-          for (let y = 0; y < document.body.scrollHeight; y += 500) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 60)); }
-          window.scrollTo(0, 0);
+          // behavior:'instant' لأن الصفحة تستعمل scroll-behavior: smooth
+          for (let y = 0; y <= document.body.scrollHeight; y += 400) { window.scrollTo({ top: y, behavior: 'instant' }); await new Promise((r) => setTimeout(r, 80)); }
+          window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' });
+          await new Promise((r) => setTimeout(r, 120));
+          window.scrollTo({ top: 0, behavior: 'instant' });
         });
         await page.waitForTimeout(900);
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

@@ -26,7 +26,7 @@ for (const f of files.filter((x) => x.endsWith('.html'))) {
   const rel = path.relative(OUT, f);
   const s = fs.readFileSync(f, 'utf8');
   for (const [, attr, url] of s.matchAll(/\s(href|src)="([^"]+)"/g)) {
-    if (/^(https?:|mailto:|tel:|data:|#|\/\/)/.test(url)) continue;
+    if (/^(https?:|mailto:|tel:|data:|raqeem:|intent:|#|\/\/)/.test(url)) continue;
     if (!resolves(url, f)) problems.push(`${rel}: ${attr}="${url}" غير موجود`);
   }
   // معرّفات الروابط الداخلية (#id) في الصفحة نفسها
@@ -39,7 +39,7 @@ for (const f of files.filter((x) => x.endsWith('.html'))) {
     }
   }
 }
-for (const f of ['index.html', '404.html', 'privacy.html', 'terms.html', 'returns.html', 'licenses.html', 'download.json', 'robots.txt', 'sitemap.xml', 'og.png', `${base.slice(1)}index.html`]) {
+for (const f of ['index.html', '404.html', 'privacy.html', 'terms.html', 'returns.html', 'licenses.html', 'download.json', 'robots.txt', 'sitemap.xml', 'og.png', 'p/index.html', `${base.slice(1)}index.html`]) {
   if (!exists(path.join(OUT, f))) problems.push(`ملف مطلوب مفقود: ${f}`);
 }
 for (const f of files.filter((x) => x.endsWith('.css') || x.endsWith('.js'))) {

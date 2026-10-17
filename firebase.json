@@ -4,10 +4,12 @@
     "cleanUrls": true,
     "trailingSlash": false,
     "redirects": [
-      { "source": "/dashboard", "destination": "/dashboard/", "type": 301 }
+      { "source": "/dashboard", "destination": "/dashboard/", "type": 301 },
+      { "source": "/p", "destination": "/", "type": 302 }
     ],
     "rewrites": [
-      { "source": "/dashboard/**", "destination": "/dashboard/index.html" }
+      { "source": "/dashboard/**", "destination": "/dashboard/index.html" },
+      { "source": "/p/**", "destination": "/p/index.html" }
     ],
     "headers": [
       {
