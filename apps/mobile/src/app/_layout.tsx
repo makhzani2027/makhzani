@@ -15,6 +15,7 @@ import { ToastHost } from '@/components/toast';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { CartProvider } from '@/lib/cart';
 import { FavoritesProvider } from '@/lib/favorites';
+import { WELCOMED_KEY } from '@/lib/hooks';
 import { notificationRoute, onNotificationTap, registerPush } from '@/lib/push';
 import { QueryProvider } from '@/lib/query';
 import { storage } from '@/lib/storage';
@@ -33,8 +34,6 @@ if (Platform.OS !== 'web') {
 SplashScreen.preventAutoHideAsync().catch(() => {});
 // شبكة أمان: لا تبقى شاشة البداية أكثر من ٨ ثوانٍ مهما حدث
 setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 8000);
-
-export const WELCOMED_KEY = 'raqeem.welcomed';
 
 /** بدل التجمد: نعرض الخطأ بوضوح مع زر إعادة المحاولة */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {

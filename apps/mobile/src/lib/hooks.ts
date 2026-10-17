@@ -41,3 +41,13 @@ export const couponStore = {
 export function useCoupon(): string | null {
   return useSyncExternalStore((cb) => { couponListeners.add(cb); return () => { couponListeners.delete(cb); }; }, () => coupon, () => coupon);
 }
+
+/** شاهد الترحيب مرة */
+export const WELCOMED_KEY = 'raqeem.welcomed';
+
+/** إلى أين بعد الدخول وإكمال البيانات (مثلاً /checkout) */
+let pendingNext: string | null = null;
+export const afterAuth = {
+  set(v: string | null) { pendingNext = v; },
+  take(): string { const v = pendingNext; pendingNext = null; return v || '/'; },
+};
