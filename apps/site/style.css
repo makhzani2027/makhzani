@@ -285,6 +285,19 @@ ul, ol { padding: 0; list-style: none; }
 .pp-add { flex: 1; height: 4em; border-radius: 99px; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; gap: .5em; font: 700 1.25em/1 var(--sans); padding-bottom: .1em; }
 .pp-add .ic { width: 1.6em; height: 1.6em; }
 
+/* رسوم المنتجات داخل الهاتفين: أشكال مسطحة بألوان الهوية (لا صور جاهزة) */
+.art .sh { fill: var(--ink); opacity: .08; }
+.art .b1 { fill: var(--card); }
+.art .b1.o { stroke: var(--line-strong); stroke-width: 1.5; }
+.art .b2 { fill: var(--ink); }
+.art .b3 { fill: var(--ink3); }
+.art .b4 { fill: var(--ink2); }
+.art .ac { fill: var(--accent); }
+.art .st { fill: none; stroke: var(--ink); stroke-width: 7; stroke-linecap: round; }
+.ph-banner .art .bh { fill: var(--hero-ink); }
+.ph-banner .art .bd { fill: var(--hero); opacity: .9; }
+.ph-banner .art .ac { fill: var(--hero-hole); }
+
 /* إشعار طافٍ فوق الهاتف */
 .toast {
   position: absolute; z-index: 4; top: 56%; inset-inline-start: -2%; width: min(300px, 74%);

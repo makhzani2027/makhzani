@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="168" height="168" viewBox="0 0 168 168">
+  <!-- نقش أسافين مسمارية (يُستعمل قناعاً بشفافية ٤٪ في البطل فقط). w = إسفين أفقي، k = إسفين زاوية -->
+  <defs>
+    <path id="w" d="M0-4.6V4.6L7.5 1.1 23 .45V-.45L7.5-1.1Z" />
+    <path id="k" d="M0 0 9.5-6.5 6.6 0 9.5 6.5Z" />
+  </defs>
+  <g fill="#000">
+    <use href="#w" x="14" y="20" />
+    <use href="#w" x="14" y="31" />
+    <use href="#w" transform="translate(48 12) rotate(90)" />
+    <use href="#k" x="60" y="24" />
+    <use href="#w" x="104" y="18" />
+    <use href="#w" transform="translate(140 10) rotate(90)" />
+    <use href="#w" transform="translate(150 10) rotate(90)" />
+    <use href="#k" x="20" y="74" />
+    <use href="#k" x="32" y="74" />
+    <use href="#w" x="70" y="70" />
+    <use href="#w" transform="translate(110 60) rotate(90)" />
+    <use href="#w" x="122" y="78" />
+    <use href="#w" transform="translate(86 106) rotate(45)" />
+    <use href="#w" x="12" y="124" />
+    <use href="#w" transform="translate(50 112) rotate(90)" />
+    <use href="#k" x="128" y="122" />
+    <use href="#w" x="132" y="146" />
+    <use href="#w" x="60" y="152" />
+    <use href="#k" x="98" y="150" />
+  </g>
+</svg>
