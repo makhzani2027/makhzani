@@ -21,16 +21,16 @@
 - [x] ~~استئناف الوكلاء الخمسة بعد توقف حد الاستخدام، مع المهام الجديدة لكل منهم~~
 
 ## المرحلة ١ — البناء بالتوازي (٥ وكلاء)
-### db — `supabase/`
-- [ ] الأنواع والجداول والفهارس والقيود
-- [ ] الدوال المساعدة (`normalize_ar`, `has_perm`, `next_doc_number`, `apply_movement`)
-- [ ] دوال المتجر (`store_home`, `store_search`, `store_product`, `quote_cart`, `place_order`, …)
-- [ ] دوال المخزن والمال (`upsert_product`, `pos_checkout`, `post_purchase`, `post_return`, `void_invoice`, `adjust_stock`, `transfer_stock`, الجرد، الصندوق، الدفعات)
-- [ ] دوال الطلبات (`set_order_status`) والتقارير
-- [ ] RLS لكل جدول + التخزين + المشغّلات + الإشعارات (pg_net)
-- [ ] دوال الخادم: push, payments (+mock), payments-webhook, staff, account, media
-- [ ] seed + اختبارات (RLS، المنطق، التزامن، migrations مرتين)
-- [ ] إضافات القرار ١٨: الفروع، الصناديق، التحويلات، وحدات التعبئة، الدفعات FEFO، السندات المخزنية، عروض الأسعار، العملتان
+### db — `supabase/` ✅ (١٨٩ اختباراً ناجحاً، دُمج)
+- [x] ~~الأنواع والجداول والفهارس والقيود~~
+- [x] ~~الدوال المساعدة (`normalize_ar`, `has_perm`, `next_doc_number`, `apply_movement`)~~
+- [x] ~~دوال المتجر (`store_home`, `store_search`, `store_product`, `quote_cart`, `place_order`, …)~~
+- [x] ~~دوال المخزن والمال (`upsert_product`, `pos_checkout`, `post_purchase`, `post_return`, `void_invoice`, `adjust_stock`, `transfer_stock`, الجرد، الصندوق، الدفعات)~~
+- [x] ~~دوال الطلبات (`set_order_status`) والتقارير~~
+- [x] ~~RLS لكل جدول + التخزين + المشغّلات + الإشعارات (pg_net)~~
+- [x] ~~دوال الخادم: push, payments (+mock), payments-webhook, staff, account, media~~
+- [x] ~~seed + اختبارات (RLS، المنطق، التزامن، migrations مرتين)~~
+- [x] ~~إضافات القرار ١٨: الفروع، الصناديق، التحويلات، وحدات التعبئة، الدفعات FEFO، السندات المخزنية، عروض الأسعار، العملتان~~
 
 ### admin-catalog
 - [ ] المنتجات (قائمة + نموذج بكل التبويبات + الصور المضغوطة + النسخ + الباركود)
