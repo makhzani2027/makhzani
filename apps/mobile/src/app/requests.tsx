@@ -35,7 +35,7 @@ export default function Requests() {
             <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <View style={{ flex: 1 }}>
                 <T weight="bold" lines={2}>{r.title}</T>
-                <T v="small" tone="ink2">{f.text(r.number)} · {f.ago(r.created_at)}</T>
+                <T v="small" tone="ink2">{f.doc(r.number)} · {f.ago(r.created_at)}</T>
               </View>
               <Badge tone={st.tone} label={st.label} />
             </Row>

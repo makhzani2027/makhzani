@@ -21,6 +21,8 @@ export interface Fmt {
   ago: (d: string | number | Date) => string;
   text: (s: string) => string;
   gov: (key: string | null | undefined) => string;
+  /** رقم مستند لاتيني (O-000123) معزول باتجاه LTR داخل النص العربي */
+  doc: (s: string | null | undefined) => string;
 }
 
 /** تنسيق الأرقام بحسب إعدادات المتجر العامة (store.digits و store.currency) */
@@ -43,5 +45,6 @@ export function useFmt(): Fmt {
     ago: (d) => formatRelative(d, Date.now(), digits),
     text: (s) => withDigits(s, digits),
     gov: (k) => governorateName(k),
+    doc: (s) => (s ? `\u2066${s}\u2069` : ''),
   }), [digits, currency]);
 }

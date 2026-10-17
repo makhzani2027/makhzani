@@ -63,7 +63,7 @@ export default function OrderSuccess() {
       style={{ paddingTop: 48 }} gap={18}>
       <SuccessMark />
       <T v="h1" center>وصلنا طلبك</T>
-      <T tone="ink2" center>رقم طلبك <T weight="bold" tone="ink">{f.text(num)}</T></T>
+      <T tone="ink2" center>رقم طلبك <T weight="bold" tone="ink">{f.doc(num)}</T></T>
       {order ? (
         <Card style={{ gap: 8 }}>
           <KeyValue label="الإجمالي" value={f.money(order.total)} strong />

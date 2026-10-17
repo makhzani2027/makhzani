@@ -159,7 +159,7 @@ export default function OrderDetail() {
   };
 
   return (
-    <Screen header={<AppBar title={`الطلب ${f.text(o.number)}`} subtitle={f.date(o.created_at, true)} />} onRefresh={() => q.refetch()} refreshing={q.isRefetching}>
+    <Screen header={<AppBar title={`الطلب ${f.doc(o.number)}`} subtitle={f.date(o.created_at, true)} />} onRefresh={() => q.refetch()} refreshing={q.isRefetching}>
       <Card style={{ gap: 14 }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <T v="h3">حالة الطلب</T>

@@ -137,7 +137,7 @@ export default function ProductScreen() {
               {d.brand ? <T v="small" tone="accent" weight="bold" style={{ alignSelf: 'flex-start' }}>{d.brand.name}</T> : null}
               <T v="h2" size={24}>{p.name}</T>
               {p.rating_count > 0 ? (
-                <Row gap={6}><Stars value={p.rating_avg} /><T v="small" tone="ink2">{f.num(Math.round(p.rating_avg * 10) / 10)} · {f.count(p.rating_count, { one: 'تقييم واحد', two: 'تقييمان', few: 'تقييمات', many: 'تقييماً' })}</T></Row>
+                <Row gap={6}><Stars value={p.rating_avg} /><T v="small" weight="bold">{f.num(Math.round(p.rating_avg * 10) / 10)}</T><T v="small" tone="ink2">({f.count(p.rating_count, { one: 'تقييم واحد', two: 'تقييمان', few: 'تقييمات', many: 'تقييماً' })})</T></Row>
               ) : null}
             </View>
 

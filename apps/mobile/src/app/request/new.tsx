@@ -66,7 +66,7 @@ export default function NewRequest() {
       }
       const r = await api.createRequest({ title: title.trim(), details: details.trim() || null, image_key: key, link_url: link.trim() || null, qty: n(qty) ?? 1, budget: n(budget) });
       qc.invalidateQueries({ queryKey: ['requests'] });
-      toast.show(`وصلنا طلبك ${f.text(r.number)}. نبلغك قريباً.`, 'success');
+      toast.show(`وصلنا طلبك ${f.doc(r.number)}. نبلغك قريباً.`, 'success');
       router.replace('/requests');
     } catch (e) {
       toast.show(friendlyError(e), 'danger');

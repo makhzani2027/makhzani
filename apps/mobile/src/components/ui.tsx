@@ -253,7 +253,7 @@ export const Input = forwardRef<ComponentRef<typeof TextInput>, TextInputProps &
             selectionColor={c.accent}
             {...props}
             style={[{
-              flex: 1, minHeight: 50, paddingVertical: props.multiline ? 14 : 0,
+              flex: 1, minWidth: 0, minHeight: 50, paddingVertical: props.multiline ? 14 : 0,
               fontFamily: fonts.regular, fontSize: 16, color: c.ink,
               writingDirection: ltr ? 'ltr' : 'rtl', textAlign: ltr ? 'left' : 'right',
               textAlignVertical: props.multiline ? 'top' : 'center',

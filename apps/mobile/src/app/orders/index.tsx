@@ -39,7 +39,7 @@ export default function Orders() {
           <Card key={o.id} onPress={() => router.push(`/orders/${o.id}`)} accessibilityLabel={`الطلب ${o.number}`} style={{ gap: 10 }}>
             <Row style={{ justifyContent: 'space-between' }}>
               <View>
-                <T weight="bold">{f.text(o.number)}</T>
+                <T weight="bold">{f.doc(o.number)}</T>
                 <T v="small" tone="ink2">{f.date(o.created_at, true)}</T>
               </View>
               <Badge tone={st.tone} label={o.status === 'pending' ? 'بانتظار التأكيد' : st.label} />
