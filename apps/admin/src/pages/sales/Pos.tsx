@@ -298,7 +298,7 @@ export default function Pos() {
           </div>
           <div className="sx-row" style={{ flexWrap: 'nowrap' }}>
             <Button icon="clock" onClick={() => void hold()} disabled={!lines.length} kbd="F8">تعليق</Button>
-            <Button icon="trash" variant="ghost" disabled={!lines.length} onClick={async () => { if (await askConfirm({ title: 'إفراغ السلة؟', danger: true, confirm: 'إفراغ' })) reset(); }}>إفراغ</Button>
+            <IconButton icon="trash" label="إفراغ السلة" disabled={!lines.length} onClick={async () => { if (await askConfirm({ title: 'إفراغ السلة؟', danger: true, confirm: 'إفراغ' })) reset(); }} />
             <Button variant="primary" className="pos-pay" style={{ flex: 1 }} icon="cash" onClick={startPay} disabled={!lines.length} kbd="F9" block>الدفع</Button>
           </div>
         </div>
