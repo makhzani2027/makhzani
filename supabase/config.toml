@@ -1,0 +1,107 @@
+# رقيم — إعداد Supabase CLI (supabase link ثم supabase db push / functions deploy)
+# الأسرار لا تُكتب هنا: env(...) تُقرأ من البيئة أو من supabase/.env (غير مُتتبَّع)
+project_id = "raqeem"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[storage.buckets.media]
+public = true
+file_size_limit = "10MiB"
+allowed_mime_types = ["image/webp", "image/png", "image/jpeg"]
+
+[storage.buckets.private]
+public = false
+file_size_limit = "10MiB"
+allowed_mime_types = ["image/webp", "image/png", "image/jpeg"]
+
+[auth]
+enabled = true
+# لوحة التحكم على Firebase Hosting تحت /dashboard/
+site_url = "https://raqeemiq.web.app/dashboard/"
+additional_redirect_urls = [
+  "raqeem://auth-callback",
+  "exp://**",
+  "http://localhost:5173/**",
+  "https://raqeemiq.web.app/**",
+]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+# التسجيل مسموح لـ Google فقط (الزبائن)؛ الموظفون يُنشؤون من دالة staff
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+# لا تسجيل ذاتي بالبريد: الدخول بالبريد وكلمة السر للموظفين الذين أنشأهم المالك
+enable_signup = false
+double_confirm_changes = true
+enable_confirmations = false
+secure_password_change = true
+max_frequency = "1m0s"
+
+[auth.sms]
+enable_signup = false
+
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
+# تطبيق Android يرسل id_token مباشرة (Google Sign-In الأصلي)
+skip_nonce_check = true
+
+[edge_runtime]
+enabled = true
+policy = "oneshot"
+deno_version = 2
+
+# pg_net يستدعي push بسر مشترك (PUSH_WEBHOOK_SECRET) لا بـ JWT
+[functions.push]
+verify_jwt = false
+
+# مزوّد الدفع يستدعيه بتوقيع HMAC (WAYL_WEBHOOK_SECRET)
+[functions.payments-webhook]
+verify_jwt = false
+
+[functions.payments]
+verify_jwt = true
+
+[functions.staff]
+verify_jwt = true
+
+[functions.account]
+verify_jwt = true
+
+[functions.media]
+verify_jwt = true
