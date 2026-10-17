@@ -6,6 +6,7 @@
 import type {
   Banner, Brand, Category, Customer, HomeSection, Order, OrderItem, Product, ProductVariant,
   StockLevel, Supplier, Warehouse, DeliveryZone, StoreSettings, CheckoutSettings, ProductRequest, Coupon,
+  Branch, MoneyAccount, CurrencySettings,
 } from './types';
 
 const NOW = '2026-10-16T09:00:00.000Z';
@@ -25,6 +26,19 @@ export const demoStore: StoreSettings = {
   digits: 'arab',
 };
 
+export const demoBranches: Branch[] = [
+  { id: uid(16, 1), name: 'فرع بغداد الرئيسي', address: 'بغداد — الكرادة', phone: '+9647700000000', is_default: true, is_active: true, created_at: NOW },
+];
+
+export const demoMoneyAccounts: MoneyAccount[] = [
+  { id: uid(17, 1), name: 'الصندوق الرئيسي', kind: 'cash', currency: 'IQD', branch_id: uid(16, 1), opening_balance: 1500000, is_default: true, is_active: true, created_at: NOW },
+  { id: uid(17, 2), name: 'صندوق الدولار', kind: 'cash', currency: 'USD', branch_id: uid(16, 1), opening_balance: 800, is_default: false, is_active: true, created_at: NOW },
+  { id: uid(17, 3), name: 'المصرف العراقي الأول', kind: 'bank', currency: 'IQD', branch_id: null, opening_balance: 12500000, is_default: false, is_active: true, created_at: NOW },
+  { id: uid(17, 4), name: 'زين كاش', kind: 'wallet', currency: 'IQD', branch_id: null, opening_balance: 640000, is_default: false, is_active: true, created_at: NOW },
+];
+
+export const demoCurrency: CurrencySettings = { base: 'IQD', usd_enabled: true, usd_rate: 1310, usd_rate_updated_at: NOW };
+
 export const demoCheckout: CheckoutSettings = {
   cod_enabled: true,
   office_enabled: true,
@@ -36,8 +50,8 @@ export const demoCheckout: CheckoutSettings = {
 };
 
 export const demoWarehouses: Warehouse[] = [
-  { id: uid(1, 1), name: 'المخزن الرئيسي', code: 'MAIN', address: 'بغداد — الكرادة', is_default: true, is_sellable: true, is_active: true, created_at: NOW },
-  { id: uid(1, 2), name: 'صالة العرض', code: 'SHOP', address: 'بغداد — المنصور', is_default: false, is_sellable: true, is_active: true, created_at: NOW },
+  { id: uid(1, 1), name: 'المخزن الرئيسي', code: 'MAIN', branch_id: uid(16, 1), address: 'بغداد — الكرادة', is_default: true, is_sellable: true, is_active: true, created_at: NOW },
+  { id: uid(1, 2), name: 'صالة العرض', code: 'SHOP', branch_id: uid(16, 1), address: 'بغداد — المنصور', is_default: false, is_sellable: true, is_active: true, created_at: NOW },
 ];
 
 const cat = (n: number, name: string, slug: string, icon: string, parent: number | null = null): Category => ({
@@ -102,7 +116,7 @@ for (const s of seeds) {
   demoProducts.push({
     id: productId, name: s.name, slug: `p-${s.n}`, description: s.desc, category_id: uid(2, s.cat), brand_id: s.brand ? uid(3, s.brand) : null,
     unit: 'قطعة', tags: [], specs: (s.specs ?? []).map(([label, value]) => ({ label, value })), warranty: s.serials ? 'ضمان سنة' : null,
-    option_names: s.variants ? Object.keys(s.variants[0].options) : [], has_variants: !!s.variants, track_serials: !!s.serials,
+    option_names: s.variants ? Object.keys(s.variants[0].options) : [], has_variants: !!s.variants, track_serials: !!s.serials, track_expiry: false,
     is_published: true, is_featured: !!s.featured, allow_request: true, cover_key: null, sold_count: s.sold ?? 0,
     rating_avg: 4 + ((s.n * 7) % 10) / 10, rating_count: (s.sold ?? 0) > 0 ? Math.round((s.sold ?? 0) / 6) : 0,
     created_by: null, created_at: new Date(Date.parse(NOW) - s.n * 86_400_000 * 3).toISOString(), updated_at: NOW, archived_at: null,

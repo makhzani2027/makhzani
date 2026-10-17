@@ -14,6 +14,10 @@ import type {
   CouponKind,
   BannerLinkKind,
   HomeSectionKind,
+  QuotationStatus,
+  StockVoucherKind,
+  MoneyAccountKind,
+  PriceTier,
 } from './types';
 
 type L = { label: string; tone: Tone };
@@ -84,6 +88,38 @@ export const MOVEMENT_KIND: Record<MovementKind, L> = {
   transfer_in: { label: 'نقل وارد', tone: 'success' },
   transfer_out: { label: 'نقل صادر', tone: 'warning' },
   stocktake: { label: 'فرق جرد', tone: 'neutral' },
+  manual_in: { label: 'إدخال مخزني', tone: 'success' },
+  manual_out: { label: 'إخراج مخزني', tone: 'warning' },
+  sample_out: { label: 'خروج عينة', tone: 'info' },
+  sample_return: { label: 'رجوع عينة', tone: 'success' },
+};
+
+export const QUOTATION_STATUS: Record<QuotationStatus, L> = {
+  draft: { label: 'مسودة', tone: 'neutral' },
+  sent: { label: 'أُرسل للزبون', tone: 'info' },
+  accepted: { label: 'وافق الزبون', tone: 'success' },
+  converted: { label: 'حُوّل لفاتورة', tone: 'success' },
+  expired: { label: 'منتهي', tone: 'warning' },
+  cancelled: { label: 'ملغي', tone: 'danger' },
+};
+
+export const STOCK_VOUCHER_KIND: Record<StockVoucherKind, L> = {
+  in: { label: 'سند إدخال', tone: 'success' },
+  out: { label: 'سند إخراج', tone: 'warning' },
+  sample_out: { label: 'خروج عينة', tone: 'info' },
+  sample_return: { label: 'رجوع عينة', tone: 'success' },
+  damage: { label: 'تالف', tone: 'danger' },
+};
+
+export const MONEY_ACCOUNT_KIND: Record<MoneyAccountKind, { label: string }> = {
+  cash: { label: 'صندوق نقدي' },
+  bank: { label: 'حساب مصرفي' },
+  wallet: { label: 'محفظة إلكترونية' },
+};
+
+export const PRICE_TIER: Record<PriceTier, { label: string }> = {
+  retail: { label: 'مفرد' },
+  wholesale: { label: 'جملة' },
 };
 
 export const REQUEST_STATUS: Record<RequestStatus, L> = {
