@@ -459,7 +459,7 @@ export async function transferLines(id: string): Promise<TransferLine[]> {
   }));
 }
 
-export interface TransferPayload { from_warehouse_id: string; to_warehouse_id: string; items: { variant_id: string; qty: number }[]; note: string | null }
+export interface TransferPayload { from_warehouse_id: string; to_warehouse_id: string; items: { variant_id: string; qty: number; serials?: string[] }[]; note: string | null }
 
 export async function transferStock(p: TransferPayload): Promise<{ transfer_id: string; number: string }> {
   if (p.from_warehouse_id === p.to_warehouse_id) throw new AppError('اختر مخزنين مختلفين.');
