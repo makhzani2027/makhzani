@@ -360,12 +360,12 @@ export async function applyPrices(changes: PriceChange[]): Promise<void> {
     }
     return;
   }
-  // upsert على المفتاح: الأعمدة الإلزامية مرسلة حتى لا يرفضها قيد NOT NULL، ويُحدَّث السعر فقط فعلياً
-  const { error } = await sb().from('product_variants').upsert(
-    changes.map((c) => ({ id: c.variant_id, product_id: c.product_id, sku: c.sku, title: c.title, price: c.price, compare_at_price: c.compare_at_price })),
-    { onConflict: 'id' },
-  );
-  if (error) throw error;
+  // تحديث صف لكل نسخة (مجموعات من ١٠ بالتوازي) — لا upsert حتى لا يُنشأ صف ناقص بالخطأ
+  for (let i = 0; i < changes.length; i += 10) {
+    const res = await Promise.all(changes.slice(i, i + 10).map((c) => sb().from('product_variants').update({ price: c.price, compare_at_price: c.compare_at_price }).eq('id', c.variant_id)));
+    const bad = res.find((r) => r.error);
+    if (bad?.error) throw bad.error;
+  }
 }
 
 export async function archiveProduct(id: string, archive: boolean): Promise<void> {
