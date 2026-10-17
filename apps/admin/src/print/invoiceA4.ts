@@ -5,8 +5,8 @@ import { a4Css, a4Header, code, escapeHtml, formatPhoneSafe, printFmt, type Prin
 import type { ReceiptData } from './receipt';
 
 export async function buildInvoiceA4(d: ReceiptData & { partyLabel?: string; address?: string | null }, store: StoreSettings, settings: InvoiceSettings): Promise<PrintDoc> {
-  const f = printFmt(store);
   const inv = d.invoice;
+  const f = printFmt({ ...store, currency: inv.currency });
   const qr = settings.show_qr ? await qrSvg(inv.number, 160).catch(() => '') : '';
   const isPurchase = inv.kind === 'purchase' || inv.kind === 'purchase_return';
   const rows = d.items
@@ -32,7 +32,7 @@ ${a4Header(store, {
 })}
 <div class="parties">
   <div class="party"><h4>${escapeHtml(d.partyLabel ?? (isPurchase ? 'المورد' : 'الزبون'))}</h4><b>${escapeHtml(party?.name ?? 'زبون نقدي')}</b>${party?.phone ? `<div class="muted">${code(formatPhoneSafe(party.phone))}</div>` : ''}${d.address ? `<div class="muted">${escapeHtml(d.address)}</div>` : ''}</div>
-  <div class="party"><h4>حالة الدفع</h4><b>${inv.due > 0 ? `متبقٍ ${f.money(inv.due)}` : 'مدفوعة بالكامل'}</b><div class="muted">${pays.length ? pays.map((p) => `${escapeHtml(PAYMENT_METHOD[p.method]?.label ?? p.method)} ${f.money(p.amount)}`).join(' · ') : 'لا دفعات'}</div>${d.originalNumber ? `<div class="muted">إرجاع عن الفاتورة ${code(d.originalNumber)}</div>` : ''}</div>
+  <div class="party"><h4>حالة الدفع</h4><b>${inv.due > 0 ? `متبقٍ ${f.money(inv.due)}` : 'مدفوعة بالكامل'}</b><div class="muted">${pays.length ? pays.map((p) => `${escapeHtml(PAYMENT_METHOD[p.method]?.label ?? p.method)} ${printFmt({ ...store, currency: p.currency }).money(p.amount)}`).join(' · ') : 'لا دفعات'}</div>${d.originalNumber ? `<div class="muted">إرجاع عن الفاتورة ${code(d.originalNumber)}</div>` : ''}</div>
 </div>
 <table>
   <thead><tr><th style="width:8mm">#</th><th>المنتج</th><th style="width:26mm">SKU</th><th class="e" style="width:14mm">الكمية</th><th class="e" style="width:24mm">السعر</th><th class="e" style="width:20mm">الخصم</th><th class="e" style="width:26mm">المجموع</th></tr></thead>

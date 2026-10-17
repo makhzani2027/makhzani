@@ -12,6 +12,7 @@ export { buildInvoiceA4 } from './invoiceA4';
 export { buildStatementA4 } from './statementA4';
 export { buildReportA4, type ReportTable } from './reportA4';
 export { buildVoucher } from './voucher';
+export { buildQuotationA4 } from './quotationA4';
 
 /** آخر مستند طُبع — يفيد اختبارات العرض الآلية وزر «طباعة مرة أخرى» */
 let last: PrintDoc | null = null;

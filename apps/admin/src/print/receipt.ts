@@ -19,8 +19,9 @@ export interface ReceiptData {
 
 export async function buildReceipt(d: ReceiptData, store: StoreSettings, settings: InvoiceSettings, widthOverride?: 58 | 80): Promise<PrintDoc> {
   const width = widthOverride ?? settings.receipt_width ?? 80;
-  const f = printFmt(store);
   const inv = d.invoice;
+  const f = printFmt({ ...store, currency: inv.currency });
+  const pf = (p: { amount: number; currency: 'IQD' | 'USD' }) => printFmt({ ...store, currency: p.currency }).money(p.amount);
   const isReturn = inv.kind === 'sale_return' || inv.kind === 'purchase_return';
   const kv = (k: string, v: string) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`;
   const qr = settings.show_qr ? await qrSvg(inv.number, 160).catch(() => '') : '';
@@ -40,7 +41,7 @@ export async function buildReceipt(d: ReceiptData, store: StoreSettings, setting
   const lineDiscounts = d.items.reduce((s, i) => s + i.discount, 0);
   const gross = d.items.reduce((s, i) => s + i.qty * i.unit_price, 0);
   const active = d.payments.filter((p) => !p.voided_at);
-  const pays = active.map((p) => kv(PAYMENT_METHOD[p.method]?.label ?? p.method, f.money(p.amount))).join('');
+  const pays = active.map((p) => kv(PAYMENT_METHOD[p.method]?.label ?? p.method, pf(p))).join('');
   const showCustomer = d.customer && !d.customer.is_cash_customer;
 
   const html = `<div class="t">
@@ -66,6 +67,7 @@ ${lineDiscounts > 0 ? kv('خصم البنود', `− ${f.money(lineDiscounts)}`)
 ${inv.discount > 0 ? kv('خصم الفاتورة', `− ${f.money(inv.discount)}`) : ''}
 ${inv.delivery_fee > 0 ? kv('أجرة التوصيل', f.money(inv.delivery_fee)) : ''}
 <div class="grand"><span>${isReturn ? 'المبلغ المُرجع' : 'الإجمالي'}</span><span>${f.money(inv.total)}</span></div>
+${inv.currency === 'USD' ? kv('سعر الصرف', printFmt(store).num(inv.exchange_rate)) : ''}
 ${pays ? `${pays}` : ''}
 ${d.change && d.change > 0 ? `<div class="kv" style="font-weight:900"><span>الباقي للزبون</span><span>${f.money(d.change)}</span></div>` : ''}
 ${!isReturn && inv.due > 0 ? `<div class="box"><div class="kv" style="font-weight:900"><span>المتبقي بالآجل</span><span>${f.money(inv.due)}</span></div><div class="tiny" style="margin-top:.5mm">يُسجَّل على حساب الزبون</div></div>` : ''}

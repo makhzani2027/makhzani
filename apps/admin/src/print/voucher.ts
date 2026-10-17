@@ -4,8 +4,8 @@ import { code, escapeHtml, formatPhoneSafe, markSvg, printFmt, thermalCss, type 
 
 export function buildVoucher(o: { payment: Payment; partyName: string | null; partyPhone?: string | null; invoiceNumber?: string | null; balanceAfter?: number | null; cashier?: string | null; store: StoreSettings; width?: 58 | 80 }): PrintDoc {
   const width = o.width ?? 80;
-  const f = printFmt(o.store);
   const p = o.payment;
+  const f = printFmt({ ...o.store, currency: p.currency });
   const kv = (k: string, v: string) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`;
   const html = `<div class="t">
 <div class="mark">${markSvg(width === 80 ? '11mm' : '9mm')}</div>
