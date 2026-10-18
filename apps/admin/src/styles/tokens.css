@@ -1,11 +1,5 @@
-/* متغيرات هوية رقيم — مطابقة لـ packages/shared/src/theme.ts (أي تغيير هناك يُنقل هنا) */
-@font-face { font-family: 'Sans'; src: url('/fonts/thmanyahsans-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
-@font-face { font-family: 'Sans'; src: url('/fonts/thmanyahsans-Medium.woff2') format('woff2'); font-weight: 500; font-display: swap; }
-@font-face { font-family: 'Sans'; src: url('/fonts/thmanyahsans-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
-@font-face { font-family: 'Sans'; src: url('/fonts/thmanyahsans-Black.woff2') format('woff2'); font-weight: 900; font-display: swap; }
-@font-face { font-family: 'Display'; src: url('/fonts/thmanyahserifdisplay-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
-@font-face { font-family: 'Display'; src: url('/fonts/thmanyahserifdisplay-Black.woff2') format('woff2'); font-weight: 900; font-display: swap; }
-@font-face { font-family: 'Reading'; src: url('/fonts/thmanyahseriftext-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+/* متغيرات هوية رقيم — مطابقة لـ packages/shared/src/theme.ts (أي تغيير هناك يُنقل هنا)
+   الخطوط (@font-face) في index.html: مسارها يتبع BASE_URL (/dashboard/) فلا تعتمد على خطوط الموقع في /fonts/ */
 
 :root {
   --bg: #EDEEEC; --card: #FFFFFF; --sunken: #E4E6E3;
