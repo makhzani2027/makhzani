@@ -10,7 +10,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
 import { friendlyError } from '@/lib/errors';
-import { useFmt } from '@/lib/format';
+import { landmarkText, useFmt } from '@/lib/format';
 import { couponStore, useCoupon, useQuote } from '@/lib/hooks';
 import { payOnline } from '@/lib/pay';
 import { qk, useSettings, useZones } from '@/lib/query';
@@ -162,7 +162,7 @@ export default function Checkout() {
             return (
               <Option key={a.id} on={a.id === addressId} onPress={() => setAddressId(a.id)} icon="mapPin"
                 title={`${a.label ? `${a.label} · ` : ''}${governorateName(a.governorate)}${a.city ? ` — ${a.city}` : ''}`}
-                body={[a.area, a.street, a.landmark ? `قرب ${a.landmark}` : null].filter(Boolean).join('، ') + `\n${a.recipient_name} · ${f.phone(a.phone)}`}
+                body={[a.area, a.street, landmarkText(a.landmark) || null].filter(Boolean).join('، ') + `\n${a.recipient_name} · ${f.phone(a.phone)}`}
                 right={z ? <T v="small" tone="ink2">{z.fee ? f.money(z.fee) : 'مجاني'}</T> : <Badge tone="danger" label="غير متاح" />} />
             );
           })}
