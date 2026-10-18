@@ -263,5 +263,22 @@
     }
   }
 
+  // ------------------------------------------------------------ فهرس الصفحات القانونية: القسم الحالي
+  const toc = $$('.toc nav a');
+  if (toc.length) {
+    const byId = new Map(toc.map((a) => [a.getAttribute('href').slice(1), a]));
+    const mark = () => {
+      const heads = $$('.doc h2[id]');
+      // آخر عنوان مرّ أعلى الشاشة هو القسم الحالي
+      let cur = heads[0];
+      for (const h of heads) if (h.getBoundingClientRect().top < innerHeight * 0.35) cur = h;
+      toc.forEach((a) => a.removeAttribute('aria-current'));
+      byId.get(cur?.id)?.setAttribute('aria-current', 'true');
+    };
+    let raf = 0;
+    addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; mark(); }); }, { passive: true });
+    mark();
+  }
+
   $$('[data-year]').forEach((el) => { el.textContent = ar(new Date().getFullYear()); });
 })();
