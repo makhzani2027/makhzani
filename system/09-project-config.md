@@ -14,14 +14,14 @@
 | لوحة التحكم | `https://raqeemiq.web.app/dashboard/` |
 | حاويات التخزين | `media` (عامة)، `private` |
 
-## Supabase (يُملأ لاحقاً)
+## Supabase
 | | القيمة |
 |---|---|
-| Project ref | — |
-| Project URL | — |
+| Project ref | `odstlkepelydettcvite` |
+| Project URL | `https://odstlkepelydettcvite.supabase.co` |
 | anon public key | — |
-| Google callback | `https://<ref>.supabase.co/auth/v1/callback` |
-| Webhook الدفع | `https://<ref>.supabase.co/functions/v1/payments-webhook` |
+| Google callback | `https://odstlkepelydettcvite.supabase.co/auth/v1/callback` |
+| Webhook الدفع | `https://odstlkepelydettcvite.supabase.co/functions/v1/payments-webhook` |
 
 ## متغيرات البيئة
 ```
