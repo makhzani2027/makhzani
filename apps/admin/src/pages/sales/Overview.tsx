@@ -62,7 +62,7 @@ export default function Overview() {
       </section>
 
       {sum.error ? <ErrorState message={sum.error} onRetry={sum.reload} /> : (
-        <div className="sx-stats" style={{ marginBottom: 0 }}>
+        <div className="sx-stats kpis" style={{ marginBottom: 0 }}>
           {!cur ? Array.from({ length: 6 }, (_, i) => <Skeleton key={i} h={112} r={20} />) : (
             <>
               <Stat tone="hero" label="المبيعات" icon="chartLine" value={m(cur.sales_total - cur.returns_total)} delta={delta(cur.sales_total - cur.returns_total, prev ? prev.sales_total - prev.returns_total : null)} foot={`${fmt.num(cur.sales_count)} فاتورة`} />
@@ -92,8 +92,10 @@ export default function Overview() {
                   {orders.data.rows.map((o) => (
                     <button key={o.id} type="button" className="list-item sx-alert-row" style={{ background: 'transparent', borderRadius: 0 }} onClick={() => nav(`/orders/${o.id}`)}>
                       <span className="grow" style={{ minWidth: 0 }}><b className="ltr">{o.number}</b> · {o.customer_name}<div className="meta">{fmt.ago(o.created_at)} · {fmt.num(o.items_count)} منتج</div></span>
-                      <Badge tone={ORDER_STATUS[o.status].tone}>{ORDER_STATUS[o.status].label}</Badge>
-                      <b className="sx-mono">{m(o.total)}</b>
+                      <span className="sx-order-end">
+                        <Badge tone={ORDER_STATUS[o.status].tone}>{ORDER_STATUS[o.status].label}</Badge>
+                        <b className="sx-mono">{m(o.total)}</b>
+                      </span>
                     </button>
                   ))}
                 </div>

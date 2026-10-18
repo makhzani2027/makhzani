@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { routes, NAV_GROUPS, type AppRoute } from './routes';
 import { useAuth } from './lib/auth';
@@ -7,7 +7,7 @@ import { CountsProvider, useCounts } from './lib/counts';
 import { SettingsProvider, useFmt } from './lib/settings';
 import { useHotkey, useStored } from './lib/hooks';
 import { useThemePref } from './lib/theme';
-import { Avatar, Button, Icon, IconButton, Loading, Mark, Menu } from './ui';
+import { Avatar, Button, ErrorState, Icon, IconButton, Loading, Mark, Menu } from './ui';
 import Login from './pages/core/Login';
 import CommandPalette from './pages/core/CommandPalette';
 import NotFound from './pages/core/NotFound';
@@ -44,6 +44,31 @@ function Shell() {
     requestAnimationFrame(() => document.querySelector('.section-tab.on')?.scrollIntoView({ block: 'nearest', inline: 'center' }));
   }, [location.pathname]);
   useHotkey('mod+k', () => setPaletteOpen(true));
+  // أي نص مقصوص بـ .truncate يُظهر نصه كاملاً عند المرور عليه
+  useEffect(() => {
+    const onOver = (e: MouseEvent) => {
+      const el = (e.target as HTMLElement | null)?.closest?.<HTMLElement>('.truncate');
+      if (el && !el.title && el.scrollWidth > el.clientWidth + 1) el.title = el.textContent?.trim() ?? '';
+    };
+    document.addEventListener('mouseover', onOver);
+    return () => document.removeEventListener('mouseover', onOver);
+  }, []);
+  // شريط القسم: حافة باهتة في الجهة التي فيها تبويبات مخفية حتى يُفهم أنه يُمرَّر
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    const update = () => {
+      const x = Math.abs(el.scrollLeft);
+      el.classList.toggle('more-start', x > 2);
+      el.classList.toggle('more-end', x + el.clientWidth < el.scrollWidth - 2);
+    };
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => { el.removeEventListener('scroll', update); ro.disconnect(); };
+  }, [location.pathname]);
 
   // الصفحات المسموحة لهذا الموظف فقط
   const allowed = useMemo(() => routes.filter((r) => !r.perm || auth.can(r.perm)), [auth]);
@@ -61,7 +86,7 @@ function Shell() {
 
   return (
     <>
-      {IS_DEMO ? <div className="demo-bar">وضع العرض — بيانات تجريبية لا تُحفظ. اربط Supabase من دليل الإعداد لتشغيل النظام فعلياً.</div> : null}
+      {IS_DEMO ? <div className="demo-bar" title="وضع العرض — بيانات تجريبية لا تُحفظ. اربط Supabase من دليل الإعداد لتشغيل النظام فعلياً.">وضع العرض — بيانات تجريبية لا تُحفظ. اربط Supabase من دليل الإعداد لتشغيل النظام فعلياً.</div> : null}
       <div className={`shell ${collapsed ? 'collapsed' : ''}`}>
         {menuOpen ? <div className="scrim only-mobile" onClick={() => setMenuOpen(false)} role="presentation" /> : null}
         <nav className={`side ${menuOpen ? 'open' : ''}`} aria-label="القائمة الرئيسية">
@@ -138,7 +163,7 @@ function Shell() {
             {sectionItems.length > 1 && !current?.full ? (
               <nav className="section-tabs" aria-label={`خيارات ${sectionLabel}`}>
                 <span className="section-name">{sectionLabel}</span>
-                <div className="section-scroll">
+                <div className="section-scroll" ref={tabsRef}>
                   {sectionItems.map((r) => (
                     <NavLink key={r.path} to={r.path} className={() => `section-tab ${isActive(r.path) ? 'on' : ''}`}>
                       <Icon name={r.icon} size={16} />{r.label}
@@ -148,6 +173,7 @@ function Shell() {
                 </div>
               </nav>
             ) : null}
+            <PageBoundary key={location.pathname}>
             <Suspense fallback={<Loading />}>
               <Routes>
                 {allowed.map((r: AppRoute) => {
@@ -159,12 +185,24 @@ function Shell() {
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
+            </PageBoundary>
           </main>
         </div>
       </div>
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} routes={allowed} />
     </>
   );
+}
+
+/** خطأ في صفحة واحدة لا يُسقط اللوحة كلها: تبقى القائمة والشريط ويظهر خطأ مع إعادة المحاولة */
+class PageBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error) { console.error(error); }
+  render() {
+    if (this.state.error) return <ErrorState message="حدث خطأ غير متوقع في هذه الصفحة." onRetry={() => this.setState({ error: null })} />;
+    return this.props.children;
+  }
 }
 
 /** مطابقة بسيطة لمسار بمعاملات (:id) */

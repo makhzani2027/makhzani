@@ -2,7 +2,23 @@
  * رسوم بيانية SVG خفيفة بألوان الهوية (بلا مكتبة). تعرض نفسها على عرض الحاوية.
  * الألوان من --c1..--c6 (طين، لازورد، نخيل، زعفران، رمادي، نبيذي).
  */
-import { useMemo, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+
+/** عرض الحاوية الفعلي بالبكسل: الرسم يُرسم بمقاسه الحقيقي فلا تتمدد النصوص ولا تنضغط */
+function useWidth(fallback = 640) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [w, setW] = useState(fallback);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const set = () => { const cw = Math.round(el.clientWidth); if (cw > 0) setW(cw); };
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w] as const;
+}
 
 const COLORS = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)', 'var(--c6)'];
 export const chartColor = (i: number) => COLORS[i % COLORS.length];
@@ -21,21 +37,22 @@ export function BarChart({ labels, series, height = 220, format = (v) => String(
   labels: string[]; series: Series[]; height?: number; format?: (v: number) => string; tooltip?: (i: number) => ReactNode;
 }) {
   const [hover, setHover] = useState<number | null>(null);
-  const W = 640, H = height, padL = 8, padR = 56, padT = 10, padB = 26;
+  const [box, W] = useWidth();
+  const H = height, padL = 4, padR = 68, padT = 10, padB = 26;
   const max = niceMax(Math.max(1, ...series.flatMap((s) => s.values)));
   const n = labels.length || 1;
   const band = (W - padL - padR) / n;
   const bw = Math.min(28, (band * 0.7) / series.length);
   const y = (v: number) => padT + (H - padT - padB) * (1 - v / max);
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((t) => max * t);
-  const every = Math.ceil(n / 8);
+  const every = Math.ceil(n / Math.max(2, Math.floor((W - padR) / 72)));
   return (
-    <div style={{ position: 'relative' }}>
-      <svg className="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ height }} role="img" aria-label="رسم بياني">
+    <div ref={box} style={{ position: 'relative' }}>
+      <svg className="chart" viewBox={`0 0 ${W} ${H}`} direction="ltr" style={{ height }} role="img" aria-label="رسم بياني">
         {ticks.map((t, i) => (
           <g key={i}>
             <line className="grid-line" x1={padL} x2={W - padR} y1={y(t)} y2={y(t)} />
-            <text x={W - padR + 6} y={y(t) + 4} textAnchor="start">{format(t)}</text>
+            <text x={W - padR + 8} y={y(t) + 4} textAnchor="start">{format(t)}</text>
           </g>
         ))}
         {labels.map((l, i) => {
@@ -63,16 +80,18 @@ export function BarChart({ labels, series, height = 220, format = (v) => String(
 
 /** خط/مساحة لسلسلة أو أكثر */
 export function LineChart({ labels, series, height = 220, format = (v) => String(v), area = true }: { labels: string[]; series: Series[]; height?: number; format?: (v: number) => string; area?: boolean }) {
-  const W = 640, H = height, padL = 8, padR = 56, padT = 12, padB = 26;
+  const [box, W] = useWidth();
+  const H = height, padL = 4, padR = 68, padT = 12, padB = 26;
   const max = niceMax(Math.max(1, ...series.flatMap((s) => s.values)));
   const n = Math.max(1, labels.length - 1);
   const x = (i: number) => W - padR - ((W - padL - padR) * i) / n;
   const y = (v: number) => padT + (H - padT - padB) * (1 - v / max);
-  const every = Math.ceil(labels.length / 8);
+  const every = Math.ceil(labels.length / Math.max(2, Math.floor((W - padR) / 72)));
   return (
-    <svg className="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ height }} role="img" aria-label="رسم بياني">
+    <div ref={box}>
+    <svg className="chart" viewBox={`0 0 ${W} ${H}`} direction="ltr" style={{ height }} role="img" aria-label="رسم بياني">
       {[0, 0.5, 1].map((t, i) => (
-        <g key={i}><line className="grid-line" x1={padL} x2={W - padR} y1={y(max * t)} y2={y(max * t)} /><text x={W - padR + 6} y={y(max * t) + 4}>{format(max * t)}</text></g>
+        <g key={i}><line className="grid-line" x1={padL} x2={W - padR} y1={y(max * t)} y2={y(max * t)} /><text x={W - padR + 8} y={y(max * t) + 4} textAnchor="start">{format(max * t)}</text></g>
       ))}
       {series.map((s, si) => {
         const pts = s.values.map((v, i) => `${x(i)},${y(v)}`).join(' ');
@@ -86,6 +105,7 @@ export function LineChart({ labels, series, height = 220, format = (v) => String
       })}
       {labels.map((l, i) => (i % every === 0 ? <text key={i} x={x(i)} y={H - 8} textAnchor="middle">{l}</text> : null))}
     </svg>
+    </div>
   );
 }
 

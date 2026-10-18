@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { PAYMENT_METHOD, type CurrencyCode } from '@raqeem/shared';
+import { PAYMENT_METHOD, formatPhone, type CurrencyCode } from '@raqeem/shared';
 import { Alert, Badge, Button, DataTable, ErrorState, Field, Input, Modal, NumberInput, PageHeader, Segmented, Select, Skeleton, Stat, Tabs, Textarea, type Column } from '../../ui';
 import { useAuth } from '../../lib/auth';
 import { useAction, useLoad } from '../../lib/hooks';
@@ -34,7 +34,7 @@ export default function SupplierDetail() {
   return (
     <>
       <PageHeader crumbs={[{ label: 'الموردون', to: '/suppliers' }, { label: s.name }]} title={s.name}
-        description={[s.company, s.phone, s.address].filter(Boolean).join(' · ') || undefined}
+        description={[s.company, s.phone ? `\u2066${formatPhone(s.phone)}\u2069` : null, s.address].filter(Boolean).join(' · ') || undefined}
         actions={<>
           <Button icon="edit" onClick={() => setEdit(true)}>تعديل</Button>
           <Button icon="stockIn" onClick={() => nav(`/purchases/new?supplier=${s.id}`)}>فاتورة شراء</Button>

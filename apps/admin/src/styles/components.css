@@ -30,6 +30,8 @@
 .stat .value small { font-family: 'Sans', sans-serif; font-size: 13px; font-weight: 700; color: var(--ink3); margin-inline-start: 4px; }
 .stat .foot { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink3); }
 .card.hero .stat .label, .card.hero .stat .foot { color: var(--hero-ink2); }
+/* الطين على بطاقة داكنة/طينية لا يُقرأ: الرابط بلون نص البطاقة مع خط */
+.card.hero .sx-link, .card.hero .link-btn, .card.hero a { color: var(--hero-ink); text-decoration: underline; text-underline-offset: 3px; }
 .delta { display: inline-flex; align-items: center; gap: 2px; font-weight: 700; font-size: 12px; border-radius: var(--r-pill); padding: 1px 8px; }
 .delta.up { color: var(--success); background: var(--success-bg); }
 .delta.down { color: var(--danger); background: var(--danger-bg); }
@@ -53,13 +55,15 @@
 .btn.ghost { background: transparent; border-color: transparent; color: var(--ink2); }
 .btn.ghost:hover { background: var(--sunken); color: var(--ink); }
 .btn.danger { background: var(--danger-bg); color: var(--danger); border-color: transparent; }
-.btn.danger.solid { background: var(--danger); color: #fff; }
+.btn.danger.solid { background: var(--danger-solid); color: #fff; }
 .btn.sm { --h: 32px; padding: 0 11px; font-size: 13px; border-radius: 10px; gap: 6px; }
 .btn.lg { --h: 48px; padding: 0 22px; font-size: 15.5px; border-radius: 14px; }
 .btn.xl { --h: 60px; padding: 0 26px; font-size: 18px; border-radius: 16px; }
 .btn.block { width: 100%; }
 .btn.icon { width: var(--h); padding: 0; }
 .btn .kbd { margin-inline-start: 4px; }
+/* اختصارات لوحة المفاتيح لا معنى لها على الهاتف واللوح */
+@media (max-width: 900px), (pointer: coarse) { .btn .kbd { display: none; } }
 .btn.loading { position: relative; color: transparent !important; pointer-events: none; }
 .btn.loading::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-color: var(--ink3) transparent var(--ink3) transparent; animation: spin .7s linear infinite; }
 .btn.primary.loading::after { border-color: #fff transparent #fff transparent; }
@@ -84,6 +88,8 @@
 .input.sm, .select.sm { height: 36px; font-size: 13.5px; }
 .input.lg { height: 52px; font-size: 17px; }
 .input.num, .input.ltr { direction: ltr; text-align: right; font-variant-numeric: tabular-nums; }
+/* حقل LTR فارغ: النص الإرشادي العربي يُقرأ من اليمين (لا «Enter امسح…») */
+.input.ltr:placeholder-shown, .input[dir="ltr"]:placeholder-shown { direction: rtl; }
 .textarea { height: auto; min-height: 96px; padding: 10px 12px; resize: vertical; line-height: 1.7; }
 .select { appearance: none; padding-inline-end: 34px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238C8477' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-size: 16px; background-position: left 12px center; }
 .input-wrap { position: relative; display: flex; align-items: center; }
@@ -97,9 +103,9 @@
 .form-actions { display: flex; gap: 10px; justify-content: flex-start; flex-wrap: wrap; padding-top: 4px; }
 .sticky-actions { position: sticky; bottom: 0; z-index: 5; display: flex; gap: 10px; align-items: center; padding: 12px 16px; margin: 0 -2px; background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(10px); border-top: 1px solid var(--line); }
 
-.check { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; font-weight: 500; }
+.check { display: flex; width: fit-content; max-width: 100%; align-items: center; gap: 9px; cursor: pointer; user-select: none; font-weight: 500; }
 .check input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
-.switch { position: relative; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+.switch { position: relative; display: flex; width: fit-content; max-width: 100%; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
 .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .switch .track { width: 40px; height: 24px; border-radius: 999px; background: var(--line-strong); transition: background var(--t-fast) var(--ease); position: relative; flex: none; }
 .switch .track::after { content: ''; position: absolute; top: 3px; inset-inline-start: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: inset-inline-start var(--t-base) var(--ease); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
@@ -108,8 +114,8 @@
 .switch input:focus-visible + .track { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 .segmented { display: inline-flex; background: var(--sunken); border-radius: var(--r-sm); padding: 3px; gap: 2px; }
-.segmented button { height: 32px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--ink2); font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap; }
-.segmented button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(23,20,15,.08); }
+.segmented button { flex: 1 0 auto; height: 32px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--ink2); font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.segmented button.on { background: var(--seg-on); color: var(--ink); box-shadow: 0 1px 2px rgba(23,20,15,.08); }
 
 /* ---------------------------------------------------------------- التبويبات */
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
@@ -154,6 +160,7 @@
 .table td.end, .table th.end { text-align: left; }
 .table .shrink { width: 1%; white-space: nowrap; }
 .table .check-col { width: 44px; }
+.table-foot:empty { display: none; }
 .table-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink2); flex-wrap: wrap; }
 .table-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border-bottom: 1px solid var(--line); }
 @media (max-width: 760px) {
@@ -165,6 +172,12 @@
   .table.cards td[data-label]::before { content: attr(data-label); font-size: 12px; font-weight: 700; color: var(--ink3); flex: none; }
   .table.cards td.primary-cell { display: block; font-weight: 700; padding-bottom: 6px; }
   .table.cards td.primary-cell::before { display: none; }
+  /* مربع التحديد في زاوية البطاقة بدل سطر كامل له */
+  .table.cards tr { position: relative; }
+  .table.cards td.check-col { position: absolute; top: 12px; inset-inline-end: 14px; width: auto; padding: 0; }
+  .table.cards tr:has(> td.check-col) td.primary-cell { padding-inline-end: 32px; }
+  /* الفلاتر تتقاسم السطر بالتساوي بدل أن يبقى فلتر وحيد بعرض غريب */
+  .table-toolbar .select, .sx-filters .select, .filters .select { flex: 1 1 140px; min-width: 0; }
 }
 
 /* ---------------------------------------------------------------- القوائم */
@@ -203,9 +216,10 @@
 .menu hr { border: 0; border-top: 1px solid var(--line); margin: 5px 4px; }
 
 /* ---------------------------------------------------------------- الإشعارات المنبثقة */
-.toasts { position: fixed; z-index: 200; bottom: 20px; inset-inline-start: 20px; display: flex; flex-direction: column; gap: 8px; max-width: min(420px, calc(100vw - 40px)); }
+.toasts { position: fixed; z-index: 200; bottom: 20px; inset-inline-end: 20px; display: flex; flex-direction: column; gap: 8px; max-width: min(420px, calc(100vw - 40px)); }
 .toast { display: flex; align-items: center; gap: 10px; background: var(--ink); color: var(--bg); padding: 12px 16px; border-radius: 14px; font-weight: 700; font-size: 14px; box-shadow: var(--shadow-float); animation: pop-in var(--t-slow) var(--ease-em); }
-.toast.error { background: var(--danger); color: #fff; }
+.toast.error { background: var(--danger-solid); color: #fff; }
+@media (max-width: 720px) { .toasts { inset-inline: 12px; bottom: 12px; max-width: none; } }
 .toast.success svg { color: #6FD3A0; }
 .toast button { margin-inline-start: auto; background: transparent; border: 0; color: inherit; opacity: .7; cursor: pointer; font-weight: 700; }
 

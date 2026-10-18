@@ -150,7 +150,7 @@ function InvoiceTab() {
   return (
     <Shell error={error} reload={reload} ready={!!s}>
       {s ? (
-        <div className="sx-split" style={{ gridTemplateColumns: 'minmax(0,1fr) 340px' }}>
+        <div className="sx-split preview-aside">
           <Card>
             <div className="stack">
               <Field label="عرض الطابعة الحرارية"><Segmented value={String(s.receipt_width) as '58' | '80'} onChange={(v) => setD({ ...s, receipt_width: Number(v) as 58 | 80 })} options={[{ value: '80', label: '٨٠ ملم' }, { value: '58', label: '٥٨ ملم' }]} /></Field>
