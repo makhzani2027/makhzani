@@ -114,6 +114,8 @@ export default function Account() {
         <ListItem icon="fileText" title="الشروط والأحكام" onPress={() => router.push('/legal/terms')} />
         <Divider />
         <ListItem icon="return" title="سياسة الإرجاع" onPress={() => router.push('/legal/returns')} />
+        <Divider />
+        <ListItem icon="info" title="التراخيص" onPress={() => router.push('/legal/licenses')} />
       </Group>
 
       {uid ? (

@@ -77,6 +77,7 @@
 | `FIREBASE_SERVICE_ACCOUNT` | JSON من ٤-٣ | نشر الموقع + إرسال الإشعارات |
 | `GOOGLE_SERVICES_JSON` | JSON من ٤-٤ | بناء التطبيق بالإشعارات |
 | `BACKUP_PASSPHRASE` | جملة سرية طويلة **احفظها** | تشفير النسخة الاحتياطية الأسبوعية |
+| `SIGNING_PASSPHRASE` | جملة سرية أخرى (١٢ حرفاً فأكثر) **احفظها خارج GitHub** | توقيع تطبيق أندرويد — ضياعها = لا تحديثات للتطبيق |
 
 **تبويب Variables ← New repository variable** (عامة، ليست سرية):
 | الاسم | القيمة |
@@ -84,8 +85,11 @@
 | `SUPABASE_URL` | `https://<ref>.supabase.co` |
 | `SUPABASE_ANON_KEY` | anon public key |
 | `FIREBASE_PROJECT_ID` | `raqeemiq` |
+| `SITE_URL` | `https://raqeemiq.web.app` (روابط مشاركة المنتجات من التطبيق) |
+| `MEDIA_BASE_URL` | فارغ الآن؛ رابط R2 العام لاحقاً (الخطوة ٨) |
+| `DOWNLOAD_URL` · `DOWNLOAD_VERSION` · `DOWNLOAD_SIZE_MB` | اختيارية: رابط APK من Releases ورقم النسخة وحجمه لزر التنزيل في الموقع |
 
-**أسرار إضافية حسب الحاجة**: `PAYMENT_PROVIDER` (`wayl` أو `mock`)، `PAYMENT_REDIRECT_URL`، `R2_PUBLIC_URL`، `MEDIA_PUBLIC_URL`، و`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` (من الخطوة ٣، إن أردت ضبط Google عبر سير العمل بدل لوحة Supabase).
+**أسرار إضافية حسب الحاجة**: `PAYMENT_PROVIDER` (`wayl` أو `mock`)، `PAYMENT_REDIRECT_URL`، `WAYL_API_KEY`/`WAYL_WEBHOOK_SECRET`/`WAYL_BASE_URL` (الخطوة ٩)، `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_BUCKET`/`R2_PUBLIC_URL` (الخطوة ٨)، `MEDIA_PUBLIC_URL`، و`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` (من الخطوة ٣، إن أردت ضبط Google عبر سير العمل بدل لوحة Supabase).
 
 ثم: **Actions ← Deploy Supabase ← Run workflow** ← انتظر ✅ (يبني الجداول والصلاحيات والدوال والبيانات الأولية ويربط الإشعارات).
 ثم: **Actions ← Deploy Site ← Run workflow** ← افتح `https://raqeemiq.web.app` و`https://raqeemiq.web.app/dashboard/`.
@@ -107,7 +111,8 @@
 ## ٧. ربط التطبيق
 لا شيء عليك: سير عمل البناء يقرأ `SUPABASE_URL` و`SUPABASE_ANON_KEY` من Variables. للتجربة عبر Expo Go من حاسوب:
 أنشئ `apps/mobile/.env` فيه `EXPO_PUBLIC_SUPABASE_URL=…` و`EXPO_PUBLIC_SUPABASE_ANON_KEY=…`.
-**بناء APK**: Actions ← **Build Android** ← Run workflow ← بعد ~٢٠ دقيقة في Releases.
+**مفتاح التوقيع (مرة واحدة فقط)**: بعد إضافة `SIGNING_PASSPHRASE`: Actions ← **Create Signing Key** ← Run workflow ← يضيف `signing/raqeem-release.keystore.enc` للمستودع. نزّل نسخة منه واحفظها مع الجملة السرية خارج GitHub.
+**بناء APK**: Actions ← **Build Android** ← Run workflow ← بعد ~٢٠ دقيقة في Releases (APK للتثبيت المباشر + AAB لـ Google Play). ثم ضع رابط الـ APK في المتغير `DOWNLOAD_URL` وشغّل Deploy Site ليظهر زر التنزيل.
 
 ## ٨. Cloudflare R2 (عندما تقترب الصور من ١ جيجا)
 1. https://dash.cloudflare.com ← **R2** ← فعّل (يطلب بطاقة، المجاني ١٠ جيجا) ← **Create bucket** `raqeem-media`.
