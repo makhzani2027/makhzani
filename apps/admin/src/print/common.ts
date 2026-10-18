@@ -120,9 +120,14 @@ h3.sec{font-size:13px;margin:6mm 0 2mm;color:${BRAND.ink}}
 `;
 
 export function a4Header(store: StoreSettings, right: { kind: string; number?: string | null; meta: string[] }): string {
-  const meta = [store.address, store.phone ? `هاتف: <span class="ltr">${escapeHtml(formatPhoneSafe(store.phone))}</span>` : null, store.email].filter(Boolean);
+  // كل جزء يُهرَّب هنا (لا نفحص المحتوى بحثاً عن وسوم: العنوان نص يكتبه المستخدم)
+  const meta = [
+    store.address ? escapeHtml(store.address) : null,
+    store.phone ? `هاتف: <span class="ltr">${escapeHtml(formatPhoneSafe(store.phone))}</span>` : null,
+    store.email ? escapeHtml(store.email) : null,
+  ].filter(Boolean);
   return `<div class="head">
-  <div class="brand">${markSvg('16mm', BRAND.ink, BRAND.brick)}<div><div class="nm">${escapeHtml(store.name)}</div>${store.legal_name ? `<div class="meta">${escapeHtml(store.legal_name)}</div>` : ''}<div class="meta">${meta.map((m) => (m?.includes('<span') ? m : escapeHtml(m))).join(' · ')}</div></div></div>
+  <div class="brand">${markSvg('16mm', BRAND.ink, BRAND.brick)}<div><div class="nm">${escapeHtml(store.name)}</div>${store.legal_name ? `<div class="meta">${escapeHtml(store.legal_name)}</div>` : ''}<div class="meta">${meta.join(' · ')}</div></div></div>
   <div class="doc"><div class="kind">${escapeHtml(right.kind)}</div>${right.number ? `<div class="no">${code(right.number)}</div>` : ''}${right.meta.map((m) => `<div class="meta">${m}</div>`).join('')}</div>
 </div>`;
 }

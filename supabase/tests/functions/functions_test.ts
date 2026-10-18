@@ -47,3 +47,19 @@ Deno.test('R2 presigned URL shape', async () => {
   assertEquals(url.searchParams.get('X-Amz-Credential'), 'AK/20261017/auto/s3/aws4_request');
   assert(/^[0-9a-f]{64}$/.test(url.searchParams.get('X-Amz-Signature') ?? ''));
 });
+
+Deno.test('payment provider: mock only when chosen explicitly', async () => {
+  const { provider } = await import('../../functions/_shared/payments/index.ts');
+  const prev = Deno.env.get('PAYMENT_PROVIDER');
+  const prevKey = Deno.env.get('WAYL_API_KEY');
+  try {
+    Deno.env.delete('PAYMENT_PROVIDER');
+    Deno.env.delete('WAYL_API_KEY');
+    assertEquals(provider().name, 'wayl');
+    Deno.env.set('PAYMENT_PROVIDER', 'mock');
+    assertEquals(provider().name, 'mock');
+  } finally {
+    if (prev === undefined) Deno.env.delete('PAYMENT_PROVIDER'); else Deno.env.set('PAYMENT_PROVIDER', prev);
+    if (prevKey !== undefined) Deno.env.set('WAYL_API_KEY', prevKey);
+  }
+});
