@@ -124,7 +124,10 @@ ul, ol { padding: 0; list-style: none; }
 .nav { display: flex; gap: 4px; }
 .nav a { padding: 8px 12px; border-radius: 999px; font-weight: 500; color: var(--ink2); transition: color .14s var(--ease), background-color .14s var(--ease); }
 .nav a:hover { color: var(--ink); background: var(--sunken); }
-.menu-btn { display: none; width: 44px; height: 44px; border: 1.5px solid var(--line-strong); background: none; border-radius: 999px; align-items: center; justify-content: center; cursor: pointer; }
+.menu-btn { display: none; width: 44px; height: 44px; border: 1.5px solid var(--line-strong); background: none; border-radius: 999px; align-items: center; justify-content: center; cursor: pointer; transition: border-color .14s var(--ease); }
+.menu-btn:hover { border-color: var(--ink); }
+.menu-btn .i-close, .hdr.is-open .menu-btn .i-menu { display: none; }
+.hdr.is-open .menu-btn .i-close { display: block; }
 .hdr .logo, .nav, .hdr .btn { flex: none; }
 @media (max-width: 1020px) {
   .hdr-in { gap: 10px; }

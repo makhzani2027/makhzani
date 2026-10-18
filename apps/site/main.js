@@ -32,8 +32,17 @@
     menuBtn.setAttribute('aria-expanded', String(open));
     menuBtn.setAttribute('aria-label', open ? 'إغلاق القائمة' : 'القائمة');
   };
-  menuBtn?.addEventListener('click', () => setMenu(!hdr.classList.contains('is-open')));
+  menuBtn?.addEventListener('click', (e) => {
+    const open = !hdr.classList.contains('is-open');
+    setMenu(open);
+    // القائمة قبل الزر في ترتيب الصفحة: من لوحة المفاتيح ننقل التركيز لأول رابط فيها
+    if (open && e.detail === 0) document.querySelector('#nav a')?.focus();
+  });
   $$('#nav a').forEach((a) => a.addEventListener('click', () => setMenu(false)));
+  // خروج التركيز من الشريط العلوي (Tab بعد آخر عنصر) يغلق القائمة
+  hdr?.addEventListener('focusout', (e) => { if (hdr.classList.contains('is-open') && !hdr.contains(e.relatedTarget)) setMenu(false); });
+  // النقر خارج القائمة يغلقها
+  document.addEventListener('click', (e) => { if (hdr?.classList.contains('is-open') && !hdr.contains(e.target)) setMenu(false); });
   addEventListener('keydown', (e) => { if (e.key === 'Escape' && hdr?.classList.contains('is-open')) { setMenu(false); menuBtn.focus(); } });
 
   // ------------------------------------------------------------ الظهور عند التمرير + العدّ
