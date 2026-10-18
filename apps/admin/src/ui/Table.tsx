@@ -24,7 +24,8 @@ export function DataTable<T>({ rows, columns, rowKey, loading, error, onRetry, o
   onRowClick?: (r: T) => void; empty?: { icon?: IconName; title: string; text?: ReactNode; action?: ReactNode };
   toolbar?: ReactNode; footer?: ReactNode; selected?: Set<string>; onSelect?: (next: Set<string>) => void; dense?: boolean;
 }) {
-  const showSkeleton = loading && !rows?.length;
+  // rows غير معرّفة = البيانات لم تصل بعد (مثلاً أول رسم بعد تبديل تبويب قبل أن يبدأ التحميل): هيكل لا انهيار
+  const showSkeleton = (loading || rows === undefined) && !rows?.length && !error;
   const allSelected = !!rows?.length && !!selected && rows.every((r) => selected.has(rowKey(r)));
   const toggleAll = () => {
     if (!onSelect || !rows) return;
@@ -62,7 +63,7 @@ export function DataTable<T>({ rows, columns, rowKey, loading, error, onRetry, o
                       {columns.map((c) => <td key={c.key}><Skeleton h={14} w={c.end ? 60 : '70%'} /></td>)}
                     </tr>
                   ))
-                : rows!.map((r) => {
+                : (rows ?? []).map((r) => {
                     const k = rowKey(r);
                     return (
                       <tr key={k} className={`${onRowClick ? 'clickable' : ''} ${selected?.has(k) ? 'selected' : ''}`} onClick={onRowClick ? () => onRowClick(r) : undefined}>

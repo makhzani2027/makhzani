@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { routes, NAV_GROUPS, type AppRoute } from './routes';
 import { useAuth } from './lib/auth';
@@ -7,7 +7,7 @@ import { CountsProvider, useCounts } from './lib/counts';
 import { SettingsProvider, useFmt } from './lib/settings';
 import { useHotkey, useStored } from './lib/hooks';
 import { useThemePref } from './lib/theme';
-import { Avatar, Button, Icon, IconButton, Loading, Mark, Menu } from './ui';
+import { Avatar, Button, ErrorState, Icon, IconButton, Loading, Mark, Menu } from './ui';
 import Login from './pages/core/Login';
 import CommandPalette from './pages/core/CommandPalette';
 import NotFound from './pages/core/NotFound';
@@ -173,6 +173,7 @@ function Shell() {
                 </div>
               </nav>
             ) : null}
+            <PageBoundary key={location.pathname}>
             <Suspense fallback={<Loading />}>
               <Routes>
                 {allowed.map((r: AppRoute) => {
@@ -184,12 +185,24 @@ function Shell() {
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
+            </PageBoundary>
           </main>
         </div>
       </div>
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} routes={allowed} />
     </>
   );
+}
+
+/** خطأ في صفحة واحدة لا يُسقط اللوحة كلها: تبقى القائمة والشريط ويظهر خطأ مع إعادة المحاولة */
+class PageBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error) { console.error(error); }
+  render() {
+    if (this.state.error) return <ErrorState message="حدث خطأ غير متوقع في هذه الصفحة." onRetry={() => this.setState({ error: null })} />;
+    return this.props.children;
+  }
 }
 
 /** مطابقة بسيطة لمسار بمعاملات (:id) */
