@@ -2,7 +2,7 @@ import { formatPercent } from '@raqeem/shared';
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, Share, View, useWindowDimensions } from 'react-native';
+import { RefreshControl, ScrollView, Share, View, useWindowDimensions } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PriceTag, ProductImage } from '@/components/brand';
@@ -126,7 +126,10 @@ export default function ProductScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 24 }}
+        // السعر والتوفر يتغيران: السحب للأسفل يجلبهما من جديد
+        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => { q.refetch(); }} tintColor={c.accent} colors={[c.accent]} progressBackgroundColor={c.card} />}>
         <Animated.View entering={appear} style={[contentColumn, { gap: 18 }]}>
           <View ref={imgRef} collapsable={false}>
             <Gallery keys={keys} categoryId={p.category_id} width={colW} />
