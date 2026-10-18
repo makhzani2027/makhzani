@@ -221,7 +221,7 @@ export default function Pos() {
           <span>{usd ? <>سعر الصرف اليوم: <b className="sx-mono">{m(rate)}</b> للدولار</> : null}</span>
           <span className="sx-row">
             {session.data ? <Badge tone="success">الصندوق مفتوح</Badge> : <Button size="sm" variant="ghost" icon="cash" loading={openSession.busy} onClick={() => void openSession.run()}>فتح جلسة الصندوق</Button>}
-            {held.length ? <Button size="sm" icon="clock" onClick={() => setShowHeld(true)}>المعلّقة ({held.length})</Button> : null}
+            {held.length ? <Button size="sm" icon="clock" onClick={() => setShowHeld(true)}>المعلّقة ({fmt.num(held.length)})</Button> : null}
           </span>
         </div>
         {posCfg.require_cash_session && !session.loading && !session.data ? <Alert tone="warning">البيع يحتاج جلسة صندوق مفتوحة. اضغط «فتح جلسة الصندوق».</Alert> : null}
@@ -235,7 +235,7 @@ export default function Pos() {
             return (
               <button key={it.variant_id} type="button" className={`pos-card ${it.stock <= 0 ? 'out' : ''}`} onClick={() => add(it)} title={it.sku}>
                 <Thumb imageKey={it.image_key} size="lg" />
-                {n ? <span className="incart">{n}</span> : null}
+                {n ? <span className="incart">{fmt.qty(n)}</span> : null}
                 <span className="nm">{it.name}{it.variant_title ? ` — ${it.variant_title}` : ''}</span>
                 <span className="sx-between"><span className="pr">{m(price, currency)}</span><small className={it.stock <= 0 ? 'sx-neg' : it.stock <= it.min_stock ? 'sx-muted' : 'sx-muted'}>{it.stock <= 0 ? 'نفد' : `${fmt.qty(it.stock)} ${it.unit}`}</small></span>
               </button>
@@ -278,7 +278,7 @@ export default function Pos() {
               <div className="tags">
                 {l.unit_name ? <Badge>{l.unit_name}</Badge> : null}
                 {can('pos.discount') || can('pos.price_override') ? <button type="button" className={l.discount || l.price !== null ? 'set' : ''} onClick={() => setEditing(l.key)}>{l.discount ? `خصم ${m(l.discount, currency, true)}` : can('pos.price_override') ? 'السعر والخصم' : 'خصم'}</button> : null}
-                {l.item.track_serials ? <button type="button" className={l.serials.length === l.qty ? 'set' : ''} onClick={() => setSerialFor(l.key)}>التسلسلي {l.serials.length}/{l.qty}</button> : null}
+                {l.item.track_serials ? <button type="button" className={l.serials.length === l.qty ? 'set' : ''} onClick={() => setSerialFor(l.key)}>التسلسلي {fmt.num(l.serials.length)}/{fmt.num(l.qty)}</button> : null}
               </div>
             </div>
           ))}
@@ -337,13 +337,14 @@ export default function Pos() {
 
 function LineEdit({ line, currency, unit, canPrice, canDiscount, onClose, onSave }: { line: CartLine; currency: CurrencyCode; unit: number; canPrice: boolean; canDiscount: boolean; onClose: () => void; onSave: (p: Partial<CartLine>) => void }) {
   const m = useMoney();
+  const fmt = useFmt();
   const [price, setPrice] = useState<number | null>(line.price ?? unit);
   const [mode, setMode] = useState<'amount' | 'percent'>('amount');
   const [disc, setDisc] = useState<number | null>(line.discount || null);
   const gross = (price ?? unit) * line.qty;
   const discAmount = mode === 'percent' ? roundMoney((gross * Math.min(disc ?? 0, 100)) / 100, currency) : disc ?? 0;
   return (
-    <Modal open onClose={onClose} title={line.item.name} subtitle={`${line.qty} × ${m(unit, currency)}`} width={440}
+    <Modal open onClose={onClose} title={line.item.name} subtitle={`${fmt.qty(line.qty)} × ${m(unit, currency)}`} width={440}
       footer={<><Button onClick={() => onSave({ price: null, discount: 0 })}>إعادة الأصل</Button><Button variant="primary" onClick={() => onSave({ price: canPrice && price !== null && price !== roundMoney(unit, currency) ? price : line.price, discount: Math.min(discAmount, gross) })}>تطبيق</Button></>}>
       <div className="stack">
         {canPrice ? <Field label="سعر الوحدة"><MoneyInput autoFocus value={price} onChange={setPrice} currency={currency} /></Field> : null}
@@ -362,18 +363,19 @@ function LineEdit({ line, currency, unit, canPrice, canDiscount, onClose, onSave
 }
 
 function SerialModal({ line, warehouseId, onClose, onSave }: { line: CartLine; warehouseId: string; onClose: () => void; onSave: (s: string[]) => void }) {
+  const fmt = useFmt();
   const avail = useLoad(() => availableSerials(line.item.variant_id, warehouseId), [line.item.variant_id, warehouseId]);
   const [sel, setSel] = useState<string[]>(line.serials);
   const [typed, setTyped] = useState('');
   const toggle = (s: string) => setSel((x) => (x.includes(s) ? x.filter((y) => y !== s) : [...x, s]));
   const addTyped = () => { const s = typed.trim(); if (s && !sel.includes(s)) setSel([...sel, s]); setTyped(''); };
   return (
-    <Modal open onClose={onClose} title="الأرقام التسلسلية" subtitle={`${line.item.name} — المطلوب ${line.qty}`} width={480}
-      footer={<><Button onClick={onClose}>لاحقاً</Button><Button variant="primary" onClick={() => onSave(sel)}>حفظ ({sel.length})</Button></>}>
+    <Modal open onClose={onClose} title="الأرقام التسلسلية" subtitle={`${line.item.name} — المطلوب ${fmt.num(line.qty)}`} width={480}
+      footer={<><Button onClick={onClose}>لاحقاً</Button><Button variant="primary" onClick={() => onSave(sel)}>حفظ ({fmt.num(sel.length)})</Button></>}>
       <div className="stack">
         <Input autoFocus dir="ltr" icon="serial" placeholder="امسح أو اكتب الرقم ثم Enter" value={typed} data-scan-target="keep" onChange={(e) => setTyped(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTyped(); } }} />
         {avail.loading ? <Skeleton h={80} /> : (avail.data ?? []).length ? (
-          <div className="stack-sm" style={{ maxHeight: 260, overflowY: 'auto' }}>
+          <div className="serial-list">
             {[...new Set([...(avail.data ?? []), ...sel])].map((s) => <Checkbox key={s} label={<span className="ltr">{s}</span>} checked={sel.includes(s)} onChange={() => toggle(s)} />)}
           </div>
         ) : <p className="sx-muted">لا أرقام مسجّلة لهذا المنتج في المخزن. اكتبها يدوياً.</p>}

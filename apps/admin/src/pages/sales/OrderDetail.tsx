@@ -85,8 +85,8 @@ export default function OrderDetail() {
         <div className="sx-stack">
           <Card title="الزبون" icon="user">
             <div className="stack-sm">
-              {customer ? <Link to={`/customers/${customer.id}`}><b>{customer.name}</b></Link> : null}
-              {phone ? <a className="ltr dim" style={{ textAlign: 'start' }} href={`tel:${phone}`}>{formatPhone(phone)}</a> : null}
+              {customer ? <div><Link to={`/customers/${customer.id}`}><b>{customer.name}</b></Link></div> : null}
+              {phone ? <div><a className="ltr dim" href={`tel:${phone}`}>{formatPhone(phone)}</a></div> : null}
             </div>
           </Card>
           <Card title={FULFILLMENT[order.fulfillment].label} icon="truck">
