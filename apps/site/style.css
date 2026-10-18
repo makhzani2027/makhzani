@@ -22,6 +22,15 @@
   --sec: clamp(76px, 10vw, 136px);
   --r-sm: 12px; --r-md: 16px; --r-lg: 20px; --r-xl: 28px;
   color-scheme: light dark;
+  /* نص بلون الآجُر على الحجر: الآجُر نفسه ٤٫٤:١ في الفاتح (أقل من AA للنص العادي)، فنأخذ درجة «التمرير» الأغمق من الهوية */
+  --accent-text: var(--accent-hover);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent-text: var(--accent);
+    /* كتلة البطل في الغامق آجُر: النص الثانوي بدرجته الأصلية ٤:١ فقط، فنقرّبه من النص الأساسي ليبلغ AA */
+    --hero-ink2: color-mix(in srgb, var(--hero-ink) 80%, #FBD0B8);
+  }
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -90,11 +99,11 @@ ul, ol { padding: 0; list-style: none; }
 .btn-lg { min-height: 64px; padding: 0 26px 0 30px; gap: 14px; text-align: start; }
 .btn-lg .i { width: 26px; height: 26px; }
 .btn-lg b { display: block; font-size: 17px; padding-bottom: 2px; }
-.btn-lg small { display: block; font: 500 13px/1.4 var(--sans); opacity: .82; }
+.btn-lg small { display: block; font: 500 13px/1.4 var(--sans); }
 .btn[aria-disabled='true'] { cursor: default; }
 .btn-ghost[aria-disabled='true'] { color: var(--ink2); border-style: dashed; }
 .btn-ghost[aria-disabled='true']:hover { border-color: var(--line-strong); }
-.link { color: var(--accent); font-weight: 700; display: inline-flex; align-items: center; gap: 6px; border-bottom: 1.5px solid transparent; transition: border-color .14s var(--ease); }
+.link { color: var(--accent-text); font-weight: 700; display: inline-flex; align-items: center; gap: 6px; border-bottom: 1.5px solid transparent; transition: border-color .14s var(--ease); }
 .link:hover { border-color: currentColor; }
 .link .i { width: 18px; height: 18px; }
 
@@ -129,7 +138,7 @@ ul, ol { padding: 0; list-style: none; }
   .hdr.is-open .nav { visibility: visible; opacity: 1; transform: none; transition-delay: 0s; }
   .hdr.is-open { border-color: var(--line); }
   .nav a { padding: 14px 4px; border-radius: 0; font-size: 18px; color: var(--ink); border-bottom: 1px dashed var(--line); }
-  .nav a:hover { background: none; color: var(--accent); }
+  .nav a:hover { background: none; color: var(--accent-text); }
 }
 @media (max-width: 380px) { .hdr .btn-sm { padding: 0 14px; font-size: 14px; } }
 
@@ -491,7 +500,7 @@ ul, ol { padding: 0; list-style: none; }
 .faq details[open] summary .pm::after { rotate: 0deg; }
 .faq summary:hover .pm { border-color: var(--ink); }
 .faq .ans { padding: 0 0 26px; color: var(--ink2); max-width: 40em; font-size: 16.5px; line-height: 1.9; }
-.faq .ans a { color: var(--accent); font-weight: 700; }
+.faq .ans a { color: var(--accent-text); font-weight: 700; border-bottom: 1px solid currentColor; }
 @supports selector(::details-content) {
   .faq details::details-content { block-size: 0; overflow-y: clip; transition: block-size .32s var(--ease), content-visibility .32s allow-discrete; }
   .faq details[open]::details-content { block-size: auto; }
@@ -539,8 +548,8 @@ a.c-wa:hover { background: var(--accent-hover); border-color: transparent; }
 .ftr-brand p { margin-top: 16px; color: var(--hero-ink2); max-width: 22em; }
 .ftr h2 { font: 700 14px/1.6 var(--sans); color: var(--hero-ink2); margin-bottom: 14px; }
 .ftr li + li { margin-top: 6px; }
-.ftr li a { color: var(--hero-ink); opacity: .92; border-bottom: 1px solid transparent; }
-.ftr li a:hover { opacity: 1; border-color: currentColor; }
+.ftr li a { color: var(--hero-ink); border-bottom: 1px solid transparent; }
+.ftr li a:hover { border-color: currentColor; }
 .ftr-staff { display: inline-flex !important; align-items: center; gap: 8px; margin-top: 2px; padding: 9px 16px; border: 1px solid color-mix(in srgb, var(--hero-ink) 30%, transparent) !important; border-radius: 99px; }
 .ftr-staff:hover { border-color: var(--hero-ink) !important; }
 .ftr-staff .i { width: 18px; height: 18px; }
@@ -571,7 +580,7 @@ a.c-wa:hover { background: var(--accent-hover); border-color: transparent; }
 .doc ol { list-style: arabic-indic; padding-inline-start: 26px; }
 .doc ol > li { margin-bottom: 8px; padding-inline-start: 4px; }
 .doc strong { font-weight: 700; }
-.doc a { color: var(--accent); border-bottom: 1px solid currentColor; font-weight: 700; }
+.doc a { color: var(--accent-text); border-bottom: 1px solid currentColor; font-weight: 700; }
 .doc .callout { padding: 18px 22px; border-radius: var(--r-lg); background: var(--card); border: 1px solid var(--line); font-size: 17px; line-height: 1.9; margin: 22px 0; }
 .doc .callout.warn { border-color: transparent; background: var(--accent-soft); color: var(--accent-soft-ink); }
 .doc table { width: 100%; border-collapse: collapse; font: 400 15.5px/1.6 var(--sans); }
