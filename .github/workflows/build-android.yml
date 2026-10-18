@@ -42,7 +42,10 @@ jobs:
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          [ -n "$EXPO_PUBLIC_SUPABASE_URL" ] || echo "::warning::المتغير SUPABASE_URL غير مضبوط — التطبيق سيعمل في وضع العرض."
+          if [ -z "$EXPO_PUBLIC_SUPABASE_URL" ] || [ -z "$EXPO_PUBLIC_SUPABASE_ANON_KEY" ]; then
+            echo "::error::أضف SUPABASE_URL و SUPABASE_ANON_KEY في Settings ← Secrets and variables ← Actions ← تبويب Variables (ليس Secrets). بدونها يُبنى التطبيق في وضع العرض غير مربوط بقاعدة البيانات."
+            exit 1
+          fi
           [ -n "$GOOGLE_SERVICES_JSON" ] || echo "::warning::السر GOOGLE_SERVICES_JSON غير مضاف — النسخة بلا إشعارات فورية."
 
       - name: Generate Android project (expo prebuild)
