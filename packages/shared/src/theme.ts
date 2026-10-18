@@ -14,7 +14,7 @@ export const palette = {
     sunken: '#E4E6E3', // حقول، صفوف متناوبة، خلفيات خفيفة
     ink: '#121513', // القار — النص الأساسي
     ink2: '#50564F', // نص ثانوي
-    ink3: '#7F877E', // تلميحات، أيقونات خاملة
+    ink3: '#626961', // تلميحات، أيقونات خاملة
     line: '#DCDFDB', // الحدود
     lineStrong: '#C3C8C2',
     accent: '#C2410E', // آجُر بابل — اللون المميز الوحيد
@@ -34,7 +34,7 @@ export const palette = {
     sunken: '#121412',
     ink: '#EEF0ED',
     ink2: '#A9AFA8',
-    ink3: '#7A817A',
+    ink3: '#8A918A',
     line: '#262A27',
     lineStrong: '#343935',
     accent: '#F2783E',
