@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { routes, NAV_GROUPS, type AppRoute } from './routes';
 import { useAuth } from './lib/auth';
@@ -44,6 +44,22 @@ function Shell() {
     requestAnimationFrame(() => document.querySelector('.section-tab.on')?.scrollIntoView({ block: 'nearest', inline: 'center' }));
   }, [location.pathname]);
   useHotkey('mod+k', () => setPaletteOpen(true));
+  // شريط القسم: حافة باهتة في الجهة التي فيها تبويبات مخفية حتى يُفهم أنه يُمرَّر
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    const update = () => {
+      const x = Math.abs(el.scrollLeft);
+      el.classList.toggle('more-start', x > 2);
+      el.classList.toggle('more-end', x + el.clientWidth < el.scrollWidth - 2);
+    };
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => { el.removeEventListener('scroll', update); ro.disconnect(); };
+  }, [location.pathname]);
 
   // الصفحات المسموحة لهذا الموظف فقط
   const allowed = useMemo(() => routes.filter((r) => !r.perm || auth.can(r.perm)), [auth]);
@@ -61,7 +77,7 @@ function Shell() {
 
   return (
     <>
-      {IS_DEMO ? <div className="demo-bar">وضع العرض — بيانات تجريبية لا تُحفظ. اربط Supabase من دليل الإعداد لتشغيل النظام فعلياً.</div> : null}
+      {IS_DEMO ? <div className="demo-bar" title="وضع العرض — بيانات تجريبية لا تُحفظ. اربط Supabase من دليل الإعداد لتشغيل النظام فعلياً.">وضع العرض — بيانات تجريبية لا تُحفظ. اربط Supabase من دليل الإعداد لتشغيل النظام فعلياً.</div> : null}
       <div className={`shell ${collapsed ? 'collapsed' : ''}`}>
         {menuOpen ? <div className="scrim only-mobile" onClick={() => setMenuOpen(false)} role="presentation" /> : null}
         <nav className={`side ${menuOpen ? 'open' : ''}`} aria-label="القائمة الرئيسية">
@@ -138,7 +154,7 @@ function Shell() {
             {sectionItems.length > 1 && !current?.full ? (
               <nav className="section-tabs" aria-label={`خيارات ${sectionLabel}`}>
                 <span className="section-name">{sectionLabel}</span>
-                <div className="section-scroll">
+                <div className="section-scroll" ref={tabsRef}>
                   {sectionItems.map((r) => (
                     <NavLink key={r.path} to={r.path} className={() => `section-tab ${isActive(r.path) ? 'on' : ''}`}>
                       <Icon name={r.icon} size={16} />{r.label}

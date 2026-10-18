@@ -18,7 +18,7 @@ h4 { font-family: 'Sans', sans-serif; font-size: 15px; font-weight: 700; }
 p { margin: 0; }
 button, input, select, textarea { font: inherit; color: inherit; }
 img { max-width: 100%; display: block; }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 ::selection { background: var(--accent-soft); color: var(--accent-soft-ink); }
 
 .dim { color: var(--ink2); }
@@ -61,7 +61,7 @@ img { max-width: 100%; display: block; }
 .shell.collapsed { --side-w: 76px; }
 
 .side {
-  position: sticky; top: 0; height: 100vh; overflow-y: auto; scrollbar-width: none;
+  position: sticky; top: var(--demo-h); height: calc(100vh - var(--demo-h)); overflow-y: auto; scrollbar-width: none;
   background: var(--side); color: var(--side-ink); display: flex; flex-direction: column;
   padding: 18px 12px 14px; gap: 2px; z-index: 30; border-inline-end: 1px solid var(--side-line);
 }
@@ -100,10 +100,15 @@ img { max-width: 100%; display: block; }
 .shell.collapsed .side-brand b, .shell.collapsed .side-brand .tag, .shell.collapsed .side-group span, .shell.collapsed .side-group .chev,
 .shell.collapsed .side-link span, .shell.collapsed .side-link .count, .shell.collapsed .side-foot .who { display: none; }
 .shell.collapsed .side-link { justify-content: center; }
+.shell.collapsed .side-group { justify-content: center; padding-inline: 0; }
+.shell.collapsed .side-brand { justify-content: center; padding-inline: 0; }
+/* في القائمة المطوية يبقى للعدّاد أثر: نقطة صغيرة على الأيقونة */
+.shell.collapsed .side-link .count:not(.quiet) { display: block; position: absolute; top: 6px; inset-inline-end: 14px; min-width: 0; width: 8px; height: 8px; padding: 0; font-size: 0; }
+.shell.collapsed .side-foot { justify-content: center; padding-inline: 0; }
 
 .main { min-width: 0; display: flex; flex-direction: column; }
 .topbar {
-  position: sticky; top: 0; z-index: 20; height: var(--top-h); display: flex; align-items: center; gap: 10px;
+  position: sticky; top: var(--demo-h); z-index: 20; height: var(--top-h); display: flex; align-items: center; gap: 10px;
   padding: 0 clamp(16px, 2.6vw, 32px); background: color-mix(in srgb, var(--bg) 86%, transparent);
   backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid var(--line);
 }
@@ -118,6 +123,11 @@ img { max-width: 100%; display: block; }
 .section-name { flex: none; font-size: 12px; font-weight: 700; color: var(--ink3); padding-inline-end: 12px; border-inline-end: 1px solid var(--line); }
 .section-scroll { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; padding: 2px; }
 .section-scroll::-webkit-scrollbar { display: none; }
+/* حافة باهتة حيث توجد تبويبات مخفية (يضبطها App حسب موضع التمرير) */
+/* RTL: البداية يميناً والنهاية يساراً */
+.section-scroll.more-end { -webkit-mask-image: linear-gradient(to right, transparent, #000 48px); mask-image: linear-gradient(to right, transparent, #000 48px); }
+.section-scroll.more-start { -webkit-mask-image: linear-gradient(to left, transparent, #000 48px); mask-image: linear-gradient(to left, transparent, #000 48px); }
+.section-scroll.more-start.more-end { -webkit-mask-image: linear-gradient(to right, transparent, #000 48px, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(to right, transparent, #000 48px, #000 calc(100% - 48px), transparent); }
 .section-tab { flex: none; height: 36px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink2); font-weight: 700; font-size: 13.5px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none !important; transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .section-tab svg { color: var(--ink3); }
 .section-tab:hover { color: var(--ink); border-color: var(--line-strong); }
@@ -126,7 +136,9 @@ img { max-width: 100%; display: block; }
 .section-tab .count { min-width: 20px; height: 18px; padding: 0 6px; border-radius: 99px; background: var(--accent); color: var(--accent-ink); font-size: 11px; display: inline-flex; align-items: center; justify-content: center; }
 @media (max-width: 900px) { .section-name { display: none; } .section-tabs { margin: -4px 0 0; } }
 
-.demo-bar { background: var(--accent); color: var(--accent-ink); font-size: 12.5px; font-weight: 700; text-align: center; padding: 5px 12px; }
+.demo-bar { height: var(--demo-h); line-height: var(--demo-h); background: var(--accent); color: var(--accent-ink); font-size: 12.5px; font-weight: 700; text-align: center; padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.demo-bar { position: sticky; top: 0; z-index: 35; }
+:root:has(.demo-bar) { --demo-h: 28px; }
 .demo-bar a { color: inherit; text-decoration: underline; }
 
 .scrim { position: fixed; inset: 0; background: var(--overlay); z-index: 40; animation: fade-in var(--t-base) var(--ease); }
