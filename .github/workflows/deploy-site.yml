@@ -1,7 +1,7 @@
 # ينشر الموقع التعريفي + لوحة التحكم على Firebase Hosting:
-#   https://raqeemiq.web.app/            الموقع (والصفحات القانونية و /p/<slug> لمشاركة المنتجات)
-#   https://raqeemiq.web.app/dashboard/  لوحة التحكم
-# السر: FIREBASE_SERVICE_ACCOUNT. المتغيرات (عامة): SUPABASE_URL, SUPABASE_ANON_KEY, MEDIA_BASE_URL, FIREBASE_PROJECT_ID (افتراضياً raqeemiq)،
+#   https://raqeem-iq.web.app/            الموقع (والصفحات القانونية و /p/<slug> لمشاركة المنتجات)
+#   https://raqeem-iq.web.app/dashboard/  لوحة التحكم
+# السر: FIREBASE_SERVICE_ACCOUNT. المتغيرات (عامة): SUPABASE_URL, SUPABASE_ANON_KEY, MEDIA_BASE_URL, FIREBASE_PROJECT_ID (افتراضياً raqeem-iq)،
 # واختيارياً DOWNLOAD_URL / DOWNLOAD_VERSION / DOWNLOAD_SIZE_MB لزر تنزيل APK.
 name: Deploy Site
 on:
@@ -73,5 +73,5 @@ jobs:
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: ${{ vars.FIREBASE_PROJECT_ID || 'raqeemiq' }}
+          projectId: ${{ vars.FIREBASE_PROJECT_ID || 'raqeem-iq' }}
           channelId: live

@@ -9,14 +9,14 @@
 - [ ] **٢. بريد المتجر** (١): Gmail جديد للمتجر تفتح به كل الحسابات التالية.
 - [ ] **٣. Supabase** (٢): مشروع `raqeem` في Frankfurt، احفظ: كلمة سر القاعدة، Project URL، anon key، Project ref، Access token. اضبط روابط Auth (الخمسة).
 - [ ] **٤. Google Cloud** (٣): شاشة الموافقة + OAuth client (Web) برابط `https://<ref>.supabase.co/auth/v1/callback` ← الصق Client ID/Secret في Supabase ← Google.
-- [ ] **٥. Firebase** (٤): مشروع `raqeemiq` + Hosting + حساب الخدمة (JSON) + تطبيق أندرويد `iq.raqeem.app` (google-services.json).
+- [ ] **٥. Firebase** (٤): مشروع `raqeem-iq` + Hosting + حساب الخدمة (JSON) + تطبيق أندرويد `iq.raqeem.app` (google-services.json).
 - [ ] **٦. أسرار GitHub** (٥): المستودع ← Settings ← Secrets and variables ← Actions:
   - Secrets: `SUPABASE_ACCESS_TOKEN`، `SUPABASE_PROJECT_REF`، `SUPABASE_DB_PASSWORD`، `PUSH_WEBHOOK_SECRET`، `FIREBASE_SERVICE_ACCOUNT`، `GOOGLE_SERVICES_JSON`، `BACKUP_PASSPHRASE`، `SIGNING_PASSPHRASE`.
-  - Variables: `SUPABASE_URL`، `SUPABASE_ANON_KEY`، `FIREBASE_PROJECT_ID` = `raqeemiq`، `SITE_URL` = `https://raqeemiq.web.app`.
+  - Variables: `SUPABASE_URL`، `SUPABASE_ANON_KEY`، `FIREBASE_PROJECT_ID` = `raqeem-iq`، `SITE_URL` = `https://raqeem-iq.web.app`.
   - احفظ `BACKUP_PASSPHRASE` و`SIGNING_PASSPHRASE` في مكان آمن خارج GitHub (مدير كلمات سر). ضياعهما لا يُعوّض.
 - [ ] **٧. Actions ← Deploy Supabase ← Run workflow** (اختر الفرع `claude/happy-rubin-s67gcc`) ← انتظر ✅.
 - [ ] **٨. اجعل نفسك المالك** (٦): أنشئ مستخدمك في Supabase ثم `select public.make_owner('بريدك', 'اسمك');` في SQL Editor.
-- [ ] **٩. Actions ← Deploy Site ← Run workflow** ← افتح `https://raqeemiq.web.app` ثم `/dashboard/` وادخل ← فعّل التحقق بخطوتين من «حسابي».
+- [ ] **٩. Actions ← Deploy Site ← Run workflow** ← افتح `https://raqeem-iq.web.app` ثم `/dashboard/` وادخل ← فعّل التحقق بخطوتين من «حسابي».
 - [ ] **١٠. اللوحة ← الإعدادات**: اسم المتجر، الهاتف، واتساب، العنوان، ساعات العمل، سعر صرف الدولار، رسوم التوصيل للمحافظات.
 
 ## بعدها — التطبيق على الهاتف

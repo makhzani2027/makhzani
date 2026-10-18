@@ -9,9 +9,9 @@
 | اسم التطبيق | رقيم |
 | حزمة أندرويد | `iq.raqeem.app` |
 | رابط التطبيق العميق (scheme) | `raqeem://` |
-| مشروع Firebase | `raqeemiq` |
-| الموقع | `https://raqeemiq.web.app` |
-| لوحة التحكم | `https://raqeemiq.web.app/dashboard/` |
+| مشروع Firebase | `raqeem-iq` |
+| الموقع | `https://raqeem-iq.web.app` |
+| لوحة التحكم | `https://raqeem-iq.web.app/dashboard/` |
 | حاويات التخزين | `media` (عامة)، `private` |
 
 ## Supabase
@@ -29,7 +29,7 @@
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
 EXPO_PUBLIC_MEDIA_BASE=          # فارغ = Supabase Storage
-EXPO_PUBLIC_SITE_URL=https://raqeemiq.web.app
+EXPO_PUBLIC_SITE_URL=https://raqeem-iq.web.app
 
 # apps/admin/.env.local
 VITE_SUPABASE_URL=

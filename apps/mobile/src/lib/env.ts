@@ -13,7 +13,7 @@ export const env = {
   supabaseUrl,
   supabaseAnonKey,
   mediaBase: (process.env.EXPO_PUBLIC_MEDIA_BASE ?? '').trim() || (supabaseUrl ? defaultMediaBase(supabaseUrl) : ''),
-  siteUrl: ((process.env.EXPO_PUBLIC_SITE_URL ?? '').trim() || 'https://raqeemiq.web.app').replace(/\/$/, ''),
+  siteUrl: ((process.env.EXPO_PUBLIC_SITE_URL ?? '').trim() || 'https://raqeem-iq.web.app').replace(/\/$/, ''),
 };
 
 /** وضع العرض: لا إعداد Supabase ← كل التطبيق يعمل على بيانات @raqeem/shared/demo */

@@ -28,7 +28,7 @@
 ## ٠. التجربة الفورية (بلا أي حساب)
 - **التطبيق عبر QR**: ثبّت **Expo Go** من Google Play على هاتفك. سأشغّل لك خادم التطوير وأعطيك رمز QR/رابطاً (أو شغّله بنفسك على حاسوب:
   `npm install` ثم `npm run mobile:start` وامسح الرمز). يفتح المتجر ببيانات تجريبية.
-- **لوحة التحكم**: بعد الخطوة ٥ تعمل على `https://raqeemiq.web.app/dashboard/` — وبلا Supabase تفتح في وضع العرض أيضاً.
+- **لوحة التحكم**: بعد الخطوة ٥ تعمل على `https://raqeem-iq.web.app/dashboard/` — وبلا Supabase تفتح في وضع العرض أيضاً.
 
 ## ١. بريد خاص بالمتجر
 أنشئ حساب Gmail جديداً للمتجر (مثل `raqeem.store@gmail.com`) وافتح به **كل** الحسابات التالية. أضف نفسك وبريد العميل كمشرفين حيث يمكن.
@@ -41,8 +41,8 @@
 3. بعد الإنشاء (دقيقتان) احفظ من **Project Settings ← API** (أو **Data API**):
    - `Project URL` مثل `https://abcdxyz.supabase.co` · `anon public` key · `Project ref` (الجزء `abcdxyz`).
 4. **Authentication ← URL Configuration**:
-   - Site URL: `https://raqeemiq.web.app/dashboard/`
-   - Redirect URLs (أضف كلاً منها): `raqeem://auth-callback` · `raqeem://payment-return` · `exp://**` · `http://localhost:5173/**` · `https://raqeemiq.web.app/**`
+   - Site URL: `https://raqeem-iq.web.app/dashboard/`
+   - Redirect URLs (أضف كلاً منها): `raqeem://auth-callback` · `raqeem://payment-return` · `exp://**` · `http://localhost:5173/**` · `https://raqeem-iq.web.app/**`
 5. **Authentication ← Sign In / Providers ← Email**: فعّل Email، وعطّل «Allow new users to sign up» (الموظفون يُنشؤون من اللوحة فقط؛ الزبائن عبر Google).
 6. لا تنفّذ أي SQL بيدك: سير العمل في الخطوة ٥ يبني قاعدة البيانات كلها تلقائياً.
 7. **Access token** (لسير العمل): https://supabase.com/dashboard/account/tokens ← **Generate new token** ← الاسم `github` ← انسخه (يظهر مرة).
@@ -50,14 +50,14 @@
 ## ٣. Google Cloud — تسجيل الدخول بحساب Google
 1. https://console.cloud.google.com ← أنشئ مشروعاً `raqeem`.
 2. **APIs & Services ← OAuth consent screen** (أو Google Auth Platform ← Branding): External، اسم التطبيق «رقيم»، بريد المتجر، شعار (`brand/icons/store-icon-512.png`)،
-   روابط: الخصوصية `https://raqeemiq.web.app/privacy` والشروط `https://raqeemiq.web.app/terms`. ثم **Publish app**.
+   روابط: الخصوصية `https://raqeem-iq.web.app/privacy` والشروط `https://raqeem-iq.web.app/terms`. ثم **Publish app**.
 3. **Credentials ← Create credentials ← OAuth client ID ← Web application**:
    - Authorized redirect URIs: `https://<Project ref>.supabase.co/auth/v1/callback`
    - انسخ **Client ID** و **Client secret**.
 4. في Supabase: **Authentication ← Sign In / Providers ← Google** ← فعّل والصق القيمتين ← Save.
 
 ## ٤. Firebase — الموقع ولوحة التحكم والإشعارات
-1. https://console.firebase.google.com ← **Add project** ← اختر مشروع Google Cloud `raqeem` نفسه (أو جديد) ← المعرّف **`raqeemiq`** (إن كان محجوزاً اختر قريباً وأخبرني).
+1. https://console.firebase.google.com ← **Add project** ← اختر مشروع Google Cloud `raqeem` نفسه (أو جديد) ← المعرّف **`raqeem-iq`** (إن كان محجوزاً اختر قريباً وأخبرني).
 2. **Build ← Hosting ← Get started** (اضغط Next حتى النهاية؛ لا تحتاج تثبيت شيء).
 3. **حساب الخدمة** (للنشر والإشعارات): ⚙️ **Project settings ← Service accounts ← Generate new private key** ← ملف JSON. افتحه بالمفكرة وانسخ **كل** النص.
 4. **تطبيق أندرويد** (للإشعارات): ⚙️ Project settings ← General ← **Add app ← Android** ← Package name: `iq.raqeem.app` ← Register ←
@@ -84,15 +84,15 @@
 |---|---|
 | `SUPABASE_URL` | `https://<ref>.supabase.co` |
 | `SUPABASE_ANON_KEY` | anon public key |
-| `FIREBASE_PROJECT_ID` | `raqeemiq` |
-| `SITE_URL` | `https://raqeemiq.web.app` (روابط مشاركة المنتجات من التطبيق) |
+| `FIREBASE_PROJECT_ID` | `raqeem-iq` |
+| `SITE_URL` | `https://raqeem-iq.web.app` (روابط مشاركة المنتجات من التطبيق) |
 | `MEDIA_BASE_URL` | فارغ الآن؛ رابط R2 العام لاحقاً (الخطوة ٨) |
 | `DOWNLOAD_URL` · `DOWNLOAD_VERSION` · `DOWNLOAD_SIZE_MB` | اختيارية: رابط APK من Releases ورقم النسخة وحجمه لزر التنزيل في الموقع |
 
 **أسرار إضافية حسب الحاجة**: `PAYMENT_PROVIDER` (`wayl`، أو `mock` للتجربة فقط — الدفع التجريبي لا يعمل إلا إذا اخترته صراحةً، ولا تتركه على `mock` بعد الإطلاق)، `PAYMENT_REDIRECT_URL`، `WAYL_API_KEY`/`WAYL_WEBHOOK_SECRET`/`WAYL_BASE_URL` (الخطوة ٩)، `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_BUCKET`/`R2_PUBLIC_URL` (الخطوة ٨)، `MEDIA_PUBLIC_URL`، و`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` (من الخطوة ٣، إن أردت ضبط Google عبر سير العمل بدل لوحة Supabase).
 
 ثم: **Actions ← Deploy Supabase ← Run workflow** ← انتظر ✅ (يبني الجداول والصلاحيات والدوال والبيانات الأولية ويربط الإشعارات).
-ثم: **Actions ← Deploy Site ← Run workflow** ← افتح `https://raqeemiq.web.app` و`https://raqeemiq.web.app/dashboard/`.
+ثم: **Actions ← Deploy Site ← Run workflow** ← افتح `https://raqeem-iq.web.app` و`https://raqeem-iq.web.app/dashboard/`.
 
 > **ربط الإشعارات** (يفعله سير العمل تلقائياً؛ يدوياً إن احتجت) في SQL Editor:
 > ```sql
@@ -129,7 +129,7 @@
 
 ## ١٠. النطاق الحقيقي (لاحقاً)
 Firebase ← Hosting ← **Add custom domain** ← `raqeem.iq` ← أضف سجلات DNS التي يعطيك إياها عند مزوّد النطاق ← انتظر الشهادة (حتى ٢٤ ساعة).
-للوحة على نطاق فرعي: Hosting ← **Add another site** ← `raqeemiq-admin` ← نطاق `admin.raqeem.iq` — وأخبرني لأحدّث سير العمل وروابط Supabase.
+للوحة على نطاق فرعي: Hosting ← **Add another site** ← `raqeem-iq-admin` ← نطاق `admin.raqeem.iq` — وأخبرني لأحدّث سير العمل وروابط Supabase.
 
 ## ١١. Google Play (لاحقاً)
 1. https://play.google.com/console ← حساب مطوّر (٢٥$) باسم المتجر (حساب «منظمة» يتجنب شرط التجربة المغلقة ١٤ يوماً للأفراد).

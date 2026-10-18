@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /dashboard/
 
-Sitemap: https://raqeemiq.web.app/sitemap.xml
+Sitemap: https://raqeem-iq.web.app/sitemap.xml

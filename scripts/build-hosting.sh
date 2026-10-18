@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # يجمع موقع رقيم التعريفي + لوحة التحكم في مجلد hosting/ لنشره على Firebase Hosting:
-#   raqeemiq.web.app/             ← الموقع التعريفي (apps/site)
-#   raqeemiq.web.app/dashboard/   ← لوحة التحكم (apps/admin)
+#   raqeem-iq.web.app/             ← الموقع التعريفي (apps/site)
+#   raqeem-iq.web.app/dashboard/   ← لوحة التحكم (apps/admin)
 # متغيرات اختيارية (كلها عامة، لا أسرار):
 #   SUPABASE_URL, SUPABASE_ANON_KEY  ← بيانات حية في الموقع + ربط لوحة التحكم (بدونها: وضع العرض)
 #   MEDIA_BASE_URL                   ← رابط الصور العام (R2)؛ فارغ = Supabase Storage

@@ -15,7 +15,7 @@
 3. **الموقع التعريفي** (`apps/site` — HTML/CSS/JS) مع صفحات الخصوصية والشروط والتراخيص (خط ثمانية). اللوحة على `/dashboard/` من نفس النطاق.
 
 ## الخدمات
-Supabase (Postgres + Auth + Realtime + Edge Functions، فرانكفورت) · Firebase (Hosting `raqeemiq.web.app` + FCM) ·
+Supabase (Postgres + Auth + Realtime + Edge Functions، فرانكفورت) · Firebase (Hosting `raqeem-iq.web.app` + FCM) ·
 Supabase Storage ثم Cloudflare R2 للصور · Wayl للدفع الإلكتروني · GitHub Actions للبناء والنشر.
 
 ## المستودع

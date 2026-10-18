@@ -42,13 +42,13 @@ allowed_mime_types = ["image/webp", "image/png", "image/jpeg"]
 [auth]
 enabled = true
 # لوحة التحكم على Firebase Hosting تحت /dashboard/
-site_url = "https://raqeemiq.web.app/dashboard/"
+site_url = "https://raqeem-iq.web.app/dashboard/"
 additional_redirect_urls = [
   "raqeem://auth-callback",
   "raqeem://payment-return",
   "exp://**",
   "http://localhost:5173/**",
-  "https://raqeemiq.web.app/**",
+  "https://raqeem-iq.web.app/**",
 ]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
