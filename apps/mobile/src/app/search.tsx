@@ -53,11 +53,11 @@ export default function Search() {
             returnKeyType="search"
             selectionColor={c.accent}
             maxFontSizeMultiplier={1.3}
-            style={{ flex: 1, color: c.ink, fontFamily: fonts.regular, fontSize: 15.5, textAlign: 'right', writingDirection: 'rtl', paddingVertical: 0, ...({ outlineStyle: 'none' } as object) }}
+            style={{ flex: 1, minWidth: 0, height: '100%', color: c.ink, fontFamily: fonts.regular, fontSize: 15.5, textAlign: 'right', writingDirection: 'rtl', paddingVertical: 0, ...({ outlineStyle: 'none' } as object) }}
             accessibilityLabel="البحث"
           />
           {text ? (
-            <PressScale onPress={() => { setText(''); input.current?.focus(); }} hitSlop={10} accessibilityLabel="مسح">
+            <PressScale onPress={() => { setText(''); input.current?.focus(); }} hitSlop={10} accessibilityRole="button" accessibilityLabel="مسح" style={{ padding: 4 }}>
               <Icon name="xCircle" size={19} color={c.ink3} />
             </PressScale>
           ) : null}
