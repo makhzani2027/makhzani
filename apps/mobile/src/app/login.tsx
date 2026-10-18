@@ -55,14 +55,12 @@ export default function Login() {
         ) : (
           <Button title="المتابعة بحساب Google" icon="login" loading={busy || waiting} onPress={google} />
         )}
-        <T v="small" tone="ink3" center>
-          بالمتابعة توافق على{' '}
-          <T v="small" tone="accent" weight="bold" style={{ textDecorationLine: 'underline' }}>الشروط</T> و
-          <T v="small" tone="accent" weight="bold" style={{ textDecorationLine: 'underline' }}>سياسة الخصوصية</T>
-        </T>
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16 }}>
-          <Button small variant="ghost" title="الشروط" onPress={() => router.push('/legal/terms')} />
-          <Button small variant="ghost" title="الخصوصية" onPress={() => router.push('/legal/privacy')} />
+        <View style={{ alignItems: 'center' }}>
+          <T v="small" tone="ink3" center>بالمتابعة توافق على الشروط وسياسة الخصوصية</T>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
+            <Button small variant="ghost" title="الشروط" onPress={() => router.push('/legal/terms')} style={{ height: 44 }} />
+            <Button small variant="ghost" title="سياسة الخصوصية" onPress={() => router.push('/legal/privacy')} style={{ height: 44 }} />
+          </View>
         </View>
       </View>
     </View>
