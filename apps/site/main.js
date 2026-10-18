@@ -92,6 +92,9 @@
       else if (el.closest('[data-socials]')) el.hidden = true;
     });
     $$('[data-show]').forEach((el) => { el.hidden = !get(c, el.dataset.show); });
+    // بطاقات التواصل الصغيرة: إن كان عدد الظاهر منها فردياً تمتد الأخيرة على عمودين
+    const small = $$('.contact-grid > .c-card:not(.c-wa)').filter((el) => !el.hidden);
+    small.forEach((el, i) => el.classList.toggle('c-wide', small.length % 2 === 1 && i === small.length - 1));
     const socials = document.querySelector('[data-socials]');
     if (socials) socials.hidden = !$$('a', socials).some((a) => !a.hidden);
     $$('[data-stat]').forEach((el) => {
