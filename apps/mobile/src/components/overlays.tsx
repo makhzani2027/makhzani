@@ -29,7 +29,7 @@ export function OfflineBanner() {
 
 /** طبقة الصيانة أو التحديث الإجباري من app_settings.app */
 export function AppGate() {
-  const { data } = useSettings();
+  const { data, refetch, isFetching } = useSettings();
   const { c } = useTheme();
   const app = data?.app;
   if (!app) return null;
@@ -45,7 +45,9 @@ export function AppGate() {
           ? 'نسختك من التطبيق قديمة. حدّثها لتكمل التسوق بأمان.'
           : app.maintenance_message || 'نجهّز لك تحسينات. نعود خلال وقت قصير.'}
       </T>
-      {mustUpdate && url ? <Button title="حدّث التطبيق" icon="download" onPress={() => Linking.openURL(url)} style={{ alignSelf: 'stretch' }} /> : null}
+      {mustUpdate && url ? <Button title="حدّث التطبيق" icon="download" onPress={() => Linking.openURL(url)} style={{ alignSelf: 'stretch', maxWidth: 420 }} /> : null}
+      {/* انتهت الصيانة؟ لا نُلزم الزبون بإغلاق التطبيق وفتحه */}
+      {!mustUpdate ? <Button title="أعد المحاولة" icon="refresh" variant="secondary" loading={isFetching} onPress={() => refetch()} style={{ alignSelf: 'stretch', maxWidth: 420 }} /> : null}
     </View>
   );
 }
