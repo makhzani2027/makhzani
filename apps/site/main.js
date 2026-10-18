@@ -32,8 +32,17 @@
     menuBtn.setAttribute('aria-expanded', String(open));
     menuBtn.setAttribute('aria-label', open ? 'إغلاق القائمة' : 'القائمة');
   };
-  menuBtn?.addEventListener('click', () => setMenu(!hdr.classList.contains('is-open')));
+  menuBtn?.addEventListener('click', (e) => {
+    const open = !hdr.classList.contains('is-open');
+    setMenu(open);
+    // القائمة قبل الزر في ترتيب الصفحة: من لوحة المفاتيح ننقل التركيز لأول رابط فيها
+    if (open && e.detail === 0) document.querySelector('#nav a')?.focus();
+  });
   $$('#nav a').forEach((a) => a.addEventListener('click', () => setMenu(false)));
+  // خروج التركيز من الشريط العلوي (Tab بعد آخر عنصر) يغلق القائمة
+  hdr?.addEventListener('focusout', (e) => { if (hdr.classList.contains('is-open') && !hdr.contains(e.relatedTarget)) setMenu(false); });
+  // النقر خارج القائمة يغلقها
+  document.addEventListener('click', (e) => { if (hdr?.classList.contains('is-open') && !hdr.contains(e.target)) setMenu(false); });
   addEventListener('keydown', (e) => { if (e.key === 'Escape' && hdr?.classList.contains('is-open')) { setMenu(false); menuBtn.focus(); } });
 
   // ------------------------------------------------------------ الظهور عند التمرير + العدّ
@@ -92,6 +101,9 @@
       else if (el.closest('[data-socials]')) el.hidden = true;
     });
     $$('[data-show]').forEach((el) => { el.hidden = !get(c, el.dataset.show); });
+    // بطاقات التواصل الصغيرة: إن كان عدد الظاهر منها فردياً تمتد الأخيرة على عمودين
+    const small = $$('.contact-grid > .c-card:not(.c-wa)').filter((el) => !el.hidden);
+    small.forEach((el, i) => el.classList.toggle('c-wide', small.length % 2 === 1 && i === small.length - 1));
     const socials = document.querySelector('[data-socials]');
     if (socials) socials.hidden = !$$('a', socials).some((a) => !a.hidden);
     $$('[data-stat]').forEach((el) => {
@@ -249,6 +261,23 @@
           }
         });
     }
+  }
+
+  // ------------------------------------------------------------ فهرس الصفحات القانونية: القسم الحالي
+  const toc = $$('.toc nav a');
+  if (toc.length) {
+    const byId = new Map(toc.map((a) => [a.getAttribute('href').slice(1), a]));
+    const mark = () => {
+      const heads = $$('.doc h2[id]');
+      // آخر عنوان مرّ أعلى الشاشة هو القسم الحالي
+      let cur = heads[0];
+      for (const h of heads) if (h.getBoundingClientRect().top < innerHeight * 0.35) cur = h;
+      toc.forEach((a) => a.removeAttribute('aria-current'));
+      byId.get(cur?.id)?.setAttribute('aria-current', 'true');
+    };
+    let raf = 0;
+    addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; mark(); }); }, { passive: true });
+    mark();
   }
 
   $$('[data-year]').forEach((el) => { el.textContent = ar(new Date().getFullYear()); });
