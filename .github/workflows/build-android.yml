@@ -56,6 +56,9 @@ jobs:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: npx expo prebuild --platform android --no-install --clean
 
+      - name: One APK per phone processor (arm64 + armv7)
+        run: node scripts/android-abi-splits.js
+
       - name: Release signing
         id: sign
         env:
@@ -95,7 +98,9 @@ jobs:
       - name: Collect outputs
         run: |
           mkdir -p out
-          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk out/raqeem.apk
+          APKS=apps/mobile/android/app/build/outputs/apk/release
+          cp "$APKS/app-arm64-v8a-release.apk" out/raqeem.apk
+          cp "$APKS/app-armeabi-v7a-release.apk" out/raqeem-armv7.apk
           cp apps/mobile/android/app/build/outputs/bundle/release/app-release.aab out/raqeem.aab
           APKSIGNER=$(ls -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
           if [ -n "$APKSIGNER" ]; then
@@ -116,20 +121,49 @@ jobs:
           tag_name: android-${{ github.run_number }}
           name: رقيم لأندرويد — نسخة ${{ github.run_number }}
           body: |
-            - raqeem.apk: للتثبيت المباشر على الهاتف.
+            - raqeem.apk: للتثبيت المباشر على أغلب الهواتف (64 بت).
+            - raqeem-armv7.apk: للهواتف القديمة (32 بت) إن لم يُثبَّت الأول.
             - raqeem.aab: للرفع إلى Google Play.
             التوقيع: ${{ steps.sign.outputs.mode == 'release' && 'مفتاح رقيم الخاص' || 'مفتاح debug (تجريبي، لا يصلح لـ Google Play)' }}
             الفرع: ${{ github.ref_name }} — الكود: ${{ github.sha }}
           prerelease: ${{ steps.sign.outputs.mode != 'release' }}
           files: |
             out/raqeem.apk
+            out/raqeem-armv7.apk
             out/raqeem.aab
 
-      # ينشر الـ APK الجديد على الموقع (/download/raqeem.apk) عبر «Deploy Site»
-      - name: Publish APK on the website
+      # رابط تنزيل عام: المستودع خاص (روابط Releases لا تفتح للزبائن) وخطة Firebase المجانية تمنع ملفات APK،
+      # فنرفع الملفين إلى مخزن Supabase العام «downloads» ونحدّث زر التنزيل في الموقع عبر «Deploy Site».
+      - name: Publish APK for public download (Supabase Storage)
+        id: publish
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$PROJECT_REF" ]; then
+            echo "::warning::لا أسرار Supabase — لم يُنشر رابط التنزيل العام (الملف في Releases فقط)."; exit 0
+          fi
+          keys=$(curl -sSf -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "https://api.supabase.com/v1/projects/$PROJECT_REF/api-keys?reveal=true")
+          KEY=$(echo "$keys" | jq -r '[.[] | select(.name=="service_role")][0].api_key // empty')
+          [ -n "$KEY" ] || KEY=$(echo "$keys" | jq -r '[.[] | select(.type=="secret")][0].api_key // empty')
+          [ -n "$KEY" ] || { echo "::error::تعذّر جلب مفتاح الخدمة من Supabase."; exit 1; }
+          echo "::add-mask::$KEY"
+          BASE="https://$PROJECT_REF.supabase.co/storage/v1"
+          H=(-H "apikey: $KEY" -H "Authorization: Bearer $KEY")
+          # المخزن عام للقراءة فقط؛ الكتابة بمفتاح الخدمة هنا وحده
+          curl -sS -o /dev/null "${H[@]}" -H 'Content-Type: application/json' -X POST "$BASE/bucket" \
+            -d '{"id":"downloads","name":"downloads","public":true}' || true
+          for f in raqeem.apk raqeem-armv7.apk; do
+            ls -lh "out/$f"
+            curl -sS --fail-with-body -o /dev/null "${H[@]}" -X POST "$BASE/object/downloads/$f" \
+              -H 'Content-Type: application/vnd.android.package-archive' -H 'x-upsert: true' -H 'cache-control: max-age=300' \
+              --data-binary "@out/$f"
+          done
+          echo "url=https://$PROJECT_REF.supabase.co/storage/v1/object/public/downloads/raqeem.apk" >> "$GITHUB_OUTPUT"
+          echo "✓ رابط التنزيل: https://$PROJECT_REF.supabase.co/storage/v1/object/public/downloads/raqeem.apk"
+
+      - name: Update the website download button
+        if: steps.publish.outputs.url != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          SITE_URL: ${{ vars.SITE_URL }}
-        run: |
-          gh workflow run deploy-site.yml --ref "$GITHUB_REF_NAME"
-          echo "بدأ «Deploy Site». رابط التنزيل بعد دقيقتين: ${SITE_URL:-https://raqeem-iq.web.app}/download/raqeem.apk"
+        run: gh workflow run deploy-site.yml --ref "$GITHUB_REF_NAME"
