@@ -113,8 +113,9 @@ export const remoteApi: Api = {
     await must(sb().rpc('upsert_my_profile', { full_name: input.full_name, phone: input.phone, governorate: input.governorate }));
   },
   async deleteAccount() {
-    await must(sb().rpc('delete_my_account'));
-    // حذف مستخدم auth نفسه يحتاج مفتاح الخدمة: دالة الخادم account
+    // دالة الخادم account تستدعي delete_my_account بنفسها ثم تحذف مستخدم auth (يحتاج مفتاح الخدمة).
+    // لا نستدعي الدالة هنا أولاً: هي توقف الملف (status = blocked) فترفض account الطلب بعدها
+    // («حسابك موقوف») ويبقى مستخدم auth بلا حذف.
     await callFunction('account', {});
   },
 

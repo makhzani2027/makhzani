@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, View, useWindowDimensions } from 'react-native';
+import { RefreshControl, ScrollView, View, useWindowDimensions } from 'react-native';
 import { ProductImage } from '@/components/brand';
 import { Bone, PressScale, Skeleton } from '@/components/motion';
 import { Empty, ErrorState, Icon, IconButton, PageTitle, T, contentColumn } from '@/components/ui';
@@ -48,7 +48,8 @@ export default function Categories() {
               );
             })}
           </ScrollView>
-          <ScrollView style={{ flex: 1, backgroundColor: c.card }} contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 32 }}>
+          <ScrollView style={{ flex: 1, backgroundColor: c.card }} contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 32 }}
+            refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => { q.refetch(); }} tintColor={c.accent} colors={[c.accent]} progressBackgroundColor={c.card} />}>
             {current ? (
               <PressScale onPress={() => router.push(`/category/${current.id}`)} accessibilityRole="button"
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.accentSoft, borderRadius: 14, padding: 12 }}>

@@ -12,6 +12,7 @@ import { fonts, useTheme } from '@/lib/theme';
 import { Icon, type IconName } from './icon';
 import { ease, KeyboardView, PressScale, tap } from './motion';
 import { T } from './text';
+import { useToastAnchor } from './toast';
 
 export { T } from './text';
 export { Icon, type IconName } from './icon';
@@ -24,7 +25,7 @@ export const GUTTER = 20;
 export const contentColumn: ViewStyle = { width: '100%', maxWidth: layout.maxContent, alignSelf: 'center' };
 
 export function Screen({
-  children, scroll = true, padded = true, onRefresh, refreshing, footer, header, style, gap = 16,
+  children, scroll = true, padded = true, onRefresh, refreshing, footer, header, style, gap = 16, inTabs,
 }: {
   children: ReactNode;
   scroll?: boolean;
@@ -37,17 +38,20 @@ export function Screen({
   header?: ReactNode;
   style?: StyleProp<ViewStyle>;
   gap?: number;
+  /** شاشة تبويب: شريط التبويبات تحتها يتكفل بالحافة السفلية (لا نضيف مسافة الأمان مرتين) */
+  inTabs?: boolean;
 }) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
+  const bottom = inTabs ? 0 : insets.bottom;
   const inner: StyleProp<ViewStyle> = [contentColumn, padded ? { paddingHorizontal: GUTTER } : null];
   return (
-    <KeyboardView style={{ backgroundColor: c.bg }} bottomInset={insets.bottom}>
+    <KeyboardView style={{ backgroundColor: c.bg }} bottomInset={bottom}>
       <View style={{ paddingTop: insets.top, backgroundColor: c.bg }}>{header}</View>
       {scroll ? (
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={[inner, { gap, paddingTop: header ? 4 : 12, paddingBottom: footer ? 24 : insets.bottom + 32 }, style]}
+          contentContainerStyle={[inner, { gap, paddingTop: header ? 8 : 12, paddingBottom: footer ? 24 : bottom + 32 }, style]}
           keyboardShouldPersistTaps="handled"
           refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={c.accent} colors={[c.accent]} progressBackgroundColor={c.card} /> : undefined}>
           {children}
@@ -55,17 +59,18 @@ export function Screen({
       ) : (
         <View style={[{ flex: 1 }, inner, style]}>{children}</View>
       )}
-      {footer ? <Footer>{footer}</Footer> : null}
+      {footer ? <Footer safeBottom={!inTabs}>{footer}</Footer> : null}
     </KeyboardView>
   );
 }
 
 /** شريط الإجراءات الثابت أسفل الشاشة */
-export function Footer({ children }: { children: ReactNode }) {
+export function Footer({ children, safeBottom = true }: { children: ReactNode; safeBottom?: boolean }) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
+  const onLayout = useToastAnchor('footer');
   return (
-    <View style={{ backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 12, paddingBottom: Math.max(insets.bottom, 12) + 4 }}>
+    <View onLayout={onLayout} style={{ backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 12, paddingBottom: (safeBottom ? Math.max(insets.bottom, 12) : 12) + 4 }}>
       <View style={[contentColumn, { paddingHorizontal: GUTTER, gap: 10 }]}>{children}</View>
     </View>
   );
@@ -210,6 +215,8 @@ export function Button({
       accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
       onPress={onPress}
       haptic
+      // الزر الصغير ٤٠ نقطة: نوسّع منطقة اللمس إلى ٤٤ على الأقل
+      hitSlop={small ? 4 : undefined}
       disabled={disabled || loading}
       style={[{
         height: small ? 40 : 52,
@@ -278,6 +285,7 @@ export function Chip({ label, active, onPress, icon, disabled, struck, small }: 
       onPress={onPress ? () => { tap('select'); onPress(); } : undefined}
       disabled={!onPress || disabled}
       scaleTo={0.94}
+      hitSlop={small ? 6 : 2}
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityState={onPress ? { selected: !!active, disabled: !!disabled } : undefined}
       style={{

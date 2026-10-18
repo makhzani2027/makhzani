@@ -80,9 +80,14 @@ export function Skeleton({ children, style }: { children: ReactNode; style?: Sty
 }
 
 /** حاوية تصعد مع لوحة المفاتيح (أندرويد بملء الشاشة لا يرفع المحتوى وحده) */
-export function KeyboardView({ children, style, bottomInset = 0 }: { children: ReactNode; style?: StyleProp<ViewStyle>; bottomInset?: number }) {
+type KeyboardViewProps = { children: ReactNode; style?: StyleProp<ViewStyle>; bottomInset?: number };
+function NativeKeyboardView({ children, style, bottomInset = 0 }: KeyboardViewProps) {
   const kb = useAnimatedKeyboard();
   const pad = useAnimatedStyle(() => ({ paddingBottom: Math.max(0, kb.height.value - bottomInset) }));
-  if (Platform.OS === 'web') return <View style={[{ flex: 1 }, style]}>{children}</View>;
   return <Animated.View style={[{ flex: 1 }, style, pad]}>{children}</Animated.View>;
 }
+function WebKeyboardView({ children, style }: KeyboardViewProps) {
+  // المتصفح يتكفل بلوحة المفاتيح، و useAnimatedKeyboard غير مدعوم على الويب
+  return <View style={[{ flex: 1 }, style]}>{children}</View>;
+}
+export const KeyboardView = Platform.OS === 'web' ? WebKeyboardView : NativeKeyboardView;

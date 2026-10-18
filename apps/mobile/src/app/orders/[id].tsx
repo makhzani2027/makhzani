@@ -18,7 +18,7 @@ import { AppBar, Badge, Button, Card, Divider, Empty, Icon, Input, KeyValue, Not
 import { api, type OrderItem } from '@/lib/api';
 import { useCart } from '@/lib/cart';
 import { friendlyError } from '@/lib/errors';
-import { useFmt } from '@/lib/format';
+import { landmarkText, useFmt } from '@/lib/format';
 import { payOnline } from '@/lib/pay';
 import { qk, useSettings } from '@/lib/query';
 import { useTheme } from '@/lib/theme';
@@ -221,7 +221,7 @@ export default function OrderDetail() {
           <>
             <T>{governorateName(o.address.governorate)}{o.address.city ? ` — ${o.address.city}` : ''}{o.address.area ? `، ${o.address.area}` : ''}</T>
             {o.address.street ? <T v="small" tone="ink2">{o.address.street}</T> : null}
-            {o.address.landmark ? <T v="small" tone="ink2">قرب {o.address.landmark}</T> : null}
+            {o.address.landmark ? <T v="small" tone="ink2">{landmarkText(o.address.landmark)}</T> : null}
             <T v="small" tone="ink2">{o.address.recipient_name} · {f.phone(o.address.phone)}</T>
           </>
         ) : <T v="small" tone="ink2">{store?.address ?? 'نبلغك حين يجهز طلبك للاستلام.'}</T>}

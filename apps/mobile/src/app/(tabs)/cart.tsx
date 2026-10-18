@@ -26,7 +26,7 @@ export default function Cart() {
 
   if (cart.ready && !cart.lines.length) {
     return (
-      <Screen header={header}>
+      <Screen inTabs header={header}>
         <Empty icon="bag" title="سلتك فارغة" body="أضف ما يعجبك من المتجر، ويبقى هنا حتى تكمل الطلب." action="تسوّق الآن" onAction={() => router.navigate('/')} />
       </Screen>
     );
@@ -41,6 +41,7 @@ export default function Cart() {
 
   return (
     <Screen
+      inTabs
       header={header}
       onRefresh={() => { infos.refetch(); quote.refetch(); }}
       refreshing={quote.isRefetching}

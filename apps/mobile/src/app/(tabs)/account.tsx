@@ -58,7 +58,7 @@ export default function Account() {
   };
 
   return (
-    <Screen header={<PageTitle title="حسابي" />}>
+    <Screen inTabs header={<PageTitle title="حسابي" />}>
       {uid ? (
         <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' }}>

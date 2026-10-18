@@ -19,7 +19,7 @@ export default function Favorites() {
   const movable = items.filter((p) => p.default_variant_id && p.in_stock);
 
   return (
-    <Screen header={<PageTitle title="المفضلة" subtitle={items.length ? f.products(items.length) : undefined} />} onRefresh={() => q.refetch()} refreshing={q.isRefetching}>
+    <Screen inTabs header={<PageTitle title="المفضلة" subtitle={items.length ? f.products(items.length) : undefined} />} onRefresh={() => q.refetch()} refreshing={q.isRefetching}>
       {!fav.ids.length ? (
         <Empty icon="heart" title="لا شيء في المفضلة" body="اضغط القلب على أي منتج لتحفظه هنا وترجع له لاحقاً." action="تصفّح المتجر" onAction={() => router.navigate('/')} />
       ) : q.isLoading ? (

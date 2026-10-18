@@ -27,6 +27,13 @@ export interface Fmt {
   phone: (e164: string | null | undefined) => string;
 }
 
+/** أقرب نقطة دالة كما تُقرأ: «قرب …» إلا إن كتبها الزبون بحرف مكان (قرب، مقابل، خلف…) كما يقترح الحقل */
+export function landmarkText(l: string | null | undefined): string {
+  const v = (l ?? '').trim();
+  if (!v) return '';
+  return /^(قرب|مقابل|خلف|جنب|بجانب|بجنب|عند|امام|أمام|قبل|بعد|بين|داخل|ضمن|نهاية|بداية|مدخل|فرع|زقاق|شارع)(\s|$)/.test(v) ? v : `قرب ${v}`;
+}
+
 /** تنسيق الأرقام بحسب إعدادات المتجر العامة (store.digits و store.currency) */
 export function useFmt(): Fmt {
   const { data } = useSettings();

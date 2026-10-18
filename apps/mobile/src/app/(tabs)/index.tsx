@@ -6,8 +6,9 @@ import { HeroCarousel, StripBanners } from '@/components/banners';
 import { Logo, ProductImage } from '@/components/brand';
 import { appear, Bone, PressScale, Skeleton } from '@/components/motion';
 import { GridSkeleton, ProductRail } from '@/components/product-card';
-import { Card, ErrorState, GUTTER, Icon, IconButton, Row, Screen, T, contentColumn } from '@/components/ui';
+import { Badge, Card, ErrorState, GUTTER, Icon, IconButton, Row, Screen, T, contentColumn } from '@/components/ui';
 import { api, type StoreHomeSection } from '@/lib/api';
+import { isDemo } from '@/lib/env';
 import { useUnread } from '@/lib/hooks';
 import { friendlyError } from '@/lib/errors';
 import { useFmt } from '@/lib/format';
@@ -36,13 +37,17 @@ export default function Home() {
 
   const header = (
     <View style={[contentColumn, { paddingHorizontal: GUTTER, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
-      <Logo size={26} />
+      <Row gap={8}>
+        <Logo size={26} />
+        {/* نسخة بلا إعداد Supabase: نوضحها بدل أن يظن الزبون أن طلبه وصل */}
+        {isDemo ? <Badge label="وضع العرض" tone="warning" /> : null}
+      </Row>
       <IconButton name="bell" label="الإشعارات" badge={unread} onPress={() => router.push('/notifications')} />
     </View>
   );
 
   return (
-    <Screen padded={false} header={header} onRefresh={() => { home.refetch(); settings.refetch(); }} refreshing={home.isRefetching} gap={22}>
+    <Screen inTabs padded={false} header={header} onRefresh={() => { home.refetch(); settings.refetch(); }} refreshing={home.isRefetching} gap={22}>
       <View style={[contentColumn, { paddingHorizontal: GUTTER }]}>
         <PressScale
           onPress={() => router.push('/search')}
