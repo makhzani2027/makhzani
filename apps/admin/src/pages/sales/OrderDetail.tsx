@@ -27,6 +27,8 @@ export default function OrderDetail() {
   if (o.error) return <ErrorState message={o.error} onRetry={o.reload} />;
   if (!o.data) return <Loading />;
   const { order, items, events, customer, invoice_number } = o.data;
+  // الملاحظة الداخلية = آخر حدث غير ظاهر للزبون بلا تغيير حالة (لا تُحفظ في الطلب لأن الزبون يقرأ صفه)
+  const internalNote = [...events].reverse().find((e) => !e.status && !e.is_customer_visible && e.note)?.note ?? null;
   const next = primaryNext(order.status, order.fulfillment);
   const others = nextStatuses(order.status, order.fulfillment).filter((s) => s !== next);
   const manage = can('orders.manage');
@@ -57,7 +59,7 @@ export default function OrderDetail() {
         actions={<>
           <Button icon="printer" onClick={() => void printOrderSlip(order.id, store)}>قسيمة التوصيل</Button>
           {wa ? <Button icon="whatsapp" onClick={() => window.open(wa, '_blank', 'noopener')}>واتساب</Button> : null}
-          {manage ? <Button icon="note" onClick={async () => { const n = await askText({ title: 'ملاحظة داخلية', multiline: true, required: true, initial: order.staff_note ?? '' }); if (n) void move.run(null, n); }}>ملاحظة</Button> : null}
+          {manage ? <Button icon="note" onClick={async () => { const n = await askText({ title: 'ملاحظة داخلية', multiline: true, required: true, initial: '' }); if (n) void move.run(null, n); }}>ملاحظة</Button> : null}
           {manage && others.length ? <Menu trigger={(open) => <Button icon="more" onClick={open}>حالة أخرى</Button>} items={others.map((s) => ({ label: ORDER_STATUS[s].staffAction ?? ORDER_STATUS[s].label, danger: s === 'cancelled' || s === 'returned', onClick: () => void go(s) }))} /> : null}
           {manage && next ? <Button variant="primary" icon="check" loading={move.busy} onClick={() => void go(next)}>{ORDER_STATUS[next].staffAction}</Button> : null}
         </>} />
@@ -108,7 +110,7 @@ export default function OrderDetail() {
               {order.invoice_id ? <div><span>الفاتورة</span><Link to={`/invoices/${order.invoice_id}`} className="ltr">{invoice_number ?? 'عرض'}</Link></div> : null}
             </div>
           </Card>
-          {order.staff_note ? <Card title="ملاحظة داخلية" icon="note"><p className="sx-pre">{order.staff_note}</p></Card> : null}
+          {internalNote ? <Card title="ملاحظة داخلية" icon="note"><p className="sx-pre">{internalNote}</p></Card> : null}
         </div>
       </div>
     </>

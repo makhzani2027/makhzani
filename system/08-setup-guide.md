@@ -89,7 +89,7 @@
 | `MEDIA_BASE_URL` | فارغ الآن؛ رابط R2 العام لاحقاً (الخطوة ٨) |
 | `DOWNLOAD_URL` · `DOWNLOAD_VERSION` · `DOWNLOAD_SIZE_MB` | اختيارية: رابط APK من Releases ورقم النسخة وحجمه لزر التنزيل في الموقع |
 
-**أسرار إضافية حسب الحاجة**: `PAYMENT_PROVIDER` (`wayl` أو `mock`)، `PAYMENT_REDIRECT_URL`، `WAYL_API_KEY`/`WAYL_WEBHOOK_SECRET`/`WAYL_BASE_URL` (الخطوة ٩)، `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_BUCKET`/`R2_PUBLIC_URL` (الخطوة ٨)، `MEDIA_PUBLIC_URL`، و`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` (من الخطوة ٣، إن أردت ضبط Google عبر سير العمل بدل لوحة Supabase).
+**أسرار إضافية حسب الحاجة**: `PAYMENT_PROVIDER` (`wayl`، أو `mock` للتجربة فقط — الدفع التجريبي لا يعمل إلا إذا اخترته صراحةً، ولا تتركه على `mock` بعد الإطلاق)، `PAYMENT_REDIRECT_URL`، `WAYL_API_KEY`/`WAYL_WEBHOOK_SECRET`/`WAYL_BASE_URL` (الخطوة ٩)، `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_BUCKET`/`R2_PUBLIC_URL` (الخطوة ٨)، `MEDIA_PUBLIC_URL`، و`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` (من الخطوة ٣، إن أردت ضبط Google عبر سير العمل بدل لوحة Supabase).
 
 ثم: **Actions ← Deploy Supabase ← Run workflow** ← انتظر ✅ (يبني الجداول والصلاحيات والدوال والبيانات الأولية ويربط الإشعارات).
 ثم: **Actions ← Deploy Site ← Run workflow** ← افتح `https://raqeemiq.web.app` و`https://raqeemiq.web.app/dashboard/`.

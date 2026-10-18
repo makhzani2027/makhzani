@@ -569,7 +569,7 @@ export async function getOrder(id: string): Promise<OrderFull> {
 }
 
 /**
- * set_order_status(order_id, status, note). status = null ← ملاحظة داخلية فقط (حدث غير ظاهر للزبون + staff_note).
+ * set_order_status(order_id, status, note). status = null ← ملاحظة داخلية فقط (حدث غير ظاهر للزبون).
  */
 export async function setOrderStatus(orderId: string, status: OrderStatus | null, note: string | null): Promise<void> {
   if (!IS_DEMO) { await rpc('set_order_status', { order_id: orderId, status, note }); return; }
@@ -578,7 +578,6 @@ export async function setOrderStatus(orderId: string, status: OrderStatus | null
   if (!o) throw new AppError('الطلب غير موجود.');
   if (status === null) {
     if (!note?.trim()) throw new AppError('اكتب الملاحظة.');
-    o.staff_note = note.trim();
     o.updated_at = nowIso();
     demoOrderEvent(o.id, null, note.trim(), false);
     demoChanged();
