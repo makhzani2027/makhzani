@@ -45,22 +45,49 @@ jobs:
           cache: npm
       - run: npm ci
 
+      # آخر APK من Releases (يبنيه «Build Android») يُنشر مع الموقع على /download/raqeem.apk —
+      # المستودع خاص فروابط Releases لا تفتح للزبائن. نفضّل النسخة الموقّعة بمفتاح رقيم.
+      - name: Latest Android APK
+        id: apk
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          list=$(gh release list --limit 30 --json tagName,isPrerelease 2>/dev/null || echo '[]')
+          tag=$(echo "$list" | jq -r '[.[] | select(.tagName|startswith("android-")) | select(.isPrerelease|not)][0].tagName // empty')
+          [ -n "$tag" ] || tag=$(echo "$list" | jq -r '[.[] | select(.tagName|startswith("android-"))][0].tagName // empty')
+          if [ -z "$tag" ]; then echo "::notice::لا توجد نسخة أندرويد في Releases بعد — زر التنزيل يبقى «قريباً»."; exit 0; fi
+          gh release download "$tag" --pattern raqeem.apk --dir "$RUNNER_TEMP/apk" --clobber
+          f="$RUNNER_TEMP/apk/raqeem.apk"
+          echo "file=$f" >> "$GITHUB_OUTPUT"
+          echo "version=1.0.${tag#android-}" >> "$GITHUB_OUTPUT"
+          echo "size=$(awk -v b="$(stat -c %s "$f")" 'BEGIN{printf "%.0f", b/1048576}')" >> "$GITHUB_OUTPUT"
+          echo "APK: $tag ($(du -h "$f" | cut -f1))"
+
       - name: Build site + dashboard
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
           MEDIA_BASE_URL: ${{ vars.MEDIA_BASE_URL }}
-          DOWNLOAD_URL: ${{ vars.DOWNLOAD_URL }}
-          DOWNLOAD_VERSION: ${{ vars.DOWNLOAD_VERSION }}
-          DOWNLOAD_SIZE_MB: ${{ vars.DOWNLOAD_SIZE_MB }}
+          DOWNLOAD_URL: ${{ vars.DOWNLOAD_URL || (steps.apk.outputs.file && '/download/raqeem.apk') || '' }}
+          DOWNLOAD_VERSION: ${{ vars.DOWNLOAD_VERSION || steps.apk.outputs.version }}
+          DOWNLOAD_SIZE_MB: ${{ vars.DOWNLOAD_SIZE_MB || steps.apk.outputs.size }}
         run: |
           [ -n "$SUPABASE_URL" ] || echo "::notice::المتغير SUPABASE_URL غير مضبوط — الموقع بلا بيانات حية ولوحة التحكم في وضع العرض."
           bash scripts/build-hosting.sh
 
+      - name: Add APK to the site
+        if: steps.apk.outputs.file != ''
+        run: |
+          mkdir -p hosting/download
+          cp "${{ steps.apk.outputs.file }}" hosting/download/raqeem.apk
+          ls -lh hosting/download
+
       - uses: actions/upload-artifact@v4
         with:
           name: hosting
-          path: hosting
+          path: |
+            hosting
+            !hosting/download/*.apk
           retention-days: 7
 
       - name: Skip notice

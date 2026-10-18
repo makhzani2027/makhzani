@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: build-android
@@ -120,3 +121,12 @@ jobs:
           files: |
             out/raqeem.apk
             out/raqeem.aab
+
+      # ينشر الـ APK الجديد على الموقع (/download/raqeem.apk) عبر «Deploy Site»
+      - name: Publish APK on the website
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          gh workflow run deploy-site.yml --ref "$GITHUB_REF_NAME"
+          echo "بدأ «Deploy Site». رابط التنزيل بعد دقيقتين: ${SITE_URL:-https://raqeem-iq.web.app}/download/raqeem.apk"
