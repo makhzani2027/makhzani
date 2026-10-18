@@ -14,7 +14,7 @@
   --warning: #9A6206; --warning-bg: #FBF0D9;
   --danger: #B8262E; --danger-bg: #FBE4E2; --danger-solid: #B8262E;
   --info: #2453A6; --info-bg: #E5ECF8;
-  --neutral: #50564F; --neutral-bg: #E4E6E3;
+  --neutral: #50564F; --neutral-bg: #E4E6E3; --seg-on: #FFFFFF;
   --accent-tone: #A3360A; --accent-tone-bg: #FBE6DA;
 
   /* الشريط الجانبي: غلاف الدفتر */
@@ -40,7 +40,7 @@
     --overlay: rgba(0, 0, 0, .6); --focus: #F2783E;
     --success: #5BC48D; --success-bg: #12301F; --warning: #E7B04F; --warning-bg: #33260F;
     --danger: #F2777A; --danger-bg: #3A1517; --danger-solid: #C9343B; --info: #86A8F0; --info-bg: #16233D;
-    --neutral: #A9AFA8; --neutral-bg: #1F2320; --accent-tone: #FFA97E; --accent-tone-bg: #3A1A0C;
+    --neutral: #A9AFA8; --neutral-bg: #1F2320; --seg-on: #2C312D; --accent-tone: #FFA97E; --accent-tone-bg: #3A1A0C;
     --side: #0A0C0B; --side-ink: #E6E9E5; --side-ink2: #848C83; --side-line: #1C201D; --side-hover: #121513; --side-active: #241C16;
     --c1: #F2783E; --c2: #86A8F0; --c3: #5BC48D; --c4: #E7B04F; --c5: #A9AFA8; --c6: #D98AAE;
     --shadow-float: 0 18px 48px -18px rgba(0, 0, 0, .7), 0 2px 6px rgba(0, 0, 0, .3);
@@ -56,7 +56,7 @@
   --overlay: rgba(0, 0, 0, .6); --focus: #F2783E;
   --success: #5BC48D; --success-bg: #12301F; --warning: #E7B04F; --warning-bg: #33260F;
   --danger: #F2777A; --danger-bg: #3A1517; --danger-solid: #C9343B; --info: #86A8F0; --info-bg: #16233D;
-  --neutral: #A9AFA8; --neutral-bg: #1F2320; --accent-tone: #FFA97E; --accent-tone-bg: #3A1A0C;
+  --neutral: #A9AFA8; --neutral-bg: #1F2320; --seg-on: #2C312D; --accent-tone: #FFA97E; --accent-tone-bg: #3A1A0C;
   --side: #0A0C0B; --side-ink: #E6E9E5; --side-ink2: #848C83; --side-line: #1C201D; --side-hover: #121513; --side-active: #241C16;
   --c1: #F2783E; --c2: #86A8F0; --c3: #5BC48D; --c4: #E7B04F; --c5: #A9AFA8; --c6: #D98AAE;
   --shadow-float: 0 18px 48px -18px rgba(0, 0, 0, .7), 0 2px 6px rgba(0, 0, 0, .3);

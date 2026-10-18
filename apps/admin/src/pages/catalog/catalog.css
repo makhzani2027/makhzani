@@ -115,6 +115,8 @@
 
 /* ---------------------------------------------------------------- منتقي النسخ (بحث/مسح) */
 .vpick { position: relative; flex: 1 1 320px; min-width: 0; }
+/* داخل حقل (عمود) لا يأخذ أساس ٣٢٠ بكسل طولاً: كان يترك فراغاً كبيراً تحت البحث في «تعديل الرصيد» */
+.field > .vpick { flex: none; }
 .vpick-list { position: absolute; z-index: 30; top: calc(100% + 6px); inset-inline: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: var(--shadow-float); padding: 6px; max-height: 360px; overflow-y: auto; }
 .vpick-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
 .vpick-item.on, .vpick-item:hover { background: var(--sunken); }
