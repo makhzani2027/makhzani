@@ -29,7 +29,7 @@ export function categoryOptions(cats: Category[]): { value: string; label: strin
   const roots = cats.filter((c) => !c.parent_id).sort((a, b) => a.sort - b.sort);
   return roots.flatMap((r) => [
     { value: r.id, label: r.name },
-    ...cats.filter((c) => c.parent_id === r.id).sort((a, b) => a.sort - b.sort).map((c) => ({ value: c.id, label: `\u00A0\u00A0\u00A0↳ ${c.name}` })),
+    ...cats.filter((c) => c.parent_id === r.id).sort((a, b) => a.sort - b.sort).map((c) => ({ value: c.id, label: `\u00A0\u00A0\u00A0↲ ${c.name}` })),
   ]);
 }
 

@@ -29,6 +29,7 @@ interface TabProps { d: ProductDraft; set: Setter; errors: DraftErrors; tried: b
 
 export default function ProductForm() {
   const { id } = useParams();
+  const fmt = useFmt();
   const isNew = !id || id === 'new';
   const nav = useNavigate();
   const { can } = useAuth();
@@ -103,7 +104,7 @@ export default function ProductForm() {
         ) : undefined}
       />
       {readOnly ? <Alert tone="info">تعرض المنتج للقراءة فقط. التعديل يحتاج صلاحية «تعديل المنتجات».</Alert> : null}
-      <Tabs value={tab} onChange={setTab} items={tabs.map((t) => ({ ...t, label: <>{t.label}{tried && errors.byTab[t.value] ? <span className="tab-err">{errors.byTab[t.value]}</span> : null}</> }))} />
+      <Tabs value={tab} onChange={setTab} items={tabs.map((t) => ({ ...t, label: <>{t.label}{tried && errors.byTab[t.value] ? <span className="tab-err">{fmt.num(errors.byTab[t.value]!)}</span> : null}</> }))} />
       <div className="form-layout" style={{ marginTop: 16 }}>
         <div className="stack">
           {tab === 'basic' ? <BasicTab {...p} /> : null}

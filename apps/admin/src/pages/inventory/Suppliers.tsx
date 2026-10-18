@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { normalizeArabic } from '@raqeem/shared';
+import { formatPhone, normalizeArabic } from '@raqeem/shared';
 import { Button, DataTable, PageHeader, SearchInput, Segmented, Stat, type Column } from '../../ui';
 import { useAuth } from '../../lib/auth';
 import { useLoad } from '../../lib/hooks';
@@ -27,7 +27,7 @@ export default function Suppliers() {
   const totUsd = (list.data ?? []).reduce((s, x) => s + Math.max(0, x.balance_usd), 0);
   const columns: Column<SupplierRow>[] = [
     { key: 'n', header: 'المورد', primary: true, cell: (s) => <div><b>{s.name}</b>{s.company ? <div className="small faint">{s.company}</div> : null}</div> },
-    { key: 'p', header: 'الهاتف', hideOnMobile: true, cell: (s) => <span className="ltr">{s.phone ?? '—'}</span> },
+    { key: 'p', header: 'الهاتف', hideOnMobile: true, cell: (s) => <span className="ltr">{s.phone ? formatPhone(s.phone) : '—'}</span> },
     ...(fin ? [
       { key: 'b', header: 'علينا بالدينار', end: true, cell: (s: SupplierRow) => <span className={s.balance > 0 ? 'qty-neg' : 'faint'}>{m(s.balance)}</span> },
       { key: 'u', header: 'علينا بالدولار', end: true, cell: (s: SupplierRow) => <span className={s.balance_usd > 0 ? 'qty-neg' : 'faint'}>{m(s.balance_usd, 'USD')}</span> },
