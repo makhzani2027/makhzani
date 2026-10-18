@@ -3,7 +3,6 @@
     "public": "hosting",
     "cleanUrls": true,
     "redirects": [
-      { "source": "/dashboard", "destination": "/dashboard/", "type": 301 },
       { "source": "/p", "destination": "/", "type": 302 }
     ],
     "rewrites": [
