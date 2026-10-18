@@ -1,5 +1,5 @@
 // عميلا Supabase: admin (مفتاح الخادم — يتجاوز RLS) وعميل المستدعي (يخضع لـ RLS ودوال الصلاحية)
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { HttpError } from './cors.ts';
 
 const url = () => Deno.env.get('SUPABASE_URL') ?? '';
