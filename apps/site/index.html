@@ -31,7 +31,11 @@
     (function (d) {
       d.classList.add('js');
       try {
-        if (!matchMedia('(prefers-reduced-motion: reduce)').matches && !sessionStorage.getItem('rq.intro')) d.classList.add('has-intro');
+        if (!matchMedia('(prefers-reduced-motion: reduce)').matches && !sessionStorage.getItem('rq.intro')) {
+          d.classList.add('has-intro');
+          // احتياط: إن لم يُحمَّل main.js لا تبقى الصفحة مقفلة التمرير خلف المقدمة
+          setTimeout(function () { d.classList.remove('has-intro'); }, 2400);
+        }
       } catch (e) {}
     })(document.documentElement);
   </script>
