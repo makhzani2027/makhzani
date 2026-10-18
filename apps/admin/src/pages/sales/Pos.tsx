@@ -246,7 +246,7 @@ export default function Pos() {
 
       <aside className={`pos-cart ${cartOpen ? 'open' : ''}`} aria-label="السلة">
         <button type="button" className="pos-mobile-toggle sx-between" style={{ padding: '12px 16px', border: 0, background: 'var(--hero)', color: 'var(--hero-ink)', fontFamily: 'inherit', borderRadius: '20px 20px 0 0', cursor: 'pointer' }} onClick={() => setCartOpen(!cartOpen)}>
-          <span><Icon name="cart" size={18} /> السلة · {fmt.qty(pieces)} قطعة</span><b style={{ fontSize: 20 }}>{m(total, currency)}</b>
+          <span><Icon name="cart" size={18} /> السلة ({fmt.qty(pieces)} قطعة)</span><b style={{ fontSize: 20 }}>{m(total, currency)}</b>
         </button>
         <div className="pos-cart-head">
           <button type="button" className="pos-cust" style={{ border: 0, cursor: 'pointer', color: 'var(--ink)', fontFamily: 'inherit', textAlign: 'start' }} onClick={() => setPicking(true)}>

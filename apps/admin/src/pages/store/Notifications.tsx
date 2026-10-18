@@ -23,7 +23,7 @@ export default function Notifications() {
     return r;
   });
   const cols: Column<NotificationCampaign>[] = [
-    { key: 't', header: 'الحملة', primary: true, cell: (c) => <div><b>{c.title}</b>{c.body ? <div className="small faint truncate" style={{ maxWidth: 380 }}>{c.body}</div> : null}</div> },
+    { key: 't', header: 'الحملة', primary: true, cell: (c) => <div><b>{c.title}</b>{c.body ? <div className="small faint truncate" style={{ maxWidth: 380 }} title={c.body}>{c.body}</div> : null}</div> },
     { key: 'd', header: 'أُنشئت', hideOnMobile: true, cell: (c) => <span className="dim">{fmt.date(c.created_at)}</span> },
     { key: 's', header: 'الحالة', cell: (c) => (c.sent_at ? <Badge tone="success">أُرسلت {fmt.ago(c.sent_at)}</Badge> : <Badge>مسودة</Badge>) },
     { key: 'a', header: '', shrink: true, cell: (c) => (!c.sent_at ? <Button size="sm" variant="primary" icon="megaphone" loading={send.busy} onClick={(e) => { e.stopPropagation(); void send.run(c); }}>إرسال</Button> : null) },

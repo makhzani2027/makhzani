@@ -40,7 +40,7 @@ export default function Storefront() {
                 {bs.map((b, i) => (
                   <div key={b.id} className="list-item">
                     {b.image_key ? <Thumb imageKey={b.image_key} size="md" /> : <span className="thumb placeholder-art" style={{ background: b.placement === 'home_strip' ? 'var(--hero)' : 'var(--accent)' }} />}
-                    <span className="grow" style={{ minWidth: 0 }}><b className="truncate" style={{ display: 'block' }}>{b.title ?? 'بانر بلا عنوان'}</b><span className="meta">{PLACEMENT[b.placement]} · {BANNER_LINK_KIND[b.link_kind].label}{b.ends_at ? ` · ينتهي ${new Date(b.ends_at).toLocaleDateString('ar-IQ')}` : ''}</span></span>
+                    <span className="grow" style={{ minWidth: 0 }}><b className="truncate" style={{ display: 'block' }} title={b.title ?? undefined}>{b.title ?? 'بانر بلا عنوان'}</b><span className="meta">{PLACEMENT[b.placement]} · {BANNER_LINK_KIND[b.link_kind].label}{b.ends_at ? ` · ينتهي ${new Date(b.ends_at).toLocaleDateString('ar-IQ')}` : ''}</span></span>
                     {!b.image_key ? <Badge plain>نصي</Badge> : null}
                     <Switch checked={b.is_active} onChange={(v) => void toggle('b', b.id, v)} label="" />
                     <IconButton icon="arrowUp" size="sm" label="أعلى" disabled={i === 0} onClick={() => void move('banners', bs, i, -1)} />

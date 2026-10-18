@@ -44,6 +44,15 @@ function Shell() {
     requestAnimationFrame(() => document.querySelector('.section-tab.on')?.scrollIntoView({ block: 'nearest', inline: 'center' }));
   }, [location.pathname]);
   useHotkey('mod+k', () => setPaletteOpen(true));
+  // أي نص مقصوص بـ .truncate يُظهر نصه كاملاً عند المرور عليه
+  useEffect(() => {
+    const onOver = (e: MouseEvent) => {
+      const el = (e.target as HTMLElement | null)?.closest?.<HTMLElement>('.truncate');
+      if (el && !el.title && el.scrollWidth > el.clientWidth + 1) el.title = el.textContent?.trim() ?? '';
+    };
+    document.addEventListener('mouseover', onOver);
+    return () => document.removeEventListener('mouseover', onOver);
+  }, []);
   // شريط القسم: حافة باهتة في الجهة التي فيها تبويبات مخفية حتى يُفهم أنه يُمرَّر
   const tabsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
