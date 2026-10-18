@@ -10,6 +10,8 @@ const subs = new Set<(t: ToastItem[]) => void>();
 const emit = () => subs.forEach((f) => f(items));
 
 function push(kind: ToastKind, text: string, action?: ToastItem['action'], ms = kind === 'error' ? 6000 : 3200) {
+  // الرسالة نفسها مرتين متتاليتين (ضغط مزدوج) تُعرض مرة واحدة
+  if (items.some((t) => t.kind === kind && t.text === text)) return;
   const id = ++seq;
   items = [...items.slice(-3), { id, kind, text, action }];
   emit();

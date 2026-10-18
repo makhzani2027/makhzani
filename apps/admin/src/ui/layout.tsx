@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { stockState, type Tone } from '@raqeem/shared';
+import { useFmt } from '../lib/settings';
 import { Icon, type IconName } from './Icon';
 import { Button } from './Button';
 
@@ -115,13 +116,14 @@ export function Alert({ tone = 'info', children, icon }: { tone?: 'info' | 'warn
 }
 
 export function Tabs<T extends string>({ value, onChange, items }: { value: T; onChange: (v: T) => void; items: { value: T; label: ReactNode; count?: number | null; icon?: IconName }[] }) {
+  const fmt = useFmt();
   return (
     <div className="tabs" role="tablist">
       {items.map((t) => (
         <button key={t.value} type="button" role="tab" aria-selected={value === t.value} className={value === t.value ? 'on' : ''} onClick={() => onChange(t.value)}>
           {t.icon ? <Icon name={t.icon} size={17} /> : null}
           {t.label}
-          {t.count !== undefined && t.count !== null ? <span className="count">{t.count}</span> : null}
+          {t.count !== undefined && t.count !== null ? <span className="count">{fmt.num(t.count)}</span> : null}
         </button>
       ))}
     </div>
@@ -137,12 +139,13 @@ export function Chips<T extends string>({ value, onChange, items }: { value: T; 
 }
 
 export function Pagination({ page, pageSize, total, onPage }: { page: number; pageSize: number; total: number; onPage: (p: number) => void }) {
+  const fmt = useFmt();
   const pages = Math.max(1, Math.ceil(total / pageSize));
   if (pages <= 1) return null;
   return (
     <div className="pager">
       <Button size="sm" icon="chevronRight" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label="السابق" />
-      <span className="small dim num">{page} / {pages}</span>
+      <span className="small dim num">{fmt.num(page)} من {fmt.num(pages)}</span>
       <Button size="sm" icon="chevronLeft" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label="التالي" />
     </div>
   );
