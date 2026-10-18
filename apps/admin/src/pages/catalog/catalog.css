@@ -31,7 +31,8 @@
 /* ---------------------------------------------------------------- نموذج المنتج */
 .form-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
 .form-layout .aside { position: sticky; top: calc(var(--top-h) + var(--demo-h) + 16px); display: flex; flex-direction: column; gap: 14px; }
-@media (max-width: 1180px) { .form-layout { grid-template-columns: 1fr; } .form-layout .aside { position: static; } }
+/* minmax(0,…): جدول النسخ العريض يُمرَّر داخل بطاقته بدل أن يوسّع الصفحة كلها على الهاتف */
+@media (max-width: 1180px) { .form-layout { grid-template-columns: minmax(0, 1fr); } .form-layout .aside { position: static; } }
 .tab-err { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; border-radius: 999px; background: var(--danger); color: var(--card); font-size: 11px; padding: 0 5px; }
 .save-bar { position: sticky; bottom: 0; z-index: 15; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 16px; margin-top: 4px; background: color-mix(in srgb, var(--card) 92%, transparent); backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: var(--shadow-float); }
 .save-bar .dirty { display: inline-flex; align-items: center; gap: 6px; color: var(--warning); font-weight: 700; font-size: 13px; }
@@ -57,7 +58,7 @@
 
 /* الخيارات والنسخ */
 .opt-row { display: grid; grid-template-columns: 180px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--sunken); }
-@media (max-width: 720px) { .opt-row { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .opt-row { grid-template-columns: minmax(0, 1fr); } }
 .vtable { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
 .vtable th { text-align: start; font-size: 12px; font-weight: 700; color: var(--ink3); padding: 8px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--card); }
 .vtable td { padding: 6px 5px; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -166,7 +167,7 @@
 }
 .summary-card { display: flex; flex-direction: column; gap: 12px; }
 .pay-split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-@media (max-width: 520px) { .pay-split { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .pay-split { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------------------------------------------------------------- متفرقات */
 .stat-row { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }

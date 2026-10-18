@@ -50,7 +50,7 @@ img { max-width: 100%; display: block; }
 .grid-auto { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .span-2 { grid-column: span 2; }
 @media (max-width: 1100px) { .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 720px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .span-2 { grid-column: auto; } }
+@media (max-width: 720px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: minmax(0, 1fr); } .span-2 { grid-column: auto; } }
 
 /* خط الدفتر: فاصل متقطع يحاكي دفاتر الحسابات */
 .ledger-rule { border: 0; border-top: 1px dashed var(--line-strong); margin: 12px 0; }
