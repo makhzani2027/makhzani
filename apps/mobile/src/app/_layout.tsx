@@ -123,7 +123,7 @@ function Navigator() {
         </Stack>
         <OfflineBanner />
         <AppGate />
-        <ToastHost bottomOffset={segments[0] === '(tabs)' ? 96 : 104} />
+        <ToastHost />
         <DialogHost />
         {intro ? <Intro onDone={() => setIntro(false)} /> : null}
       </View>

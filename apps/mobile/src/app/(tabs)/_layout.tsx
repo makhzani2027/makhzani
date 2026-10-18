@@ -5,6 +5,7 @@ import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCartTarget, useFly } from '@/components/fly';
 import { PressScale, usePop } from '@/components/motion';
+import { useToastAnchor } from '@/components/toast';
 import { CountBadge, Icon, T, contentColumn, type IconName } from '@/components/ui';
 import { useCart } from '@/lib/cart';
 import { useTheme } from '@/lib/theme';
@@ -35,8 +36,9 @@ function CartIcon({ color, active }: { color: string; active: boolean }) {
 function TabBar({ state, navigateToTab }: BottomTabBarProps) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
+  const onLayout = useToastAnchor('tabbar');
   return (
-    <View style={{ backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.line, paddingBottom: Math.max(insets.bottom, 8) }}>
+    <View onLayout={onLayout} style={{ backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.line, paddingBottom: Math.max(insets.bottom, 8) }}>
       <View style={[contentColumn, { flexDirection: 'row' }]} accessibilityRole="tablist">
         {state.routes.map((r, i) => {
           const tab = TABS.find((t) => t.name === r.name);

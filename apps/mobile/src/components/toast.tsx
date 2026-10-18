@@ -1,7 +1,8 @@
 import { tones } from '@raqeem/shared';
-import { useEffect, useSyncExternalStore } from 'react';
-import { View } from 'react-native';
-import Animated, { FadeInDown, FadeOutDown, ReduceMotion } from 'react-native-reanimated';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { Platform, type LayoutChangeEvent } from 'react-native';
+import Animated, { FadeInDown, FadeOutDown, ReduceMotion, useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/lib/theme';
 import { Icon, type IconName } from './icon';
@@ -25,11 +26,59 @@ export const toast = {
 
 const ICON: Record<ToastTone, IconName> = { success: 'checkCircle', warning: 'alert', danger: 'xCircle', info: 'info', neutral: 'info' };
 
-/** يُرسم مرة واحدة في الجذر؛ bottomOffset يرفعه فوق شريط التبويبات */
-export function ToastHost({ bottomOffset = 84 }: { bottomOffset?: number }) {
+// ---------------------------------------------------------------- ما يشغل أسفل الشاشة الظاهرة
+// شريط الإجراءات (Footer) وشريط التبويبات يسجلان ارتفاعهما ما دامت شاشتهما ظاهرة،
+// فتظهر الرسالة فوقهما دائماً بدل أن تغطي زر «تأكيد الطلب» أو «أضف للسلة».
+const anchors = new Map<number, { kind: 'tabbar' | 'footer'; h: number }>();
+let anchorSeq = 0;
+let anchorTotal = 0;
+const anchorListeners = new Set<() => void>();
+function recompute() {
+  let tab = 0;
+  let foot = 0;
+  for (const a of anchors.values()) {
+    if (a.kind === 'tabbar') tab = Math.max(tab, a.h);
+    else foot = Math.max(foot, a.h);
+  }
+  anchorTotal = tab + foot;
+  anchorListeners.forEach((l) => l());
+}
+export const toastAnchor = {
+  /** يسجل ارتفاعاً ويعيد دالة إلغائه (تُستدعى عند مغادرة الشاشة) */
+  add(kind: 'tabbar' | 'footer', h: number): () => void {
+    const id = ++anchorSeq;
+    anchors.set(id, { kind, h });
+    recompute();
+    return () => { anchors.delete(id); recompute(); };
+  },
+};
+
+/** onLayout لشريط سفلي: يسجل ارتفاعه ما دامت الشاشة التي هو فيها ظاهرة */
+export function useToastAnchor(kind: 'tabbar' | 'footer') {
+  const [h, setH] = useState(0);
+  useFocusEffect(useCallback(() => (h > 0 ? toastAnchor.add(kind, h) : undefined), [kind, h]));
+  return useCallback((e: LayoutChangeEvent) => {
+    const next = Math.round(e.nativeEvent.layout.height);
+    setH((prev) => (Math.abs(prev - next) > 1 ? next : prev));
+  }, []);
+}
+
+/** ترفع الرسالة فوق لوحة المفاتيح (على الهاتف؛ المتصفح يتكفل بها) */
+const useKeyboardLift = Platform.OS === 'web'
+  ? () => undefined
+  : () => {
+    const kb = useAnimatedKeyboard();
+    return useAnimatedStyle(() => ({ transform: [{ translateY: -kb.height.value }] }));
+  };
+
+/** يُرسم مرة واحدة في الجذر، فوق أي شريط سفلي مسجَّل */
+export function ToastHost() {
   const t = useSyncExternalStore((cb) => { listeners.add(cb); return () => { listeners.delete(cb); }; }, () => current, () => null);
+  const occupied = useSyncExternalStore((cb) => { anchorListeners.add(cb); return () => { anchorListeners.delete(cb); }; }, () => anchorTotal, () => 0);
   const { c, dark } = useTheme();
   const insets = useSafeAreaInsets();
+  const bottomOffset = occupied ? occupied + 12 : insets.bottom + 24;
+  const lift = useKeyboardLift();
   useEffect(() => {
     if (!t) return;
     const timer = setTimeout(() => { if (current?.id === t.id) { current = null; emit(); } }, 2600);
@@ -39,7 +88,7 @@ export function ToastHost({ bottomOffset = 84 }: { bottomOffset?: number }) {
   // الخلفية بلون الحبر (معكوسة)، فألوان الحالة من الوضع المعاكس لتبقى مقروءة
   const color = t.tone === 'neutral' ? c.bg : (dark ? tones.light : tones.dark)[t.tone].ink;
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', start: 16, end: 16, bottom: insets.bottom + bottomOffset, alignItems: 'center', zIndex: 900 }}>
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', start: 16, end: 16, bottom: bottomOffset, alignItems: 'center', zIndex: 900 }, lift]}>
       <Animated.View
         key={t.id}
         accessibilityLiveRegion="polite"
@@ -53,6 +102,6 @@ export function ToastHost({ bottomOffset = 84 }: { bottomOffset?: number }) {
         <Icon name={ICON[t.tone]} size={20} color={color} />
         <T v="small" weight="bold" color={c.bg} style={{ flexShrink: 1 }}>{t.message}</T>
       </Animated.View>
-    </View>
+    </Animated.View>
   );
 }
