@@ -2,7 +2,6 @@
   "hosting": {
     "public": "hosting",
     "cleanUrls": true,
-    "trailingSlash": false,
     "redirects": [
       { "source": "/dashboard", "destination": "/dashboard/", "type": 301 },
       { "source": "/p", "destination": "/", "type": 302 }
