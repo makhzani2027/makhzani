@@ -40,8 +40,10 @@ export default function NewRequest() {
   }
 
   const pick = async (camera: boolean) => {
-    const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return toast.show(camera ? 'اسمح للتطبيق باستعمال الكاميرا من الإعدادات' : 'اسمح للتطبيق بالوصول للصور من الإعدادات', 'warning');
+    // منتقي الصور في النظام لا يحتاج صلاحية (والصلاحية محذوفة من البناء)؛ الكاميرا وحدها تحتاجها
+    if (camera && !(await ImagePicker.requestCameraPermissionsAsync()).granted) {
+      return toast.show('اسمح للتطبيق باستعمال الكاميرا من الإعدادات', 'warning');
+    }
     const r = camera
       ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.9 })
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
