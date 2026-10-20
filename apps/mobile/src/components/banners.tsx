@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useRef, useState } from 'react';
-import { FlatList, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { FlatList, View, useWindowDimensions, type FlatListProps } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { env } from '@/lib/env';
 import { useTheme } from '@/lib/theme';
@@ -69,24 +69,26 @@ export function HeroCarousel({ banners }: { banners: StoreBanner[] }) {
   const reduced = useReducedMotion();
   const step = width + 12;
 
+  // النقطة النشطة من البانر الظاهر فعلاً، لا من موضع التمرير: في RTL على أندرويد يُحسب الموضع من الطرف
+  // الآخر فكانت النقاط تتحرك عكس السحب
+  const current = useRef(0);
+  const viewConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
+  const onViewable = useRef<NonNullable<FlatListProps<StoreBanner>['onViewableItemsChanged']>>(({ viewableItems }) => {
+    const v = viewableItems.find((x) => x.isViewable && x.index != null);
+    if (v?.index != null) { current.current = v.index; setI(v.index); }
+  }).current;
+
   useEffect(() => {
     if (banners.length < 2 || reduced) return;
     const t = setInterval(() => {
       if (touching.current) return;
-      setI((x) => {
-        const n = (x + 1) % banners.length;
-        list.current?.scrollToOffset({ offset: n * step, animated: true });
-        return n;
-      });
+      const n = (current.current + 1) % banners.length;
+      list.current?.scrollToIndex({ index: n, animated: true });
     }, 5000);
     return () => clearInterval(t);
-  }, [banners.length, reduced, step]);
+  }, [banners.length, reduced]);
 
   if (!banners.length) return null;
-  const onEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    touching.current = false;
-    setI(Math.max(0, Math.min(banners.length - 1, Math.round(Math.abs(e.nativeEvent.contentOffset.x) / step))));
-  };
   return (
     <View style={{ gap: 10, alignSelf: 'center', width }}>
       <FlatList
@@ -100,7 +102,9 @@ export function HeroCarousel({ banners }: { banners: StoreBanner[] }) {
         showsHorizontalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
         onScrollBeginDrag={() => { touching.current = true; }}
-        onMomentumScrollEnd={onEnd}
+        onMomentumScrollEnd={() => { touching.current = false; }}
+        onViewableItemsChanged={onViewable}
+        viewabilityConfig={viewConfig}
         getItemLayout={(_, index) => ({ length: step, offset: step * index, index })}
         style={{ width, flexGrow: 0, overflow: 'visible' }}
       />

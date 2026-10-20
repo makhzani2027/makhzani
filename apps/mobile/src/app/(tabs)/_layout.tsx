@@ -1,7 +1,8 @@
 import { Tabs } from 'expo-router';
 import type { BottomTabBarProps } from 'expo-router/tabs';
-import { View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, View } from 'react-native';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCartTarget, useFly } from '@/components/fly';
 import { PressScale, usePop } from '@/components/motion';
@@ -32,35 +33,97 @@ function CartIcon({ color, active }: { color: string; active: boolean }) {
   );
 }
 
-/** شريط التبويبات: خلفية البطاقة، ومؤشر آجُري رفيع فوق التبويب النشط */
-function TabBar({ state, navigateToTab }: BottomTabBarProps) {
+const SPRING = { damping: 18, stiffness: 220, mass: 0.7 };
+
+/** أيقونة تبويب ترتفع وتكبر قليلاً حين تنشط */
+function TabIcon({ tab, active, color }: { tab: (typeof TABS)[number]; active: boolean; color: string }) {
   const { c } = useTheme();
+  const reduced = useReducedMotion();
+  const lift = useSharedValue(active ? 1 : 0);
+  useEffect(() => { lift.value = reduced ? (active ? 1 : 0) : withSpring(active ? 1 : 0, SPRING); }, [active, reduced, lift]);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: -2 * lift.value }, { scale: 1 + 0.08 * lift.value }] }));
+  return (
+    <Animated.View style={style}>
+      {tab.name === 'cart'
+        ? <CartIcon color={color} active={active} />
+        : <Icon name={tab.icon} size={24} color={color} strokeWidth={active ? 2.1 : 1.75} fill={active && tab.icon === 'heart' ? c.accent : undefined} />}
+    </Animated.View>
+  );
+}
+
+/**
+ * شريط التبويبات: «رصيف» عائم بزوايا دائرية، وكبسولة آجُرية فاتحة تنزلق بنابض إلى التبويب النشط،
+ * في أعلاها نقطة آجُر صغيرة (ثقب بطاقة السعر في شعار رقيم).
+ */
+function TabBar({ state, navigateToTab }: BottomTabBarProps) {
+  const { c, dark } = useTheme();
   const insets = useSafeAreaInsets();
   const onLayout = useToastAnchor('tabbar');
+  const reduced = useReducedMotion();
+  const tabs = state.routes.filter((r) => TABS.some((t) => t.name === r.name));
+  // مواضع التبويبات كما رُسمت فعلاً (فيزيائية)، فتنزلق الكبسولة صحيحة في RTL وLTR وعلى الويب
+  const [tabX, setTabX] = useState<Record<string, number>>({});
+  const [tabW, setTabW] = useState(0);
+  const [pillX0, setPillX0] = useState<number | null>(null);
+  const activeKey = state.routes[state.index]?.key;
+  const target = activeKey != null ? tabX[activeKey] : undefined;
+  const x = useSharedValue(0);
+  const placed = useRef(false);
+  useEffect(() => {
+    if (target == null || pillX0 == null) return;
+    const to = target - pillX0;
+    x.value = reduced || !placed.current ? withTiming(to, { duration: 0 }) : withSpring(to, SPRING);
+    placed.current = true;
+  }, [target, pillX0, reduced, x]);
+  const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+
   return (
-    <View onLayout={onLayout} style={{ backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.line, paddingBottom: Math.max(insets.bottom, 8) }}>
-      <View style={[contentColumn, { flexDirection: 'row' }]} accessibilityRole="tablist">
-        {state.routes.map((r, i) => {
-          const tab = TABS.find((t) => t.name === r.name);
-          if (!tab) return null;
-          const active = state.index === i;
-          const color = active ? c.accent : c.ink3;
-          return (
-            <PressScale
-              key={r.key}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={tab.label}
-              haptic={active ? undefined : 'select'}
-              scaleTo={0.92}
-              onPress={() => { if (!active) navigateToTab(r.key); }}
-              style={{ flex: 1, alignItems: 'center', paddingTop: 10, gap: 2 }}>
-              <View style={{ position: 'absolute', top: 0, height: 3, width: 28, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, backgroundColor: active ? c.accent : 'transparent' }} />
-              {tab.name === 'cart' ? <CartIcon color={color} active={active} /> : <Icon name={tab.icon} size={24} color={color} strokeWidth={active ? 2.1 : 1.75} fill={active && tab.icon === 'heart' ? c.accent : undefined} />}
-              <T size={11.5} weight={active ? 'bold' : 'medium'} color={color} style={{ paddingBottom: 0 }}>{tab.label}</T>
-            </PressScale>
-          );
-        })}
+    <View onLayout={onLayout} style={{ backgroundColor: c.bg, paddingHorizontal: 12, paddingTop: 6, paddingBottom: Math.max(insets.bottom, 10) }}>
+      <View
+        style={[contentColumn, {
+          backgroundColor: c.card, borderRadius: 26, borderWidth: 1, borderColor: c.line, padding: 5,
+          ...Platform.select({
+            ios: { shadowColor: '#000', shadowOpacity: dark ? 0.4 : 0.1, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
+            android: { elevation: 8 },
+            default: { boxShadow: `0 10px 28px -12px rgba(0,0,0,${dark ? 0.6 : 0.22})` },
+          }),
+        }]}>
+        <View style={{ flexDirection: 'row' }} accessibilityRole="tablist">
+          {tabW > 0 ? (
+            <Animated.View
+              pointerEvents="none"
+              onLayout={(e) => setPillX0(e.nativeEvent.layout.x)}
+              style={[{ position: 'absolute', top: 0, bottom: 0, start: 0, width: tabW, opacity: target == null || pillX0 == null ? 0 : 1 }, pill]}>
+              <View style={{ flex: 1, marginHorizontal: 4, borderRadius: 21, backgroundColor: c.accentSoft, alignItems: 'center' }}>
+                <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: c.accent, marginTop: 3 }} />
+              </View>
+            </Animated.View>
+          ) : null}
+          {tabs.map((r) => {
+            const tab = TABS.find((t) => t.name === r.name)!;
+            const active = state.routes[state.index]?.key === r.key;
+            const color = active ? c.accent : c.ink3;
+            return (
+              <PressScale
+                key={r.key}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={tab.label}
+                haptic={active ? undefined : 'select'}
+                scaleTo={0.9}
+                onPress={() => { if (!active) navigateToTab(r.key); }}
+                onLayout={(e) => {
+                  const { x: lx, width } = e.nativeEvent.layout;
+                  setTabW(width);
+                  setTabX((m) => (m[r.key] === lx ? m : { ...m, [r.key]: lx }));
+                }}
+                style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 15, paddingBottom: 7, gap: 3 }}>
+                <TabIcon tab={tab} active={active} color={color} />
+                <T size={11} weight={active ? 'bold' : 'medium'} color={active ? c.accentSoftInk : c.ink3} style={{ paddingBottom: 0 }}>{tab.label}</T>
+              </PressScale>
+            );
+          })}
+        </View>
       </View>
     </View>
   );
