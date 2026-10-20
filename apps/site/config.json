@@ -13,6 +13,6 @@
   "online_payment": false,
   "returns_days": 7,
   "delivery": { "baghdad": "خلال ٢٤ ساعة", "provinces": "من ١ إلى ٣ أيام" },
-  "stats": { "products": 500, "governorates": 19, "delivery_days": "١–٣" },
+  "stats": { "products": 500, "governorates": 18, "delivery_days": "١–٣" },
   "legal_review_pending": true
 }
