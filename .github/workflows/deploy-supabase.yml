@@ -123,6 +123,33 @@ jobs:
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data @-
           echo "✓ الإشعارات مربوطة: $url"
 
+      # إعدادات الدخول في Supabase من GitHub بدل لوحة Supabase: عنوان الموقع، روابط الرجوع المسموحة، ودخول Google
+      # (يُفعَّل Google فقط إن وُجد السرّان GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET من Google Cloud ← Clients).
+      - name: Auth settings (site URL, redirects, Google sign-in)
+        env:
+          SITE_URL: ${{ vars.SITE_URL || 'https://raqeem-iq.web.app' }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          site="${SITE_URL%/}"
+          allow="raqeem://auth-callback,raqeem://payment-return,exp://**,http://localhost:5173/**,${site}/**"
+          if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
+            body=$(jq -n --arg s "$site/dashboard/" --arg a "$allow" --arg id "$GOOGLE_CLIENT_ID" --arg sec "$GOOGLE_CLIENT_SECRET" \
+              '{site_url:$s, uri_allow_list:$a, external_google_enabled:true, external_google_client_id:$id, external_google_secret:$sec, external_google_skip_nonce_check:true}')
+          else
+            body=$(jq -n --arg s "$site/dashboard/" --arg a "$allow" '{site_url:$s, uri_allow_list:$a}')
+          fi
+          curl -sS --fail-with-body -o /dev/null -X PATCH "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' -d "$body"
+          cfg=$(curl -sS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth")
+          echo "site_url: $(echo "$cfg" | jq -r '.site_url')"
+          echo "redirects: $(echo "$cfg" | jq -r '.uri_allow_list')"
+          if [ "$(echo "$cfg" | jq -r '.external_google_enabled')" = true ] && [ -n "$(echo "$cfg" | jq -r '.external_google_client_id // empty')" ]; then
+            echo "✓ دخول Google مفعّل"
+          else
+            echo "::warning::دخول Google غير مفعّل — أضف السرّين GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET ثم أعد Deploy Supabase."
+          fi
+
       - name: Smoke test (public read)
         if: steps.check.outputs.ok == 'true'
         env:

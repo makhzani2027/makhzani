@@ -44,6 +44,7 @@ function publicEnv() {
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const build = Number(process.env.APK_BUILD) || 1;
+  const selfUpdate = process.env.SELF_UPDATE !== 'false';
 
   let googleServicesFile: string | undefined;
   const gs = process.env.GOOGLE_SERVICES_JSON;
@@ -77,6 +78,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         monochromeImage: './assets/images/android-icon-monochrome.png',
       },
       softwareKeyboardLayoutMode: 'resize',
+      // التحديث من داخل التطبيق (النسخة المنزّلة من الموقع/GitHub). نسخة Google Play تُبنى بـ SELF_UPDATE=false:
+      // سياسة Play تمنع التطبيق من تحديث نفسه خارج المتجر.
+      ...(selfUpdate ? { permissions: ['android.permission.REQUEST_INSTALL_PACKAGES'] } : null),
       // أقل الصلاحيات: الإنترنت والكاميرا (صورة طلب التوفير) والإشعارات فقط. اختيار الصور يمر عبر
       // منتقي النظام بلا صلاحية، فنحذف ما يضيفه قالب Expo والإضافات (سياسة صور Google Play)
       blockedPermissions: [
@@ -141,6 +145,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       supportsRTL: true,
       forcesRTL: true,
       buildNumber: build,
+      selfUpdate,
+      releasesRepo: (process.env.RELEASES_REPO || 'makhzani2027/raqeem-app').trim(),
       // قيم عامة (المفتاح anon يُرسل لكل متصفح أصلاً) — احتياط لـ env.ts
       ...publicEnv(),
     },

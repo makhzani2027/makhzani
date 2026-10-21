@@ -6,6 +6,7 @@ import { View } from 'react-native';
 import { Mark } from '@/components/brand';
 import { dialog } from '@/components/dialog';
 import { toast } from '@/components/toast';
+import { updates } from '@/components/update';
 import { Button, Card, Divider, ListItem, PageTitle, Screen, Segmented, T } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -116,6 +117,7 @@ export default function Account() {
         <ListItem icon="return" title="سياسة الإرجاع" onPress={() => router.push('/legal/returns')} />
         <Divider />
         <ListItem icon="info" title="التراخيص" onPress={() => router.push('/legal/licenses')} />
+        {updates.enabled ? <><Divider /><ListItem icon="download" title="تحديث التطبيق" subtitle={`نسختك ${f.text(appVersion)} · اضغط للتحقق`} onPress={updates.checkNow} /></> : null}
       </Group>
 
       {uid ? (

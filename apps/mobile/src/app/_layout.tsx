@@ -13,6 +13,7 @@ import { Intro } from '@/components/intro';
 import { AppGate, OfflineBanner } from '@/components/overlays';
 import { PortalProvider } from '@/components/portal';
 import { ToastHost } from '@/components/toast';
+import { UpdatePrompt } from '@/components/update';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { CartProvider } from '@/lib/cart';
 import { FavoritesProvider } from '@/lib/favorites';
@@ -127,6 +128,7 @@ function Navigator() {
         </Stack>
         <OfflineBanner />
         <AppGate />
+        <UpdatePrompt />
         <ToastHost />
         <DialogHost />
         {intro ? <Intro onDone={() => setIntro(false)} /> : null}

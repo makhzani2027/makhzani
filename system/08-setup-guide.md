@@ -54,7 +54,8 @@
 3. **Credentials ← Create credentials ← OAuth client ID ← Web application**:
    - Authorized redirect URIs: `https://<Project ref>.supabase.co/auth/v1/callback`
    - انسخ **Client ID** و **Client secret**.
-4. في Supabase: **Authentication ← Sign In / Providers ← Google** ← فعّل والصق القيمتين ← Save.
+4. الأسهل: أضف القيمتين كسرّين في GitHub: `GOOGLE_CLIENT_ID` و `GOOGLE_CLIENT_SECRET` ← شغّل **Deploy Supabase**: يفعّل دخول Google ويضبط عنوان الموقع وروابط الرجوع تلقائياً (ويكتب في السجل «✓ دخول Google مفعّل»).
+   أو يدوياً في Supabase: **Authentication ← Sign In / Providers ← Google** ← فعّل والصق القيمتين ← Save.
 
 ## ٤. Firebase — الموقع ولوحة التحكم والإشعارات
 1. https://console.firebase.google.com ← **Add project** ← اختر مشروع Google Cloud `raqeem` نفسه (أو جديد) ← المعرّف **`raqeem-iq`** (إن كان محجوزاً اختر قريباً وأخبرني).
@@ -146,5 +147,7 @@ Firebase ← Hosting ← **Add custom domain** ← `raqeem.iq` ← أضف سجل
 للوحة على نطاق فرعي: Hosting ← **Add another site** ← `raqeem-iq-admin` ← نطاق `admin.raqeem.iq` — وأخبرني لأحدّث سير العمل وروابط Supabase.
 
 ## ١١. Google Play (لاحقاً)
+> نسخة APK من الموقع تحدّث نفسها من داخل التطبيق (صلاحية REQUEST_INSTALL_PACKAGES). سياسة Google Play تمنع ذلك،
+> فملف AAB لـ Play يُبنى بالمتغير `SELF_UPDATE=false` (أخبرني عند الرفع لأضبط سير العمل لبناء منفصل).
 1. https://play.google.com/console ← حساب مطوّر (٢٥$) باسم المتجر (حساب «منظمة» يتجنب شرط التجربة المغلقة ١٤ يوماً للأفراد).
 2. أنشئ التطبيق «رقيم» ← سأجهز لك: ملف AAB موقّع، الوصف، لقطات الشاشة، الأيقونة، صورة الواجهة، نموذج أمان البيانات، رابط الخصوصية.

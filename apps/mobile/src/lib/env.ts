@@ -8,7 +8,7 @@ import { Platform } from 'react-native';
  * الاحتياط: نفس القيم في expoConfig.extra (app.config.ts يقرأ أيضاً .env بجذر المستودع والأسماء بلا بادئة).
  */
 const extra = (Constants.expoConfig?.extra ?? {}) as {
-  buildNumber?: number; supabaseUrl?: string; supabaseAnonKey?: string; mediaBase?: string; siteUrl?: string;
+  buildNumber?: number; selfUpdate?: boolean; releasesRepo?: string; supabaseUrl?: string; supabaseAnonKey?: string; mediaBase?: string; siteUrl?: string;
 };
 const pick = (inlined: string | undefined, fallback: string | undefined) => (inlined ?? '').trim() || (fallback ?? '').trim();
 
@@ -38,3 +38,8 @@ export const isWeb = Platform.OS === 'web';
 /** رقم البناء (APK_BUILD) — يُقارن بأقل نسخة مسموحة في app_settings.app */
 export const buildNumber = Number(extra.buildNumber ?? 1) || 1;
 export const appVersion = Constants.expoConfig?.version ?? '1.0.1';
+
+/** التحديث من داخل التطبيق: أندرويد خارج Expo Go، وليس نسخة Google Play (SELF_UPDATE=false وقت البناء) */
+export const selfUpdate = Platform.OS === 'android' && !isExpoGo && extra.selfUpdate !== false;
+/** مستودع الإصدارات العام على GitHub (آخر نسخة: releases/latest) */
+export const releasesRepo = extra.releasesRepo || 'makhzani2027/raqeem-app';
