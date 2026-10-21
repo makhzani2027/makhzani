@@ -3,7 +3,7 @@
  * الفواتير والطباعة، المخزون، التطبيق، ونقطة البيع. مع ذاكرة مؤقتة حتى لا تُطلب مع كل بيع.
  */
 import { useEffect, useState } from 'react';
-import type { AppConfigSettings, CheckoutSettings, CurrencySettings, InventorySettings, InvoiceSettings, StoreSettings } from '@raqeem/shared';
+import { DEFAULT_SITE_CONTENT, mergeSiteContent, type AppConfigSettings, type CheckoutSettings, type CurrencySettings, type InventorySettings, type InvoiceSettings, type SiteContent, type StoreSettings } from '@raqeem/shared';
 import { demoCheckout, demoCurrency, demoStore } from '@raqeem/shared/demo';
 import { IS_DEMO } from '../../../lib/env';
 import { demoDb, demoDelay } from '../../../lib/demo-db';
@@ -28,6 +28,8 @@ export interface SettingsMap {
   app: AppConfigSettings;
   pos: PosSettings;
   currency: CurrencySettings;
+  /** محتوى الموقع التعريفي (عام) — packages/shared/src/site.ts */
+  site: SiteContent;
 }
 export type SettingKey = keyof SettingsMap;
 
@@ -47,10 +49,11 @@ export const DEFAULTS: SettingsMap = {
   app: { min_version: 1, latest_version: 1, maintenance: false, maintenance_message: null, play_store_url: null, apk_url: null },
   pos: { auto_print: true, require_cash_session: false, late_order_minutes: 30 },
   currency: demoCurrency,
+  site: DEFAULT_SITE_CONTENT,
 };
 
 /** هل يقرأ الزبون هذا المفتاح؟ (is_public) */
-const PUBLIC: Record<SettingKey, boolean> = { store: true, checkout: true, app: true, invoice: false, inventory: false, pos: false, currency: true };
+const PUBLIC: Record<SettingKey, boolean> = { store: true, checkout: true, app: true, invoice: false, inventory: false, pos: false, currency: true, site: true };
 
 const cache = new Map<SettingKey, unknown>();
 const subs = new Set<() => void>();
@@ -66,6 +69,8 @@ export async function getSetting<K extends SettingKey>(key: K, fresh = false): P
     if (error) throw error;
     value = { ...DEFAULTS[key], ...((data?.value as object | null) ?? {}) } as SettingsMap[K];
   }
+  // محتوى الموقع: دمج قسماً قسماً (القيمة المخزّنة قد تكون ناقصة أو من نسخة أقدم)
+  if (key === 'site') value = mergeSiteContent(value) as SettingsMap[K];
   cache.set(key, value);
   return value;
 }

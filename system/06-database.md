@@ -53,7 +53,7 @@ doc_status, notification_kind`.
 | `product_requests` | id | |
 | `reviews` | id | فريد (product_id, profile_id)؛ الزبون يقيّم فقط ما استلمه (طلب delivered) |
 | `notifications`, `notification_campaigns`, `push_tokens` | | |
-| `app_settings` | key | `is_public` |
+| `app_settings` | key | `is_public`. المفتاح العام `site` (migration 22) = محتوى الموقع التعريفي `SiteContent` (packages/shared/src/site.ts)؛ التواصل والمدينة في `store` فقط |
 | `audit_log` | id bigint | مشغّل `audit()` على جداول الموظفين |
 | `doc_counters` | kind | |
 

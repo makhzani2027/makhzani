@@ -872,6 +872,8 @@ export interface StoreSettings {
   phone: string | null;
   whatsapp: string | null;
   email: string | null;
+  /** مدينة المتجر: تظهر في الموقع («داخل الموصل»، «متجر عراقي في الموصل»). غيابها = بغداد */
+  city?: string | null;
   address: string | null;
   map_url: string | null;
   hours: string | null; // «السبت–الخميس ٩ص–٩م»

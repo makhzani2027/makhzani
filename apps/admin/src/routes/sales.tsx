@@ -34,6 +34,7 @@ const Reviews = lazy(() => import('../pages/store/Reviews'));
 const Staff = lazy(() => import('../pages/system/Staff'));
 const Settings = lazy(() => import('../pages/system/Settings'));
 const Audit = lazy(() => import('../pages/system/Audit'));
+const SiteContent = lazy(() => import('../pages/system/SiteContent'));
 
 export const salesRoutes: AppRoute[] = [
   { path: '/', label: 'نظرة عامة', icon: 'grid', group: 'home', perm: 'dashboard.view', element: Overview, order: 0 },
@@ -63,5 +64,6 @@ export const salesRoutes: AppRoute[] = [
   { path: '/reviews', label: 'التقييمات', icon: 'star', group: 'store', perm: 'products.write', element: Reviews, order: 5 },
   { path: '/staff', label: 'المستخدمون', icon: 'idCard', group: 'system', perm: 'staff.manage', element: Staff, order: 1 },
   { path: '/settings', label: 'الإعدادات', icon: 'settings', group: 'system', perm: 'settings.manage', element: Settings, order: 2 },
-  { path: '/audit', label: 'سجل العمليات', icon: 'history', group: 'system', perm: 'audit.view', element: Audit, order: 3 },
+  { path: '/site', label: 'الموقع التعريفي', icon: 'globe', group: 'system', perm: 'settings.manage', element: SiteContent, order: 3 },
+  { path: '/audit', label: 'سجل العمليات', icon: 'history', group: 'system', perm: 'audit.view', element: Audit, order: 4 },
 ];

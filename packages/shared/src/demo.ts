@@ -8,6 +8,7 @@ import type {
   StockLevel, Supplier, Warehouse, DeliveryZone, StoreSettings, CheckoutSettings, ProductRequest, Coupon,
   Branch, MoneyAccount, CurrencySettings,
 } from './types';
+import { DEFAULT_SITE_CONTENT, type SiteContent } from './site';
 
 const NOW = '2026-10-16T09:00:00.000Z';
 const uid = (prefix: number, n: number) => `00000000-0000-4000-8${String(prefix).padStart(3, '0')}-${String(n).padStart(12, '0')}`;
@@ -18,6 +19,7 @@ export const demoStore: StoreSettings = {
   phone: '+9647700000000',
   whatsapp: '+9647700000000',
   email: null,
+  city: 'بغداد',
   address: 'بغداد — الكرادة، شارع ٦٢',
   map_url: null,
   hours: 'السبت – الخميس · ١٠ صباحاً – ١٠ مساءً',
@@ -38,6 +40,12 @@ export const demoMoneyAccounts: MoneyAccount[] = [
 ];
 
 export const demoCurrency: CurrencySettings = { base: 'IQD', usd_enabled: true, usd_rate: 1310, usd_rate_updated_at: NOW };
+
+/** محتوى الموقع التعريفي في وضع العرض: الافتراضي مع سؤال إضافي حتى يظهر أن القائمة قابلة للتعديل */
+export const demoSite: SiteContent = {
+  ...JSON.parse(JSON.stringify(DEFAULT_SITE_CONTENT)),
+  faq: [...DEFAULT_SITE_CONTENT.faq.map((f) => ({ ...f })), { q: 'هل عندكم فرع أزوره؟', a: 'نعم، في {city}. العنوان والخريطة في قسم «تواصل معنا».' }],
+};
 
 export const demoCheckout: CheckoutSettings = {
   cod_enabled: true,

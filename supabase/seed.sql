@@ -55,7 +55,7 @@ on conflict (governorate) do nothing;
 -- الإعدادات (types.ts: StoreSettings، CheckoutSettings، InventorySettings، InvoiceSettings، AppConfigSettings، CurrencySettings)
 insert into public.app_settings (key, value, is_public) values
   ('store', jsonb_build_object('name', 'رقيم', 'legal_name', null, 'phone', null, 'whatsapp', null, 'email', null,
-    'address', 'بغداد', 'map_url', null, 'hours', 'السبت – الخميس · ١٠ صباحاً – ١٠ مساءً', 'socials', '{}'::jsonb,
+    'city', 'بغداد', 'address', 'بغداد', 'map_url', null, 'hours', 'السبت – الخميس · ١٠ صباحاً – ١٠ مساءً', 'socials', '{}'::jsonb,
     'currency', 'IQD', 'digits', 'arab'), true),
   ('checkout', jsonb_build_object('cod_enabled', true, 'office_enabled', true, 'online_enabled', false, 'pickup_enabled', true,
     'min_order_total', 10000, 'free_delivery_over', 150000,

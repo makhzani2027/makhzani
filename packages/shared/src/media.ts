@@ -23,7 +23,7 @@ export function mediaUrl(key: string | null | undefined, size: ImageSize, base: 
 }
 
 /** مفتاح جديد لصورة: products/<ownerId>/<random> */
-export function newMediaKey(folder: 'products' | 'categories' | 'brands' | 'banners' | 'campaigns' | 'avatars' | 'requests', ownerId: string): string {
+export function newMediaKey(folder: 'products' | 'categories' | 'brands' | 'banners' | 'campaigns' | 'avatars' | 'requests' | 'site', ownerId: string): string {
   const rnd = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
   return `${folder}/${ownerId}/${rnd}`;
 }

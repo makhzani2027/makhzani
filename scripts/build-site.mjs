@@ -17,7 +17,6 @@ const fail = (msg) => { console.error(`✗ ${msg}`); process.exit(1); };
 async function buildSite() {
   const { palette, tones, brand, fonts } = await shared('theme.ts');
   const { icons } = await shared('icons.ts');
-  const { GOVERNORATES } = await shared('iraq.ts');
 
   // رمز الشعار من ملف الهوية نفسه (لا نسخة ثانية من المسار)
   const markSvg = fs.readFileSync(path.join(root, 'brand/logo/mark.svg'), 'utf8');
@@ -50,16 +49,91 @@ async function buildSite() {
   const sbUrl = (process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
   const sbKey = (process.env.SUPABASE_ANON_KEY || '').trim();
   const mediaBase = (process.env.MEDIA_BASE_URL || '').trim().replace(/\/+$/, '');
+  // مع البيانات الحية: cfg-wait يخفي الأجزاء المتغيرة ([data-live]) حتى يطبّقها main.js (أو تمر ١٫٥ ثانية احتياطاً) — لا وميض لقيم قديمة
   const env = sbUrl && sbKey
-    ? `<script>window.RAQEEM_SUPABASE=${JSON.stringify({ url: sbUrl, anonKey: sbKey, ...(mediaBase ? { mediaBase } : {}) })}</script>`
+    ? `<script>window.RAQEEM_SUPABASE=${JSON.stringify({ url: sbUrl, anonKey: sbKey, ...(mediaBase ? { mediaBase } : {}) })};(function(d){d.classList.add('cfg-wait');setTimeout(function(){d.classList.remove('cfg-wait')},1500)})(document.documentElement)</script>`
     : '';
   const partial = (name) => fs.readFileSync(path.join(SRC, '_partials', `${name}.html`), 'utf8');
   const wedge = '<svg viewBox="0 0 70 64" aria-hidden="true"><path fill="currentColor" d="M70 5.5v53c0 3.6-3.4 5.8-6.5 4.3L3.2 35.2c-2.9-1.4-2.9-5.5 0-6.9L63.5 1.2C66.6-.3 70 1.9 70 5.5Z"/></svg>';
-  const govs = GOVERNORATES.map((g) => `<li>${g.name}</li>`).join('');
+
+  // ---------------------------------------------------------------- محتوى الموقع (app_settings.store + site)
+  // الافتراضي من config.json (= DEFAULT_SITE_CONTENT في packages/shared/src/site.ts)، وفوقه لقطة حية من Supabase إن توفرت عند البناء.
+  // يُرسم في HTML نفسه (بلا JavaScript تبقى الصفحة كاملة)، ويُكتب hosting/config.json منه، ثم يحدّثه main.js من البيانات الحية.
+  const conf = JSON.parse(fs.readFileSync(path.join(SRC, 'config.json'), 'utf8'));
+  if (sbUrl && sbKey) {
+    try {
+      const r = await fetch(`${sbUrl}/rest/v1/app_settings?key=in.(store,site,app)&select=key,value`, {
+        headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` }, signal: AbortSignal.timeout(8000),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      mergeLive(conf, await r.json());
+      console.log('✓ محتوى الموقع: لقطة حية من app_settings');
+    } catch (e) {
+      console.warn(`! تعذّرت قراءة app_settings عند البناء (${e.message}) — المحتوى الافتراضي من config.json`);
+    }
+  }
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+  const arD = (v) => String(v).replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[d]);
+  const daysTxt = (n) => (n === 1 ? 'يوم واحد' : n === 2 ? 'يومين' : n <= 10 ? `${arD(n)} أيام` : `${arD(n)} يوماً`);
+  const tplVars = { city: conf.city || 'بغداد', name: conf.name || 'رقيم', returns_days: conf.returns_days ? daysTxt(Number(conf.returns_days)) : '', year: arD(new Date().getFullYear()) };
+  const fill = (t) => String(t ?? '').replace(/\{(\w+)\}/g, (m, k) => tplVars[k] || m);
+  // علامات النص البسيطة (مثل main.js): **غامق** و[نص](/رابط) — الباقي يُهرَّب
+  const safeHref = (u) => (/^\/(?!\/)/.test(u) || /^https:\/\//.test(u) ? u : null);
+  const rich = (t) => {
+    let out = '';
+    let i = 0;
+    for (const m of t.matchAll(/\*\*(.+?)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g)) {
+      out += esc(t.slice(i, m.index));
+      if (m[1] != null) out += `<strong>${esc(m[1])}</strong>`;
+      else {
+        const h = safeHref(m[3]);
+        out += h ? `<a href="${esc(h)}"${/^https:/.test(h) ? ' target="_blank" rel="noopener"' : ''}>${esc(m[2])}</a>` : esc(m[2]);
+      }
+      i = m.index + m[0].length;
+    }
+    return out + esc(t.slice(i));
+  };
+  const getP = (o, p) => p.split('.').reduce((v, k) => (v == null ? v : v[k]), o);
+  const site = conf.site;
+  const mBase = mediaBase || (sbUrl ? `${sbUrl}/storage/v1/object/public/media` : '');
+  const logo = (key) => {
+    if (!key || /^(blob|data):/.test(key)) return null;
+    if (/^https:\/\//.test(key)) return key;
+    return mBase ? `${mBase}/${String(key).replace(/^\/+/, '')}-sm.webp` : null;
+  };
+  const methodIcon = (k) => (k === 'cod' ? 'cash' : k === 'office' ? 'store' : 'card');
+  const enabled = site.payments.methods.filter((m) => m && m.enabled && m.label);
+  const blocks = {
+    faq: site.faq.filter((f) => f && f.q).map((f) => `<details><summary>${esc(fill(f.q))}<span class="pm" aria-hidden="true"></span></summary><div class="ans">${rich(fill(f.a))}</div></details>`).join(''),
+    methods: enabled.map((m) => {
+      const src = logo(m.logo_key);
+      const ic = src ? `<img src="${esc(src)}" alt="" loading="lazy" decoding="async">` : `<svg class="i" data-icon="${methodIcon(m.key)}" aria-hidden="true"></svg>`;
+      return `<li><span class="m-ic${src ? ' has-logo' : ''}">${ic}</span><div><b>${esc(fill(m.label))}</b>${m.description ? `<p>${esc(fill(m.description))}</p>` : ''}</div></li>`;
+    }).join(''),
+    deliv: site.delivery.rows.map((r) => `<div><dt>${esc(fill(r.label))}</dt><dd>${esc(fill(r.value))}</dd></div>`).join(''),
+    governorates: site.delivery.governorates.map((g) => `<li>${esc(g)}</li>`).join(''),
+  };
+  const stats = {
+    products: site.stats.products ?? 500,
+    governorates: site.stats.governorates ?? site.delivery.governorates.length,
+    delivery_days: site.stats.delivery_days,
+    payment_methods: site.stats.payment_methods ?? enabled.length,
+  };
 
   const html = (file) => {
     let s = fs.readFileSync(path.join(SRC, file), 'utf8');
     s = s.replace(/<!--@include (\w+)-->/g, (_, n) => partial(n));
+    // محتوى الموقع قبل الأيقونات (طرق الدفع بلا شعار تستعمل data-icon)
+    s = s.replace(/(<(\w+)[^>]*\sdata-(faq|methods|deliv|governorates)(?:\s[^>]*)?>)<\/\2>/g, (_, open, tag, k) => `${open}${blocks[k]}</${tag}>`);
+    s = s.replace(/(<(\w+)[^>]*\sdata-tpl="([\w.]+)"[^>]*>)<\/\2>/g, (_, open, tag, p) => {
+      const v = getP(conf, p);
+      if (typeof v !== 'string') fail(`${file}: data-tpl="${p}" بلا نص في config.json`);
+      return `${open}${rich(fill(v))}</${tag}>`;
+    });
+    s = s.replace(/<(\w+)([^>]*)\sdata-stat="(\w+)"([^>]*)><\/\1>/g, (_, tag, a, k, b) =>
+      `<${tag}${a} data-stat="${k}"${typeof stats[k] === 'number' ? ` data-count="${stats[k]}"` : ''}${b}>${esc(arD(stats[k] ?? ''))}</${tag}>`);
+    s = s.replace(/("addressLocality": )"[^"]*"/, (_, a) => `${a}${JSON.stringify(tplVars.city)}`);
+    s = s.replace(/("paymentAccepted": )"[^"]*"/, (_, a) => `${a}${JSON.stringify(enabled.map((m) => fill(m.label)).join('، '))}`);
     s = s.replace(/<svg([^>]*?) data-icon="(\w+)"([^>]*)><\/svg>/g, (_, a, name, b) => {
       if (!icons[name]) fail(`${file}: أيقونة غير معروفة «${name}» (packages/shared/src/icons.ts)`);
       return `<svg${a}${b} ${ICON_ATTRS}><path d="${icons[name]}"/></svg>`;
@@ -68,7 +142,6 @@ async function buildSite() {
       `<svg${a}${b} viewBox="0 0 120 120"><path class="m-glyph" d="${GLYPH}"/><circle class="m-hole" cx="${HOLE[1]}" cy="${HOLE[2]}" r="${HOLE[3]}"/></svg>`);
     s = s.replace(/<path class="m-glyph" data-glyph \/>/g, `<path class="m-glyph" d="${GLYPH}"/>`);
     s = s.replace(/<svg data-wedge aria-hidden="true"><\/svg>/g, wedge);
-    s = s.replace(/(<ul[^>]*data-governorates[^>]*>)<\/ul>/g, `$1${govs}</ul>`);
     // فهرس الصفحات القانونية من عناوين h2 نفسها
     s = s.replace(/<nav data-toc([^>]*)><\/nav>/, (_, a) => {
       const body = s.slice(s.indexOf('<article class="doc">'), s.indexOf('</article>'));
@@ -92,6 +165,7 @@ async function buildSite() {
       continue;
     }
     if (f.endsWith('.html')) html(f);
+    else if (f === 'config.json') fs.writeFileSync(path.join(OUT, f), JSON.stringify(conf, null, 2));
     else if (f === 'style.css') fs.writeFileSync(path.join(OUT, f), fs.readFileSync(full, 'utf8').replace('/*@tokens*/', tokens));
     else if (f === 'main.js') {
       // أيقونات الأقسام الحية فقط (لا كل المجموعة) حتى يبقى الملف صغيراً
@@ -142,6 +216,25 @@ async function buildSite() {
   };
   fs.writeFileSync(path.join(OUT, 'download.json'), JSON.stringify(dl));
   console.log(`✓ الموقع (v=${sha})${env ? ' + بيانات Supabase الحية' : ''} — download.json: ${dl.url || '(بلا رابط بعد)'}`);
+}
+
+/** يدمج صفوف app_settings (store، site، app) فوق config.json — نفس منطق merge في main.js */
+function mergeLive(conf, rows) {
+  const by = Object.fromEntries((Array.isArray(rows) ? rows : []).map((r) => [r.key, r.value]));
+  for (const [k, v] of Object.entries(by.store || {})) {
+    if (k === 'socials' && v) Object.entries(v).forEach(([s, u]) => { if (u) conf.socials[s] = u; });
+    else if (v != null && v !== '' && typeof v !== 'object') conf[k] = v;
+  }
+  if (by.app?.play_store_url) conf.play_store_url = by.app.play_store_url;
+  const live = by.site && typeof by.site === 'object' ? by.site : {};
+  for (const [sec, def] of Object.entries(conf.site)) {
+    const v = live[sec];
+    if (Array.isArray(def)) { if (Array.isArray(v)) conf.site[sec] = v; continue; }
+    if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
+    const next = { ...def };
+    for (const [k, x] of Object.entries(v)) if (x !== undefined && Array.isArray(def[k]) === Array.isArray(x)) next[k] = x;
+    conf.site[sec] = next;
+  }
 }
 
 // لوحة التحكم: CSP لا تسمح بـ<script> مضمّن، فننقله لملف بنفس الأصل (اسمه ببصمة محتواه فيُخزَّن بأمان)
