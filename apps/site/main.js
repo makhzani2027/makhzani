@@ -47,12 +47,12 @@
 
   // ------------------------------------------------------------ الظهور عند التمرير + العدّ
   const countUp = (el) => {
-    const end = Number(el.dataset.count);
-    if (!end || reduce) return;
+    if (!Number(el.dataset.count) || reduce) return;
     const t0 = performance.now();
     const step = (t) => {
       const p = Math.min(1, (t - t0) / 1100);
-      el.textContent = ar(Math.round(end * (1 - Math.pow(1 - p, 3))));
+      // الهدف يُقرأ في كل إطار: قد تصل القيمة الحية أثناء العدّ
+      el.textContent = ar(Math.round(Number(el.dataset.count) * (1 - Math.pow(1 - p, 3))));
       if (p < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
@@ -106,18 +106,172 @@
     small.forEach((el, i) => el.classList.toggle('c-wide', small.length % 2 === 1 && i === small.length - 1));
     const socials = document.querySelector('[data-socials]');
     if (socials) socials.hidden = !$$('a', socials).some((a) => !a.hidden);
-    $$('[data-stat]').forEach((el) => {
-      const v = get(c, `stats.${el.dataset.stat}`);
-      if (v == null) return;
-      if (el.dataset.count) el.dataset.count = v;
-      el.textContent = ar(v);
-    });
-    if (c.online_payment) $$('[data-online-soon]').forEach((el) => el.remove());
+    if (c.site && typeof c.site === 'object') renderSite(c);
     if (c.play_store_url) {
       $$('[data-play]').forEach((el) => { el.href = c.play_store_url; el.removeAttribute('aria-disabled'); el.rel = 'noopener'; });
       $$('[data-play-meta]').forEach((el) => { el.textContent = 'حمّله من المتجر'; });
     }
     document.body.classList.toggle('is-draft', !!c.legal_review_pending);
+  }
+
+  // ------------------------------------------------------------ محتوى الموقع (app_settings.site — يحرّره المالك من «الموقع التعريفي» في اللوحة)
+  // كل نص من قاعدة البيانات يُكتب بـ textContent فقط. العلامات المسموحة: {city} {name} {returns_days} {year}، و**غامق**، و[نص](/رابط).
+  const sb = window.RAQEEM_SUPABASE;
+  const hasSb = !!(sb && sb.url && sb.anonKey);
+  const mediaSrc = (key, size) => {
+    const clean = String(key || '').replace(/^\/+/, '');
+    if (!clean || /^(blob|data):/.test(clean)) return null;
+    if (/^https:\/\//.test(clean)) return clean;
+    if (!hasSb) return null;
+    const base = (sb.mediaBase || `${sb.url}/storage/v1/object/public/media`).replace(/\/$/, '');
+    return `${base}/${/\.(webp|png|jpe?g|gif|svg|avif)$/i.test(clean) ? clean : `${clean}-${size}.webp`}`;
+  };
+  const icon = (name) => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    for (const [k, v] of Object.entries({ class: 'i', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.75', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' })) svg.setAttribute(k, v);
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', ICONS[name] || ICONS.card || '');
+    svg.append(p);
+    return svg;
+  };
+  const el = (tag, cls, text) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  };
+  const safeHref = (u) => (/^\/(?!\/)/.test(u) || /^https:\/\//.test(u) ? u : null);
+  /** يكتب نصاً بعلامات بسيطة داخل عنصر: نص عادي + strong + a — بلا innerHTML */
+  const rich = (node, text) => {
+    node.textContent = '';
+    const re = /\*\*(.+?)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g;
+    let i = 0;
+    for (let m = re.exec(text); m; m = re.exec(text)) {
+      if (m.index > i) node.append(text.slice(i, m.index));
+      if (m[1] != null) node.append(el('strong', '', m[1]));
+      else {
+        const href = safeHref(m[3]);
+        if (href) {
+          const a = el('a', '', m[2]);
+          a.href = href;
+          if (/^https:/.test(href)) { a.target = '_blank'; a.rel = 'noopener'; }
+          node.append(a);
+        } else node.append(m[2]);
+      }
+      i = re.lastIndex;
+    }
+    if (i < text.length) node.append(text.slice(i));
+  };
+  let liveProducts = 0; // عدد المنتجات المنشورة (يُستعمل حين stats.products = null)
+  let current = null;
+
+  function renderSite(c) {
+    current = c;
+    const s = c.site;
+    const vars = { city: c.city || 'بغداد', name: c.name || 'رقيم', returns_days: c.returns_days ? days(Number(c.returns_days)) : '', year: ar(new Date().getFullYear()) };
+    const fill = (t) => String(t ?? '').replace(/\{(\w+)\}/g, (m, k) => vars[k] || m);
+    // قائمة غائبة في البيانات (config.json تالف) ← يبقى ما في الصفحة
+    const list = (sel, items, make) => {
+      const host = document.querySelector(sel);
+      if (!host || !Array.isArray(items)) return;
+      host.replaceChildren(...items.filter(Boolean).map(make));
+    };
+
+    $$('[data-tpl]').forEach((n) => { const v = get(c, n.dataset.tpl); if (typeof v === 'string' && v.trim()) rich(n, fill(v)); });
+
+    // الأسئلة: details/summary أصلية — لوحة المفاتيح وقارئ الشاشة يعملان بلا سكربت إضافي
+    list('[data-faq]', Array.isArray(s.faq) ? s.faq.filter((f) => f && f.q) : null, (f) => {
+      const d = el('details');
+      const sum = el('summary', '', fill(f.q));
+      const pm = el('span', 'pm');
+      pm.setAttribute('aria-hidden', 'true');
+      sum.append(pm);
+      const ans = el('div', 'ans');
+      rich(ans, fill(f.a));
+      d.append(sum, ans);
+      return d;
+    });
+    const faqList = document.querySelector('[data-faq]');
+    if (faqList) faqList.closest('section').hidden = !faqList.children.length;
+
+    const methods = Array.isArray(s.payments?.methods) ? s.payments.methods.filter((m) => m && m.enabled && m.label) : null;
+    list('[data-methods]', methods, (m) => {
+      const li = el('li');
+      const ic = el('span', 'm-ic');
+      const neutral = m.key === 'cod' ? 'cash' : m.key === 'office' ? 'store' : 'card';
+      const src = mediaSrc(m.logo_key, 'sm');
+      if (src) {
+        const img = el('img');
+        img.alt = '';
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.onerror = () => { ic.classList.remove('has-logo'); ic.replaceChildren(icon(neutral)); };
+        img.src = src;
+        ic.classList.add('has-logo');
+        ic.append(img);
+      } else ic.append(icon(neutral));
+      const body = el('div');
+      body.append(el('b', '', fill(m.label)));
+      if (m.description) body.append(el('p', '', fill(m.description)));
+      li.append(ic, body);
+      return li;
+    });
+    list('[data-deliv]', Array.isArray(s.delivery?.rows) ? s.delivery.rows.filter((r) => r && (r.label || r.value)) : null, (r) => {
+      const row = el('div');
+      row.append(el('dt', '', fill(r.label)), el('dd', '', fill(r.value)));
+      return row;
+    });
+    const govs = Array.isArray(s.delivery?.governorates) ? s.delivery.governorates : null;
+    list('[data-governorates]', govs, (g) => el('li', '', g));
+
+    // شريط الأرقام: التلقائي = عدد الشارات وعدد طرق الدفع المفعّلة
+    const st = s.stats || {};
+    const vals = {
+      products: st.products ?? (liveProducts >= 50 ? liveProducts : null),
+      governorates: st.governorates ?? (govs ? govs.length : null),
+      delivery_days: st.delivery_days,
+      payment_methods: st.payment_methods ?? (methods ? methods.length : null),
+    };
+    $$('[data-stat]').forEach((n) => {
+      const v = vals[n.dataset.stat];
+      if (v == null || v === '') return;
+      if (n.dataset.count) n.dataset.count = v;
+      n.textContent = ar(v);
+    });
+
+    // بيانات البحث المنظّمة تتبع المدينة وطرق الدفع
+    const ld = document.querySelector('script[type="application/ld+json"]');
+    if (ld) {
+      try {
+        const j = JSON.parse(ld.textContent);
+        j.name = c.name || j.name;
+        if (j.address) j.address.addressLocality = vars.city;
+        if (methods && methods.length) j.paymentAccepted = methods.map((m) => fill(m.label)).join('، ');
+        ld.textContent = JSON.stringify(j);
+      } catch (e) { /* يبقى كما بُني */ }
+    }
+  }
+
+  /** يدمج صفوف app_settings (store، site، app) فوق config.json: التواصل من store، والمحتوى من site قسماً قسماً (القوائم تُستبدل كاملة) */
+  function merge(cfg, rows) {
+    const by = {};
+    (Array.isArray(rows) ? rows : []).forEach((r) => { if (r && r.key) by[r.key] = r.value; });
+    const m = { ...cfg, socials: { ...cfg.socials }, site: { ...(cfg.site || {}) } };
+    for (const [k, v] of Object.entries(by.store || {})) {
+      if (k === 'socials' && v) Object.entries(v).forEach(([s, u]) => { if (u) m.socials[s] = u; });
+      else if (v != null && v !== '' && typeof v !== 'object') m[k] = v;
+    }
+    if (by.app && by.app.play_store_url) m.play_store_url = by.app.play_store_url;
+    const live = by.site && typeof by.site === 'object' ? by.site : {};
+    for (const [sec, def] of Object.entries(m.site)) {
+      const v = live[sec];
+      if (Array.isArray(def)) { if (Array.isArray(v)) m.site[sec] = v; continue; }
+      if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
+      const next = { ...def };
+      for (const [k, x] of Object.entries(v)) if (x !== undefined && Array.isArray(def[k]) === Array.isArray(x)) next[k] = x;
+      m.site[sec] = next;
+    }
+    return m;
   }
 
   function renderCats(list) {
@@ -137,27 +291,19 @@
   }
 
   const cfgP = fetch('/config.json', { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  // بيانات حية من Supabase (إن حُقنت عند البناء): طلب واحد لـ store و site (و app لرابط Google Play).
+  // نطبّق مرة واحدة حين يصل الاثنان، أو config.json وحده بعد ١٫٢ ثانية إن تأخر الخادم. أي خطأ يُتجاهل ويبقى ما في config.json.
+  const api = (path, extra = {}) => fetch(`${sb.url}/rest/v1/${path}`, {
+    headers: { apikey: sb.anonKey, Authorization: `Bearer ${sb.anonKey}`, ...extra },
+  });
+  const liveP = hasSb
+    ? api('app_settings?key=in.(store,site,app)&select=key,value').then((r) => (r.ok ? r.json() : [])).catch(() => [])
+    : Promise.resolve([]);
+  const shown = () => root.classList.remove('cfg-wait');
   cfgP.then((cfg) => {
-    apply(cfg);
-    // بيانات حية من Supabase (إن حُقنت عند البناء). أي خطأ يُتجاهل بصمت ويبقى ما في config.json
-    const sb = window.RAQEEM_SUPABASE;
-    if (!sb || !sb.url || !sb.anonKey) return;
-    const api = (path, extra = {}) => fetch(`${sb.url}/rest/v1/${path}`, {
-      headers: { apikey: sb.anonKey, Authorization: `Bearer ${sb.anonKey}`, ...extra },
-    });
-    api('app_settings?key=eq.store&select=value')
-      .then((r) => (r.ok ? r.json() : []))
-      .then((rows) => {
-        const live = rows?.[0]?.value;
-        if (!live) return;
-        const merged = { ...cfg, socials: { ...cfg.socials } };
-        for (const [k, v] of Object.entries(live)) {
-          if (k === 'socials' && v) Object.entries(v).forEach(([s, u]) => { if (u) merged.socials[s] = u; });
-          else if (v != null && v !== '') merged[k] = v;
-        }
-        apply(merged);
-      })
-      .catch(() => {});
+    const slow = setTimeout(() => { apply(cfg); shown(); }, 1200);
+    liveP.then((rows) => { clearTimeout(slow); apply(merge(cfg, rows)); shown(); });
+    if (!hasSb) return;
     if (document.querySelector('[data-cats]')) {
       api('categories?select=name,slug,icon,description&is_visible=eq.true&parent_id=is.null&order=sort.asc')
         .then((r) => (r.ok ? r.json() : []))
@@ -167,7 +313,8 @@
         .then((r) => {
           const n = Number((r.headers.get('content-range') || '').split('/')[1]);
           // نعرض العدد الحقيقي فقط إن كان معبّراً
-          if (n >= 50) $$('[data-stat="products"]').forEach((el) => { el.dataset.count = n; el.textContent = ar(n); });
+          liveProducts = n;
+          if (n >= 50 && current && current.site?.stats?.products == null) renderSite(current);
         })
         .catch(() => {});
     }
@@ -280,5 +427,4 @@
     mark();
   }
 
-  $$('[data-year]').forEach((el) => { el.textContent = ar(new Date().getFullYear()); });
 })();

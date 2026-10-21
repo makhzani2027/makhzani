@@ -52,7 +52,7 @@
       "image": "https://raqeem-iq.web.app/og.png",
       "address": { "@type": "PostalAddress", "addressCountry": "IQ", "addressLocality": "بغداد" },
       "currenciesAccepted": "IQD",
-      "paymentAccepted": "نقداً عند الاستلام، في المكتب، بطاقة، زين كاش"
+      "paymentAccepted": "عند الاستلام، في المكتب أو عبر واتساب"
     }
   </script>
 </head>
@@ -84,9 +84,9 @@
     <section class="hero" id="download" aria-labelledby="hero-title">
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow rv"><span class="wedge"></span>متجر عراقي · توصيل لكل المحافظات</p>
+          <p class="eyebrow rv" data-live><span class="wedge"></span><span data-tpl="site.hero.eyebrow"></span></p>
           <h1 class="display rv" style="--d:1" id="hero-title">تسوّق <em>بثقة.</em></h1>
-          <p class="lead rv" style="--d:2">منتجات أصلية بضمان، من الهاتف وإكسسواراته إلى أجهزة البيت والمطبخ. اطلب من التطبيق، وادفع عند الاستلام، وتابع طلبك خطوة بخطوة حتى باب بيتك.</p>
+          <p class="lead rv" style="--d:2" data-live data-tpl="site.hero.subtitle"></p>
           <div class="dl rv" style="--d:3">
             <a class="btn btn-accent btn-lg" href="#contact" data-apk>
               <svg class="i" data-icon="download" aria-hidden="true"></svg>
@@ -230,11 +230,11 @@
 
     <!-- ============================================================ الأرقام -->
     <section class="stats" aria-label="رقيم بالأرقام">
-      <div class="wrap stats-grid">
-        <div class="stat rv"><b><span data-count="500" data-stat="products">٥٠٠</span><sup>+</sup></b><span>منتج أصلي في المتجر</span></div>
-        <div class="stat rv" style="--d:1"><b><span data-count="18" data-stat="governorates">١٨</span></b><span>محافظة نوصل إليها</span></div>
-        <div class="stat rv" style="--d:2"><b data-stat="delivery_days">١–٣</b><span>أيام للتوصيل</span></div>
-        <div class="stat rv" style="--d:3"><b><span data-count="3">٣</span></b><span>طرق للدفع</span></div>
+      <div class="wrap stats-grid" data-live>
+        <div class="stat rv"><b><span data-stat="products"></span><sup>+</sup></b><span>منتج أصلي في المتجر</span></div>
+        <div class="stat rv" style="--d:1"><b><span data-stat="governorates"></span></b><span>محافظة نوصل إليها</span></div>
+        <div class="stat rv" style="--d:2"><b data-stat="delivery_days"></b><span>أيام للتوصيل</span></div>
+        <div class="stat rv" style="--d:3"><b><span data-stat="payment_methods"></span></b><span>طرق للدفع</span></div>
       </div>
     </section>
 
@@ -308,40 +308,18 @@
           </div>
           <p class="lead rv">لا مفاجآت: أجرة التوصيل والمجموع يظهران قبل أن تؤكد الطلب، ولا تدفع للمندوب إلا ما تراه في التطبيق.</p>
         </div>
-        <div class="pay-grid">
+        <div class="pay-grid" data-live>
           <article class="card pay-card rv">
-            <h3 class="h3d">ثلاث طرق للدفع</h3>
-            <ul class="methods">
-              <li>
-                <span class="m-ic"><svg class="i" data-icon="cash" aria-hidden="true"></svg></span>
-                <div><b>عند الاستلام</b><p>ادفع نقداً للمندوب بعد أن يصلك طلبك. الطريقة الأسهل والأكثر استعمالاً.</p></div>
-              </li>
-              <li>
-                <span class="m-ic"><svg class="i" data-icon="store" aria-hidden="true"></svg></span>
-                <div><b>في المكتب</b><p>ادفع في محلنا أو استلم طلبك بنفسك. نتواصل معك على واتساب لتأكيد الطلب والموعد.</p></div>
-              </li>
-              <li>
-                <span class="m-ic"><svg class="i" data-icon="card" aria-hidden="true"></svg></span>
-                <div>
-                  <b>إلكترونياً <span class="badge" data-online-soon>قريباً</span></b>
-                  <p>عبر بوابة دفع عراقية. تُدخل بياناتك في صفحة البوابة نفسها، ولا نرى رقم بطاقتك أبداً.</p>
-                  <ul class="chips" aria-label="طرق الدفع الإلكتروني">
-                    <li lang="en">Visa</li><li lang="en">Mastercard</li><li>زين كاش</li><li>المصرف العراقي الأول</li>
-                  </ul>
-                </div>
-              </li>
-            </ul>
+            <h3 class="h3d" data-tpl="site.payments.title"></h3>
+            <!-- طرق الدفع المفعّلة من app_settings.site (يملؤها البناء من config.json، ثم main.js من البيانات الحية) -->
+            <ul class="methods" data-methods></ul>
           </article>
           <article class="card deliv-card rv" style="--d:1">
-            <h3 class="h3d">نوصل لكل العراق</h3>
-            <dl class="deliv-facts">
-              <div><dt>داخل بغداد</dt><dd data-cfg="delivery.baghdad">خلال ٢٤ ساعة</dd></div>
-              <div><dt>باقي المحافظات</dt><dd data-cfg="delivery.provinces">من ١ إلى ٣ أيام</dd></div>
-              <div><dt>أجرة التوصيل</dt><dd>حسب المحافظة، وتظهر قبل التأكيد</dd></div>
-            </dl>
+            <h3 class="h3d" data-tpl="site.delivery.title"></h3>
+            <dl class="deliv-facts" data-deliv></dl>
             <p class="gov-lbl"><svg class="i" data-icon="mapPin" aria-hidden="true"></svg>المحافظات التي نوصل إليها</p>
             <ul class="gov" data-governorates></ul>
-            <p class="note"><svg class="i" data-icon="info" aria-hidden="true"></svg><span>العنوان في العراق بلا رمز بريدي، لذلك نطلب منك <strong>أقرب نقطة دالة</strong> ورقم هاتف المستلم حتى يصل المندوب بلا تأخير.</span></p>
+            <p class="note"><svg class="i" data-icon="info" aria-hidden="true"></svg><span data-tpl="site.delivery.note"></span></p>
           </article>
         </div>
       </div>
@@ -412,40 +390,8 @@
           <p class="lead rv">ولم تجد جوابك؟ راسلنا، نرد في ساعات العمل.</p>
           <a class="btn btn-ink rv" href="#contact" data-link="whatsapp"><svg class="i" data-icon="whatsapp" aria-hidden="true"></svg>اسألنا على واتساب</a>
         </div>
-        <div class="faq rv">
-          <details>
-            <summary>هل المنتجات أصلية؟<span class="pm" aria-hidden="true"></span></summary>
-            <div class="ans">نعم. نشتري من الوكلاء والموزعين المعتمدين فقط، والأجهزة تُسجَّل برقمها التسلسلي على فاتورتك حتى يكون ضمانك واضحاً.</div>
-          </details>
-          <details>
-            <summary>كم يستغرق التوصيل، وكم أجرته؟<span class="pm" aria-hidden="true"></span></summary>
-            <div class="ans">داخل بغداد <span data-cfg="delivery.baghdad">خلال ٢٤ ساعة</span> غالباً، وباقي المحافظات <span data-cfg="delivery.provinces">من ١ إلى ٣ أيام</span>. الأجرة تختلف حسب المحافظة وتظهر لك في التطبيق قبل تأكيد الطلب.</div>
-          </details>
-          <details>
-            <summary>هل أستطيع الدفع عند الاستلام؟<span class="pm" aria-hidden="true"></span></summary>
-            <div class="ans">نعم، وهو الخيار الأكثر استعمالاً. تدفع نقداً للمندوب المبلغ نفسه الظاهر في التطبيق. ويمكنك أيضاً الدفع في المكتب، أو إلكترونياً حين يُفعَّل.</div>
-          </details>
-          <details>
-            <summary>هل أحتاج حساباً لأتصفح؟<span class="pm" aria-hidden="true"></span></summary>
-            <div class="ans">لا. التصفح والسلة بلا تسجيل. نطلب الدخول بحساب Google عند إتمام الطلب فقط، حتى نعرف أين نوصل ونتابع معك.</div>
-          </details>
-          <details>
-            <summary>كيف أُرجع منتجاً أو أستبدله؟<span class="pm" aria-hidden="true"></span></summary>
-            <div class="ans">خلال <span data-cfg="returns_days_text">٧ أيام</span> من الاستلام، بحالته الأصلية مع علبته وملحقاته. افتح الطلب في التطبيق وتواصل معنا، أو راسلنا برقم الطلب. التفاصيل في <a href="/returns">سياسة الإرجاع</a>.</div>
-          </details>
-          <details>
-            <summary>هل يمكنني إلغاء طلبي؟<span class="pm" aria-hidden="true"></span></summary>
-            <div class="ans">نعم، من صفحة الطلب في التطبيق ما دام لم يدخل مرحلة التجهيز. بعد ذلك تواصل معنا وسنساعدك.</div>
-          </details>
-          <details>
-            <summary>هل التطبيق متوفر على آيفون؟<span class="pm" aria-hidden="true"></span></summary>
-            <div class="ans">التطبيق لأندرويد حالياً، وقريباً على Google Play. إلى ذلك الحين يمكن لمستخدمي آيفون الطلب عبر واتساب مباشرة.</div>
-          </details>
-          <details>
-            <summary>كيف أحذف حسابي وبياناتي؟<span class="pm" aria-hidden="true"></span></summary>
-            <div class="ans">من التطبيق: حسابي ← حذف الحساب. أو راسلنا وسنحذفه لك. التفاصيل في <a href="/privacy#delete">سياسة الخصوصية</a>.</div>
-          </details>
-        </div>
+        <!-- الأسئلة من app_settings.site: details/summary أصلية (لوحة المفاتيح وقارئ الشاشة بلا سكربت) -->
+        <div class="faq rv" data-live data-faq></div>
       </div>
     </section>
 
@@ -456,7 +402,7 @@
           <p class="eyebrow rv"><span class="wedge"></span>تواصل معنا</p>
           <h2 class="h2 rv" id="contact-title">نحن هنا، وعلى بُعد رسالة.</h2>
         </div>
-        <div class="contact-grid">
+        <div class="contact-grid" data-live>
           <a class="c-card c-wa rv" href="#" data-link="whatsapp" target="_blank" rel="noopener">
             <svg class="i" data-icon="whatsapp" aria-hidden="true"></svg>
             <div>
