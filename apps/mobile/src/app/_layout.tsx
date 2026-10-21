@@ -2,6 +2,7 @@ import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider, useSegments, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import * as SystemUI from 'expo-system-ui';
 import { useEffect, useRef, useState } from 'react';
 import { I18nManager, Platform, ScrollView, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -105,6 +106,9 @@ function Navigator() {
     tapped.current = true;
     return onNotificationTap((d) => router.push(notificationRoute(d) as never));
   }, [ready]);
+
+  // خلفية النافذة تتبع الثيم: بدونها يظهر شريط فاتح أعلى الشاشة في الوضع الغامق على بعض أجهزة أندرويد
+  useEffect(() => { SystemUI.setBackgroundColorAsync(c.bg).catch(() => {}); }, [c.bg]);
 
   const navTheme = dark
     ? { ...DarkTheme, colors: { ...DarkTheme.colors, background: c.bg, card: c.card, text: c.ink, border: c.line, primary: c.accent } }

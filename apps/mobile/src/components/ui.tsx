@@ -423,7 +423,7 @@ export function ListItem({ title, subtitle, icon, onPress, right, danger, chevro
   const color = danger ? tone.danger.ink : c.ink;
   return (
     <PressScale onPress={onPress} disabled={!onPress} scaleTo={0.985} accessibilityRole={onPress ? 'button' : undefined}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, minHeight: 56 }}>
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 14, minHeight: 60 }}>
       {icon ? (
         <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: danger ? tone.danger.bg : c.sunken, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={icon} size={20} color={danger ? color : c.ink2} />
