@@ -5,6 +5,9 @@
 .site-toc-btn { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink2); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 .site-toc-btn:hover { border-color: var(--ink3); color: var(--ink); }
 .site-toc-btn svg { color: var(--ink3); }
+.site-toc-btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-soft-ink); }
+.site-toc-btn.on svg { color: var(--accent); }
+.site-toc-err { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--danger-solid, #B42318); color: #fff; font-size: 11px; display: inline-grid; place-items: center; }
 .site-sections { display: flex; flex-direction: column; gap: 16px; }
 .site-sec { scroll-margin-top: calc(var(--top-h, 64px) + var(--demo-h, 0px) + 16px); }
 .site-where { display: flex; gap: 8px; align-items: flex-start; margin: -2px 0 16px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--sunken); color: var(--ink2); font-size: 13px; line-height: 1.7; }

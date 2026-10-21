@@ -5,13 +5,13 @@
  *   رابط Google Play ← app_settings.app
  * حفظ واحد للصفحة كلها، مع حارس للتغييرات غير المحفوظة.
  */
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   GOVERNORATES, SITE_DEFAULT_GOVERNORATES, fillSiteTemplate, isValidIraqiPhone, newPaymentKey, normalizeIraqiPhone, siteStats, toArabicDigits,
   type IconName, type SiteContent as Site, type SitePaymentMethod, type StoreSettings,
 } from '@raqeem/shared';
 import { Alert, Badge, Button, Card, ErrorState, Field, Icon, IconButton, Input, Loading, NumberInput, PageHeader, Switch, Textarea, Thumb, askConfirm, toast } from '../../ui';
-import { useLoad } from '../../lib/hooks';
+import { useLoad, useStored } from '../../lib/hooks';
 import { useSettings } from '../../lib/settings';
 import { uploadImage } from '../../lib/media';
 import { errorMessage } from '../../lib/supabase';
@@ -28,7 +28,14 @@ const SITE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.trim()
 type Contact = Pick<StoreSettings, 'name' | 'phone' | 'whatsapp' | 'email' | 'city' | 'address' | 'map_url' | 'hours' | 'socials'>;
 interface Draft { contact: Contact; site: Site; play: string }
 
-const SECTIONS = [
+type SectionId = 'contact' | 'delivery' | 'payments' | 'faq' | 'stats' | 'footer' | 'hero';
+/** مفتاح الخطأ ← التبويب الذي فيه الحقل */
+const sectionOfError = (k: string): SectionId =>
+  k.startsWith('contact.') ? 'contact' : k.startsWith('faq.') ? 'faq' : k.startsWith('pay.') ? 'payments'
+    : k.startsWith('row.') || k.startsWith('delivery.') ? 'delivery' : k.startsWith('footer.') ? 'footer' : 'hero';
+const TabCtx = createContext<SectionId>('contact');
+
+const SECTIONS: { id: SectionId; label: string; icon: IconName }[] = [
   { id: 'contact', label: 'التواصل والموقع', icon: 'mapPin' },
   { id: 'delivery', label: 'التوصيل والمحافظات', icon: 'truck' },
   { id: 'payments', label: 'طرق الدفع', icon: 'wallet' },
@@ -36,7 +43,7 @@ const SECTIONS = [
   { id: 'stats', label: 'الأرقام', icon: 'chartBar' },
   { id: 'footer', label: 'التذييل', icon: 'layout' },
   { id: 'hero', label: 'أعلى الصفحة', icon: 'imageWide' },
-] as const satisfies readonly { id: string; label: string; icon: IconName }[];
+];
 
 const SOCIALS = [
   { k: 'instagram', label: 'انستغرام', url: (h: string) => `https://instagram.com/${h}` },
@@ -93,6 +100,7 @@ export default function SiteContentPage() {
   const [initial, setInitial] = useState('');
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useStored<SectionId>('rq.site.tab', 'contact');
   useEffect(() => { if (loaded.data) { setD(loaded.data); setInitial(JSON.stringify(loaded.data)); } }, [loaded.data]);
   const dirty = !!d && JSON.stringify(d) !== initial;
   useUnsavedGuard(dirty);
@@ -104,6 +112,9 @@ export default function SiteContentPage() {
     setTried(true);
     if (Object.keys(errors).length) {
       toast.error('راجع الحقول المعلّمة بالأحمر');
+      // نفتح تبويب أول خطأ إن لم يكن في التبويب الحالي
+      const keys = Object.keys(errors);
+      if (!keys.some((k) => sectionOfError(k) === tab)) setTab(sectionOfError(keys[0]));
       setTimeout(() => document.querySelector('.site-page [role="alert"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
       return;
     }
@@ -167,14 +178,19 @@ export default function SiteContentPage() {
   return (
     <div className="site-page">
       {header}
-      <nav className="site-toc" aria-label="أقسام الصفحة">
-        {SECTIONS.map((s) => (
-          <button key={s.id} type="button" className="site-toc-btn" onClick={() => document.getElementById(`sec-${s.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
-            <Icon name={s.icon} size={15} />{s.label}
-          </button>
-        ))}
+      <nav className="site-toc" role="tablist" aria-label="أقسام الصفحة">
+        {SECTIONS.map((s) => {
+          const n = tried ? Object.keys(errors).filter((k) => sectionOfError(k) === s.id).length : 0;
+          return (
+            <button key={s.id} type="button" role="tab" aria-selected={tab === s.id} className={`site-toc-btn ${tab === s.id ? 'on' : ''}`} onClick={() => setTab(s.id)}>
+              <Icon name={s.icon} size={15} />{s.label}
+              {n ? <span className="site-toc-err">{toArabicDigits(n)}</span> : null}
+            </button>
+          );
+        })}
       </nav>
 
+      <TabCtx.Provider value={tab}>
       <div className="site-sections">
         {/* ------------------------------------------------ التواصل والموقع */}
         <Section id="contact" where="قسم «تواصل معنا»، وزر واتساب في الأسئلة، وصفحات الخصوصية والشروط والإرجاع. المدينة تظهر في أعلى الصفحة وبطاقة التوصيل. هي نفسها بيانات «الإعدادات ← المتجر».">
@@ -284,6 +300,7 @@ export default function SiteContentPage() {
           </div>
         </Section>
       </div>
+      </TabCtx.Provider>
 
       <div className="save-bar">
         <Button variant="primary" size="lg" icon="check" loading={busy} onClick={() => void save()} kbd="Ctrl+S">حفظ</Button>
@@ -295,10 +312,12 @@ export default function SiteContentPage() {
   );
 }
 
-function Section({ id, where, children }: { id: (typeof SECTIONS)[number]['id']; where: string; children: ReactNode }) {
+function Section({ id, where, children }: { id: SectionId; where: string; children: ReactNode }) {
+  const tab = useContext(TabCtx);
+  if (tab !== id) return null;
   const s = SECTIONS.find((x) => x.id === id)!;
   return (
-    <div id={`sec-${id}`} className="site-sec">
+    <div id={`sec-${id}`} className="site-sec" role="tabpanel">
       <Card title={s.label} icon={s.icon}>
         <p className="site-where"><Icon name="eye" size={15} /><span>{where}</span></p>
         <div className="stack">{children}</div>
