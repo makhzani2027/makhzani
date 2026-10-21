@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { env } from '@/lib/env';
 import { useTheme } from '@/lib/theme';
 import { ProductImage } from './brand';
-import { PressScale } from './motion';
+import { Pager, PagerDots } from './pager';
 import { Portal } from './portal';
 import { IconButton } from './ui';
 
@@ -63,25 +63,21 @@ export function Gallery({ keys, categoryId, width }: { keys: string[]; categoryI
 
   return (
     <View style={{ gap: 10 }}>
-      <FlatList
-        horizontal
-        pagingEnabled
+      <Pager
         data={list}
-        keyExtractor={(k, idx) => `${k}-${idx}`}
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={(e) => setI(Math.round(Math.abs(e.nativeEvent.contentOffset.x) / width))}
-        renderItem={({ item }) => (
-          <PressScale onPress={canZoom ? () => setOpen(true) : undefined} disabled={!canZoom} scaleTo={0.99} style={{ width, padding: 0 }} accessibilityLabel="صورة المنتج">
-            <ProductImage imageKey={item} categoryId={categoryId} width={width} radiusPx={0} contentFit="contain" style={{ backgroundColor: c.card }} />
-          </PressScale>
+        width={width}
+        height={width}
+        index={i}
+        onIndexChange={setI}
+        keyOf={(k, idx) => `${k}-${idx}`}
+        label="صور المنتج"
+        onPressItem={canZoom ? () => setOpen(true) : undefined}
+        renderItem={(item) => (
+          <ProductImage imageKey={item} categoryId={categoryId} width={width} radiusPx={0} contentFit="contain" style={{ backgroundColor: c.card }} />
         )}
-        style={{ width, flexGrow: 0 }}
+        style={{ overflow: 'hidden' }}
       />
-      {list.length > 1 ? (
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
-          {list.map((_, k) => <View key={k} style={{ height: 6, width: k === i ? 18 : 6, borderRadius: 3, backgroundColor: k === i ? c.accent : c.lineStrong }} />)}
-        </View>
-      ) : null}
+      <PagerDots n={list.length} index={i} active={c.accent} idle={c.lineStrong} />
       {open ? (
         <Portal>
           <Animated.View entering={FadeIn.duration(160).reduceMotion(ReduceMotion.System)} exiting={FadeOut.duration(120)} style={[StyleSheet.absoluteFill, { backgroundColor: '#0E100F' }]}>
