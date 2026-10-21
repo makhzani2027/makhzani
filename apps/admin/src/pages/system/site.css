@@ -1,0 +1,56 @@
+/* صفحة «الموقع التعريفي» */
+.site-page { display: flex; flex-direction: column; gap: 16px; }
+.site-toc { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.site-toc::-webkit-scrollbar { display: none; }
+.site-toc-btn { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink2); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.site-toc-btn:hover { border-color: var(--ink3); color: var(--ink); }
+.site-toc-btn svg { color: var(--ink3); }
+.site-sections { display: flex; flex-direction: column; gap: 16px; }
+.site-sec { scroll-margin-top: calc(var(--top-h, 64px) + var(--demo-h, 0px) + 16px); }
+.site-where { display: flex; gap: 8px; align-items: flex-start; margin: -2px 0 16px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--sunken); color: var(--ink2); font-size: 13px; line-height: 1.7; }
+.site-where svg { flex: none; margin-top: 3px; color: var(--ink3); }
+.site-tip { font-size: 13px; color: var(--ink3); line-height: 1.9; }
+.site-tip code { font-family: ui-monospace, Menlo, monospace; font-size: 12px; padding: 1px 6px; border-radius: 6px; background: var(--sunken); color: var(--ink); direction: ltr; unicode-bidi: isolate; }
+.site-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
+.site-item { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-bottom: 1px solid var(--line); background: var(--card); min-width: 0; }
+.site-item:last-child { border-bottom: 0; }
+.site-item .grow { flex: 1; min-width: 0; }
+.site-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto; align-items: center; }
+.site-row .site-err { grid-column: 1 / -1; }
+.site-num { flex: none; width: 28px; height: 28px; margin-top: 26px; border-radius: 999px; background: var(--sunken); color: var(--ink2); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
+.site-tools { display: flex; gap: 2px; flex: none; }
+.site-tools.v { flex-direction: column; }
+.site-err { color: var(--danger); font-size: 12.5px; font-weight: 700; }
+.site-pay.off { background: var(--sunken); }
+.site-pay.off .site-logo .thumb { opacity: .55; }
+.site-pay-head { display: flex; gap: 12px; align-items: center; }
+.site-pay-head > :first-child { flex: 1; min-width: 0; }
+.site-pay-head .switch, .site-pay-head label { flex: none; }
+.site-logo { flex: none; width: 104px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.site-logo .thumb.lg { width: 64px; height: 64px; background: #fff; border: 1px solid var(--line); }
+.site-logo .thumb.lg img { object-fit: contain; padding: 6px; }
+.site-logo .thumb.placeholder-art { background: var(--accent-soft, var(--sunken)); }
+.site-logo .btn { width: 100%; justify-content: center; }
+.site-link { border: 0; background: none; padding: 0; color: var(--ink3); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+.site-link:hover { color: var(--danger); }
+.site-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; border: 1px dashed var(--line); border-radius: var(--r-md); min-height: 52px; align-items: center; }
+.site-add { display: flex; gap: 8px; max-width: 420px; }
+.site-add > :first-child { flex: 1; min-width: 0; }
+.site-preview { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: var(--r-md); background: var(--hero, #121513); color: var(--hero-ink, #EEF0ED); font-size: 14px; }
+.site-preview .section-title { color: inherit; opacity: .7; margin: 0; }
+
+@media (max-width: 640px) {
+  .site-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .site-row > :nth-child(2) { grid-column: 1; grid-row: 2; }
+  .site-row > .site-tools { grid-column: 2; grid-row: 1 / span 2; flex-direction: column; }
+  .site-pay { flex-wrap: wrap; }
+  .site-pay > .grow { order: 3; flex-basis: 100%; }
+  .site-logo { width: auto; flex-direction: row; flex-wrap: wrap; flex: 1; }
+  .site-logo .btn { width: auto; }
+  .site-tools.v { flex-direction: row; }
+  .site-faq { flex-wrap: wrap; }
+  .site-faq .site-num { margin-top: 0; }
+  .site-faq > .grow { order: 3; flex-basis: 100%; }
+  .site-faq > .site-tools { margin-inline-start: auto; }
+  .site-pay-head { flex-wrap: wrap; }
+}

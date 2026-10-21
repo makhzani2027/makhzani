@@ -17,7 +17,7 @@ export default function Settings() {
   const [tab, setTab] = useState<Tab>('store');
   return (
     <>
-      <PageHeader title="الإعدادات" description="بيانات المتجر والعملة والطباعة والمخزون والتطبيق." />
+      <PageHeader title="الإعدادات" description="بيانات المتجر والعملة والطباعة والمخزون والتطبيق. محتوى الموقع التعريفي (الأسئلة وطرق الدفع والتوصيل) في «الموقع التعريفي»." />
       <Tabs value={tab} onChange={setTab} items={[{ value: 'store', label: 'المتجر' }, { value: 'currency', label: 'العملة' }, { value: 'branches', label: 'الفروع' }, { value: 'invoice', label: 'الفواتير والطباعة' }, { value: 'inventory', label: 'المخزون والبيع' }, { value: 'app', label: 'التطبيق' }]} />
       {tab === 'store' ? <StoreTab /> : tab === 'currency' ? <CurrencyTab /> : tab === 'branches' ? <BranchesTab /> : tab === 'invoice' ? <InvoiceTab /> : tab === 'inventory' ? <InventoryTab /> : <AppTab />}
     </>
@@ -53,6 +53,7 @@ function StoreTab() {
             <Field label="الهاتف"><Input dir="ltr" value={s.phone ?? ''} onChange={(e) => setD({ ...s, phone: e.target.value || null })} /></Field>
             <Field label="واتساب"><Input dir="ltr" value={s.whatsapp ?? ''} onChange={(e) => setD({ ...s, whatsapp: e.target.value || null })} /></Field>
             <Field label="البريد"><Input dir="ltr" value={s.email ?? ''} onChange={(e) => setD({ ...s, email: e.target.value || null })} /></Field>
+            <Field label="المدينة" hint="تظهر في الموقع: «داخل الموصل»…"><Input value={s.city ?? ''} onChange={(e) => setD({ ...s, city: e.target.value || null })} placeholder="بغداد" /></Field>
             <Field label="العنوان"><Input value={s.address ?? ''} onChange={(e) => setD({ ...s, address: e.target.value || null })} /></Field>
             <Field label="رابط الخريطة"><Input dir="ltr" value={s.map_url ?? ''} onChange={(e) => setD({ ...s, map_url: e.target.value || null })} /></Field>
             <Field label="أوقات الدوام"><Input value={s.hours ?? ''} onChange={(e) => setD({ ...s, hours: e.target.value || null })} placeholder="السبت–الخميس ٩ص–٩م" /></Field>
