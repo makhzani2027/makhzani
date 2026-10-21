@@ -144,6 +144,12 @@ jobs:
           RUN: ${{ github.run_number }}
         run: |
           if [ -z "$GH_TOKEN" ]; then echo "::notice::السر RELEASES_TOKEN غير مضاف — النشر عبر Supabase بدلاً من GitHub العام."; exit 0; fi
+          # مستودع فارغ (بلا README) لا يقبل إصدارات: ننشئ أول ملف فيه
+          if ! gh api "repos/$REPO/commits?per_page=1" >/dev/null 2>&1; then
+            gh api -X PUT "repos/$REPO/contents/README.md" -f message="Add README" \
+              -f content="$(printf '%s\n' '# رقيم — تطبيق أندرويد' '' 'تنزيل آخر نسخة: https://github.com/'"$REPO"'/releases/latest/download/raqeem.apk' | base64 -w0)" >/dev/null
+            echo "✓ أُنشئ README في $REPO"
+          fi
           tag="v1.0.$RUN"
           printf '%s\n' \
             "- raqeem.apk — لأغلب الهواتف (64 بت)." \
