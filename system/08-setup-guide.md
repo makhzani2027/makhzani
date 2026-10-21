@@ -114,6 +114,20 @@
 **مفتاح التوقيع (مرة واحدة فقط)**: بعد إضافة `SIGNING_PASSPHRASE`: Actions ← **Create Signing Key** ← Run workflow ← يضيف `signing/raqeem-release.keystore.enc` للمستودع. نزّل نسخة منه واحفظها مع الجملة السرية خارج GitHub.
 **بناء APK**: Actions ← **Build Android** ← Run workflow ← بعد ~٢٠ دقيقة في Releases (APK للتثبيت المباشر + AAB لـ Google Play). ثم ضع رابط الـ APK في المتغير `DOWNLOAD_URL` وشغّل Deploy Site ليظهر زر التنزيل.
 
+## ٧-ب. رابط تنزيل التطبيق العام (مستودع الإصدارات على GitHub)
+المستودع الرئيسي خاص، فننشر ملف APK على مستودع عام صغير للإصدارات فقط (بلا كود). بلا حد للتنزيل، ورابط ثابت لآخر نسخة.
+1. https://github.com/new ← Owner: `makhzani2027` ← Repository name: **`raqeem-app`** ← Description: `تطبيق رقيم لأندرويد — التنزيل` ← **Public** ← ✅ **Add a README file** ← **Create repository**.
+2. رمز وصول: https://github.com/settings/personal-access-tokens/new (Fine-grained):
+   - Token name: `raqeem-releases` · Expiration: سنة (أو No expiration)
+   - Repository access: **Only select repositories** ← `makhzani2027/raqeem-app` فقط
+   - Permissions ← Repository permissions ← **Contents: Read and write** (والباقي كما هو) ← **Generate token** ← انسخه.
+3. في المستودع الرئيسي `makhzani`: Settings ← Secrets and variables ← Actions ← **New repository secret**: الاسم `RELEASES_TOKEN` والقيمة الرمز.
+   (اختياري: Variable باسم `RELEASES_REPO` إن اخترت اسماً غير `makhzani2027/raqeem-app`.)
+4. Actions ← **Publish APK** ← Run workflow (دقيقة): ينقل آخر نسخة إلى المستودع العام، يحذف نسخة Supabase، ويحدّث زر الموقع.
+   بعدها كل **Build Android** ينشر هناك وحده.
+
+رابط التنزيل الثابت (لآخر نسخة دائماً): `https://github.com/makhzani2027/raqeem-app/releases/latest/download/raqeem.apk`
+
 ## ٨. Cloudflare R2 (عندما تقترب الصور من ١ جيجا)
 1. https://dash.cloudflare.com ← **R2** ← فعّل (يطلب بطاقة، المجاني ١٠ جيجا) ← **Create bucket** `raqeem-media`.
 2. Bucket ← Settings ← **Public access ← R2.dev subdomain ← Allow** (أو نطاقك لاحقاً) ← انسخ الرابط العام.

@@ -52,7 +52,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          REPO: ${{ vars.RELEASES_REPO || 'makhzani2027/raqeem-app' }}
         run: |
+          mb() { awk -v b="$1" 'BEGIN{printf "%.0f", b/1048576}'; }
+          # ١) مستودع الإصدارات العام على GitHub: رابط ثابت لآخر نسخة
+          rel=$(gh release view --repo "$REPO" --json tagName,assets 2>/dev/null || true)
+          if [ -n "$rel" ]; then
+            tag=$(echo "$rel" | jq -r '.tagName')
+            size=$(echo "$rel" | jq -r '.assets[] | select(.name=="raqeem.apk") | .size')
+            url="https://github.com/$REPO/releases/latest/download/raqeem.apk"
+            echo "url=$url" >> "$GITHUB_OUTPUT"
+            echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+            [ -n "$size" ] && echo "size=$(mb "$size")" >> "$GITHUB_OUTPUT"
+            echo "APK (GitHub): $tag → $url"; exit 0
+          fi
+          # ٢) احتياط: مخزن Supabase العام (قبل إنشاء مستودع الإصدارات)
           [ -n "$SUPABASE_URL" ] || exit 0
           list=$(gh release list --limit 30 --json tagName,isPrerelease 2>/dev/null || echo '[]')
           tag=$(echo "$list" | jq -r '[.[] | select(.tagName|startswith("android-")) | select(.isPrerelease|not)][0].tagName // empty')
@@ -63,8 +77,8 @@ jobs:
           size=$(gh release view "$tag" --json assets --jq '.assets[] | select(.name=="raqeem.apk") | .size')
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "version=1.0.${tag#android-}" >> "$GITHUB_OUTPUT"
-          [ -n "$size" ] && echo "size=$(awk -v b="$size" 'BEGIN{printf "%.0f", b/1048576}')" >> "$GITHUB_OUTPUT"
-          echo "APK: $tag → $url"
+          [ -n "$size" ] && echo "size=$(mb "$size")" >> "$GITHUB_OUTPUT"
+          echo "APK (Supabase): $tag → $url"
 
       - name: Build site + dashboard
         env:

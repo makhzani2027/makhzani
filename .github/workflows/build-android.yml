@@ -132,16 +132,38 @@ jobs:
             out/raqeem-armv7.apk
             out/raqeem.aab
 
-      # رابط تنزيل عام: المستودع خاص (روابط Releases لا تفتح للزبائن) وخطة Firebase المجانية تمنع ملفات APK،
-      # فنرفع الملفين إلى مخزن Supabase العام «downloads» ونحدّث زر التنزيل في الموقع عبر «Deploy Site».
-      - name: Publish APK for public download (Supabase Storage)
-        id: publish
+      # رابط تنزيل عام: المستودع خاص (روابط Releases لا تفتح للزبائن) وخطة Firebase المجانية تمنع ملفات APK.
+      # الأساس: مستودع GitHub عام للإصدارات فقط (vars.RELEASES_REPO، بسر RELEASES_TOKEN) — بلا حد للتنزيل،
+      # ورابط ثابت لآخر نسخة: https://github.com/<repo>/releases/latest/download/raqeem.apk
+      # إن لم يُضبط بعد نرجع إلى مخزن Supabase العام «downloads» كما كان.
+      - name: Publish APK on public GitHub Releases
+        id: gh_public
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          REPO: ${{ vars.RELEASES_REPO || 'makhzani2027/raqeem-app' }}
+          RUN: ${{ github.run_number }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "::notice::السر RELEASES_TOKEN غير مضاف — النشر عبر Supabase بدلاً من GitHub العام."; exit 0; fi
+          tag="v1.0.$RUN"
+          printf '%s\n' \
+            "- raqeem.apk — لأغلب الهواتف (64 بت)." \
+            "- raqeem-armv7.apk — للهواتف القديمة (32 بت) إن لم يُثبَّت الأول." \
+            "" "يُثبَّت فوق النسخة السابقة دون فقدان البيانات." > "$RUNNER_TEMP/notes.md"
+          gh release create "$tag" out/raqeem.apk out/raqeem-armv7.apk --repo "$REPO" \
+            --title "رقيم لأندرويد ${tag}" --notes-file "$RUNNER_TEMP/notes.md" --latest
+          echo "url=https://github.com/$REPO/releases/latest/download/raqeem.apk" >> "$GITHUB_OUTPUT"
+          echo "✓ رابط التنزيل الثابت: https://github.com/$REPO/releases/latest/download/raqeem.apk"
+
+      - name: Supabase Storage (download link)
+        id: supa
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          ON_GITHUB: ${{ steps.gh_public.outputs.url != '' }}
         run: |
           if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$PROJECT_REF" ]; then
-            echo "::warning::لا أسرار Supabase — لم يُنشر رابط التنزيل العام (الملف في Releases فقط)."; exit 0
+            [ "$ON_GITHUB" = true ] || echo "::warning::لا أسرار Supabase ولا RELEASES_TOKEN — لم يُنشر رابط تنزيل عام (الملف في Releases الخاصة فقط)."
+            exit 0
           fi
           keys=$(curl -sSf -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "https://api.supabase.com/v1/projects/$PROJECT_REF/api-keys?reveal=true")
           KEY=$(echo "$keys" | jq -r '[.[] | select(.name=="service_role")][0].api_key // empty')
@@ -150,6 +172,13 @@ jobs:
           echo "::add-mask::$KEY"
           BASE="https://$PROJECT_REF.supabase.co/storage/v1"
           H=(-H "apikey: $KEY" -H "Authorization: Bearer $KEY")
+          if [ "$ON_GITHUB" = true ]; then
+            # صار التنزيل من GitHub: نحذف النسخة القديمة من Supabase حتى لا تبقى رابطاً قديماً ولا تستهلك المساحة
+            curl -sS -o /dev/null "${H[@]}" -H 'Content-Type: application/json' -X DELETE "$BASE/object/downloads" \
+              -d '{"prefixes":["raqeem.apk","raqeem-armv7.apk"]}' || true
+            echo "✓ حُذفت نسخة Supabase القديمة (التنزيل الآن من GitHub)."
+            exit 0
+          fi
           # المخزن عام للقراءة فقط؛ الكتابة بمفتاح الخدمة هنا وحده
           curl -sS -o /dev/null "${H[@]}" -H 'Content-Type: application/json' -X POST "$BASE/bucket" \
             -d '{"id":"downloads","name":"downloads","public":true}' || true
@@ -163,7 +192,7 @@ jobs:
           echo "✓ رابط التنزيل: https://$PROJECT_REF.supabase.co/storage/v1/object/public/downloads/raqeem.apk"
 
       - name: Update the website download button
-        if: steps.publish.outputs.url != ''
+        if: steps.gh_public.outputs.url != '' || steps.supa.outputs.url != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run deploy-site.yml --ref "$GITHUB_REF_NAME"
