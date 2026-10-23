@@ -137,7 +137,7 @@ jobs:
           allow="raqeem://auth-callback,raqeem://payment-return,exp://**,http://localhost:5173/**,${site}/**"
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
             body=$(jq -n --arg s "$site/dashboard/" --arg a "$allow" --arg id "$GOOGLE_CLIENT_ID" --arg sec "$GOOGLE_CLIENT_SECRET" \
-              '{site_url:$s, uri_allow_list:$a, external_google_enabled:true, external_google_client_id:$id, external_google_secret:$sec, external_google_skip_nonce_check:true}')
+              '{site_url:$s, uri_allow_list:$a, disable_signup:false, external_google_enabled:true, external_google_client_id:$id, external_google_secret:$sec, external_google_skip_nonce_check:true}')
           else
             body=$(jq -n --arg s "$site/dashboard/" --arg a "$allow" '{site_url:$s, uri_allow_list:$a}')
           fi
@@ -146,8 +146,11 @@ jobs:
           cfg=$(curl -sS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth")
           echo "site_url: $(echo "$cfg" | jq -r '.site_url')"
           echo "redirects: $(echo "$cfg" | jq -r '.uri_allow_list')"
+          # «Signups not allowed for this instance»: زبون Google الجديد يحتاج disable_signup=false
+          echo "signup: $(echo "$cfg" | jq -c 'with_entries(select(.key | test("signup|autoconfirm|external_email_enabled|external_phone_enabled")))')"
           if [ "$(echo "$cfg" | jq -r '.external_google_enabled')" = true ] && [ -n "$(echo "$cfg" | jq -r '.external_google_client_id // empty')" ]; then
-            echo "✓ دخول Google مفعّل"
+            [ "$(echo "$cfg" | jq -r '.disable_signup')" = false ] || { echo "::error::تسجيل الزبائن الجدد مغلق (disable_signup) — دخول Google يفشل لأول مرة."; exit 1; }
+            echo "✓ دخول Google مفعّل (والتسجيل لأول مرة مسموح)"
           else
             echo "::warning::دخول Google غير مفعّل — أضف السرّين GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET ثم أعد Deploy Supabase."
           fi
