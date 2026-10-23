@@ -88,7 +88,7 @@
 | `FIREBASE_PROJECT_ID` | `raqeem-iq` |
 | `SITE_URL` | `https://raqeem-iq.web.app` (روابط مشاركة المنتجات من التطبيق) |
 | `MEDIA_BASE_URL` | فارغ الآن؛ رابط R2 العام لاحقاً (الخطوة ٨) |
-| `DOWNLOAD_URL` · `DOWNLOAD_VERSION` · `DOWNLOAD_SIZE_MB` | اختيارية: رابط APK من Releases ورقم النسخة وحجمه لزر التنزيل في الموقع |
+| `DOWNLOAD_URL` · `DOWNLOAD_VERSION` · `DOWNLOAD_SIZE_MB` | اختيارية، اتركها فارغة: زر التنزيل يأخذ آخر نسخة من مستودع الإصدارات العام تلقائياً، وأي قيمة هنا تتجاوزه |
 
 **أسرار إضافية حسب الحاجة**: `PAYMENT_PROVIDER` (`wayl`، أو `mock` للتجربة فقط — الدفع التجريبي لا يعمل إلا إذا اخترته صراحةً، ولا تتركه على `mock` بعد الإطلاق)، `PAYMENT_REDIRECT_URL`، `WAYL_API_KEY`/`WAYL_WEBHOOK_SECRET`/`WAYL_BASE_URL` (الخطوة ٩)، `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_BUCKET`/`R2_PUBLIC_URL` (الخطوة ٨)، `MEDIA_PUBLIC_URL`، و`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` (من الخطوة ٣، إن أردت ضبط Google عبر سير العمل بدل لوحة Supabase).
 
@@ -113,7 +113,7 @@
 لا شيء عليك: سير عمل البناء يقرأ `SUPABASE_URL` و`SUPABASE_ANON_KEY` من Variables. للتجربة عبر Expo Go من حاسوب:
 أنشئ `apps/mobile/.env` فيه `EXPO_PUBLIC_SUPABASE_URL=…` و`EXPO_PUBLIC_SUPABASE_ANON_KEY=…`.
 **مفتاح التوقيع (مرة واحدة فقط)**: بعد إضافة `SIGNING_PASSPHRASE`: Actions ← **Create Signing Key** ← Run workflow ← يضيف `signing/raqeem-release.keystore.enc` للمستودع. نزّل نسخة منه واحفظها مع الجملة السرية خارج GitHub.
-**بناء APK**: Actions ← **Build Android** ← Run workflow ← بعد ~٢٠ دقيقة في Releases (APK للتثبيت المباشر + AAB لـ Google Play). ثم ضع رابط الـ APK في المتغير `DOWNLOAD_URL` وشغّل Deploy Site ليظهر زر التنزيل.
+**بناء APK**: Actions ← **Build Android** ← Run workflow ← بعد ~٢٠ دقيقة في Releases (APK للتثبيت المباشر + AAB لـ Google Play). ينشره تلقائياً على مستودع الإصدارات العام ويحدّث زر التنزيل في الموقع (لا تضع `DOWNLOAD_URL`).
 
 ## ٧-ب. رابط تنزيل التطبيق العام (مستودع الإصدارات على GitHub)
 المستودع الرئيسي خاص، فننشر ملف APK على مستودع عام صغير للإصدارات فقط (بلا كود). بلا حد للتنزيل، ورابط ثابت لآخر نسخة.
