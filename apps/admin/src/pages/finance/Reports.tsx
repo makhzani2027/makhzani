@@ -90,7 +90,9 @@ export default function Reports() {
   }, [tab, range.from, range.to, costs]);
 
   const tabs: { value: Tab; label: string }[] = useMemo(() => [
-    { value: 'sales', label: 'المبيعات' }, ...(costs ? [{ value: 'profit' as Tab, label: 'الأرباح' }] : []), { value: 'products', label: 'المنتجات' }, { value: 'inventory', label: 'تقييم المخزون' },
+    { value: 'sales', label: 'المبيعات' }, ...(costs ? [{ value: 'profit' as Tab, label: 'الأرباح' }] : []), { value: 'products', label: 'المنتجات' },
+    // inventory_valuation تشترط costs.view في الخادم — بدونها يفشل التبويب دائماً
+    ...(costs ? [{ value: 'inventory' as Tab, label: 'تقييم المخزون' }] : []),
     { value: 'customers', label: 'الزبائن' }, { value: 'staff', label: 'الموظفون' }, { value: 'expenses', label: 'المصروفات' },
   ], [costs]);
   const title = tabs.find((t) => t.value === tab)?.label ?? '';

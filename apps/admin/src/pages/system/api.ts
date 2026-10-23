@@ -132,6 +132,13 @@ export async function saveBranch(input: Pick<Branch, 'name' | 'address' | 'phone
     demoChanged();
     return b;
   }
+  // branches_default_key: فرع رئيسي واحد فقط — نلغي السابق أولاً وإلا يرفض الخادم الحفظ (قيمة مكررة)
+  if (input.is_default) {
+    let clear = sb().from('branches').update({ is_default: false }).eq('is_default', true);
+    if (id) clear = clear.neq('id', id);
+    const { error: e1 } = await clear;
+    if (e1) throw e1;
+  }
   const q = id ? sb().from('branches').update(input).eq('id', id) : sb().from('branches').insert(input);
   const { data, error } = await q.select().single();
   if (error) throw error;

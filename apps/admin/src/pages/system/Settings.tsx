@@ -1,8 +1,9 @@
 /** الإعدادات: المتجر، العملة وسعر الصرف، الفروع، الفواتير والطباعة (معاينة حية + طباعة تجريبية)، المخزون ونقطة البيع، التطبيق */
 import { useEffect, useState } from 'react';
-import type { AppConfigSettings, Branch, CurrencySettings, Invoice, InvoiceItem, InventorySettings, InvoiceSettings, Payment, StoreSettings } from '@raqeem/shared';
+import { isValidIraqiPhone, normalizeIraqiPhone, type AppConfigSettings, type Branch, type CurrencySettings, type Invoice, type InvoiceItem, type InventorySettings, type InvoiceSettings, type Payment, type StoreSettings } from '@raqeem/shared';
 import { Alert, Badge, Button, Card, DataTable, ErrorState, Field, Input, Loading, Modal, NumberInput, PageHeader, Segmented, Select, Switch, Tabs, Textarea, type Column } from '../../ui';
 import { useAction, useLoad } from '../../lib/hooks';
+import { AppError } from '../../lib/supabase';
 import { useFmt, useSettings } from '../../lib/settings';
 import { buildReceipt, previewSrcDoc, printDoc } from '../../print';
 import { getSetting, saveSetting, type PosSettings, type SettingsMap } from '../sales/data/app-settings';
@@ -41,8 +42,17 @@ function Shell({ error, reload, ready, children }: { error: string | null; reloa
 
 function StoreTab() {
   const { reload: reloadCtx } = useSettings();
-  const { d, setD, save, error, reload } = useDraft('store');
+  const { d, setD, error, reload } = useDraft('store');
   const s = d as StoreSettings | null;
+  // الهاتف وواتساب بصيغة واحدة +9647… كما في «الموقع التعريفي» (روابط wa.me و tel والموقع تعتمدها)
+  const save = useAction(async () => {
+    if (!s) return;
+    if (s.phone && !isValidIraqiPhone(s.phone)) throw new AppError('رقم الهاتف ليس رقم موبايل عراقي صحيح (مثال: 0770 123 4567).');
+    if (s.whatsapp && !isValidIraqiPhone(s.whatsapp)) throw new AppError('رقم واتساب ليس رقم موبايل عراقي صحيح (مثال: 0770 123 4567).');
+    const next: StoreSettings = { ...s, phone: normalizeIraqiPhone(s.phone), whatsapp: normalizeIraqiPhone(s.whatsapp) };
+    await saveSetting('store', next);
+    setD(next);
+  }, { success: 'حُفظت الإعدادات' });
   return (
     <Shell error={error} reload={reload} ready={!!s}>
       {s ? (

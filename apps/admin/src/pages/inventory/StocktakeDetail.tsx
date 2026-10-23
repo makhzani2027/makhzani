@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cleanScan, normalizeArabic } from '@raqeem/shared';
 import { Alert, Badge, Button, DataTable, ErrorState, Input, NumberInput, PageHeader, SearchInput, Segmented, Skeleton, Stat, askConfirm, toast, type Column } from '../../ui';
@@ -29,13 +29,26 @@ export default function StocktakeDetail() {
   const [manual, setManual] = useState('');
   const apply = useAction(applyStocktake);
   const draft = st.data?.stocktake.status === 'draft';
+  // آخر نسخة من الأسطر (تُحدَّث فوراً بعد كل حفظ، قبل إعادة الرسم) + طابور للمسحات حتى لا تضيع مسحة سريعة
+  const linesRef = useRef<CountLine[] | undefined>(undefined);
+  linesRef.current = st.data?.lines;
+  const scanQueue = useRef<Promise<void>>(Promise.resolve());
+  // أعداد كُتبت باليد ولم تُحفظ بعد (تُحفظ قبل الاعتماد)
+  const unsaved = useRef(new Set<string>());
 
   const setCount = async (variantId: string, counted: number | null) => {
     try {
       await setStocktakeCount(id, variantId, counted);
-      const known = st.data?.lines.some((l) => l.variant_id === variantId);
-      if (!known) await st.reload();
-      else st.setData((d) => ({ ...d!, lines: d!.lines.map((l) => (l.variant_id === variantId ? { ...l, counted } : l)) }));
+      unsaved.current.delete(variantId);
+      const known = linesRef.current?.some((l) => l.variant_id === variantId);
+      if (!known) {
+        const fresh = await getStocktake(id, can('costs.view'));
+        linesRef.current = fresh.lines;
+        st.setData(fresh);
+      } else {
+        linesRef.current = linesRef.current?.map((l) => (l.variant_id === variantId ? { ...l, counted } : l));
+        st.setData((d) => ({ ...d!, lines: d!.lines.map((l) => (l.variant_id === variantId ? { ...l, counted } : l)) }));
+      }
       return true;
     } catch (e) { toast.error(errorMessage(e)); beep('error'); return false; }
   };
@@ -45,12 +58,17 @@ export default function StocktakeDetail() {
     if (!code || !draft) return;
     const h = await findVariantByCode(code).catch(() => null);
     if (!h) { beep('error'); toast.error(`لم نجد منتجاً بالرمز ${code}`); return; }
-    const cur = st.data?.lines.find((l) => l.variant_id === h.variant_id)?.counted ?? 0;
-    if (await setCount(h.variant_id, cur + (h.factor || 1))) {
-      beep('ok');
-      setLast({ name: h.title ? `${h.name} — ${h.title}` : h.name, counted: cur + (h.factor || 1), at: Date.now() });
-      if (h.factor > 1) toast.info(`${h.unit_name}: +${h.factor}`);
-    }
+    const step = h.factor || 1;
+    const run = async () => {
+      const next = (linesRef.current?.find((l) => l.variant_id === h.variant_id)?.counted ?? 0) + step;
+      if (await setCount(h.variant_id, next)) {
+        beep('ok');
+        setLast({ name: h.title ? `${h.name} — ${h.title}` : h.name, counted: next, at: Date.now() });
+        if (h.factor > 1) toast.info(`${h.unit_name}: +${h.factor}`);
+      }
+    };
+    scanQueue.current = scanQueue.current.then(run, run);
+    await scanQueue.current;
   };
   useBarcodeScanner((c) => void onCode(c), { enabled: !!draft });
 
@@ -79,7 +97,7 @@ export default function StocktakeDetail() {
     { key: 'e', header: 'بالنظام', end: true, cell: (l) => <span className="num">{fmt.qty(l.expected)}</span> },
     {
       key: 'c', header: 'المعدود', end: true, width: 130, cell: (l) => (draft ? (
-        <span onClick={(e) => e.stopPropagation()}><NumberInput value={l.counted} allowDecimal min={0} ariaLabel={`عدد ${l.name}`} onChange={(n) => { st.setData((d) => ({ ...d!, lines: d!.lines.map((x) => (x.variant_id === l.variant_id ? { ...x, counted: n } : x)) })); }} onEnter={() => void setCount(l.variant_id, st.data!.lines.find((x) => x.variant_id === l.variant_id)?.counted ?? null)} /></span>
+        <span onClick={(e) => e.stopPropagation()}><NumberInput value={l.counted} allowDecimal min={0} ariaLabel={`عدد ${l.name}`} onChange={(n) => { unsaved.current.add(l.variant_id); st.setData((d) => ({ ...d!, lines: d!.lines.map((x) => (x.variant_id === l.variant_id ? { ...x, counted: n } : x)) })); }} onEnter={() => void setCount(l.variant_id, st.data!.lines.find((x) => x.variant_id === l.variant_id)?.counted ?? null)} /></span>
       ) : <span className="num">{l.counted === null ? '—' : fmt.qty(l.counted)}</span>),
     },
     { key: 'd', header: 'الفرق', end: true, cell: (l) => { if (l.counted === null) return <span className="faint">لم يُعدّ</span>; const d = l.counted - l.expected; return d === 0 ? <Badge tone="success">مطابق</Badge> : <span className={d > 0 ? 'var-pos' : 'var-neg'}>{d > 0 ? '+' : ''}{fmt.qty(d)}</span>; } },
@@ -97,6 +115,11 @@ export default function StocktakeDetail() {
           ]))}>تصدير</Button>
           {draft ? <Button variant="primary" icon="check" loading={apply.busy} disabled={!sum.counted} onClick={async () => {
             if (!(await askConfirm({ title: 'اعتماد الجرد؟', body: `سيُضبط رصيد ${fmt.num(sum.diffs)} نسخة على المعدود (+${fmt.qty(sum.plus)} / −${fmt.qty(sum.minus)}). النسخ التي لم تُعدّ لا تتغير. لا يمكن التراجع.`, confirm: 'اعتماد الفروق' }))) return;
+            // احفظ الأعداد المكتوبة يدوياً بلا Enter أولاً، وإلا يُعتمد الجرد بدونها
+            await scanQueue.current;
+            for (const vid of [...unsaved.current]) {
+              if (!(await setCount(vid, linesRef.current?.find((x) => x.variant_id === vid)?.counted ?? null))) return;
+            }
             const r = await apply.run(id);
             if (r) { toast.success(`اعتُمد الجرد: عُدّل ${fmt.num(r.adjusted)} رصيد`); counts.refresh(); void st.reload(); }
           }}>اعتماد الجرد</Button> : null}

@@ -9,3 +9,13 @@ export default function NotFound() {
     </div>
   );
 }
+
+/** مسار موجود لكن الموظف لا يملك صلاحيته (بدلها يقع /products/new مثلاً في /products/:id بمعرّف «new») */
+export function NoAccess() {
+  const navigate = useNavigate();
+  return (
+    <div className="card">
+      <EmptyState icon="lock" title="ليست لديك صلاحية لهذه الصفحة" text="اطلب من صاحب المتجر إضافة الصلاحية لدورك." action={<Button icon="home" onClick={() => navigate('/')}>الرئيسية</Button>} />
+    </div>
+  );
+}

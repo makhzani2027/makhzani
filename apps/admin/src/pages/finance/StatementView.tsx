@@ -13,6 +13,8 @@ export function StatementView({ st, kind }: { st: Statement; kind: 'customer' | 
   const m = useMoney();
   const curs = (['IQD', 'USD'] as CurrencyCode[]).filter((c) => st.rows.some((r) => r.currency === c) || st.opening[c] || st.closing[c]);
   if (!curs.length) return <Card><EmptyState icon="fileText" title="لا حركات في هذه الفترة" /></Card>;
+  // رصيد الصندوق يُعرض بإشارته (السالب = مكشوف)؛ للزبون والمورد القيمة المطلقة مع «عليه/له»
+  const amt = (b: number) => (kind === 'account' ? b : Math.abs(b));
   const label = (b: number) => (kind === 'account' || !b ? '' : (kind === 'customer' ? b > 0 : b < 0) ? 'عليه' : 'له');
   return (
     <>
@@ -22,7 +24,7 @@ export function StatementView({ st, kind }: { st: Statement; kind: 'customer' | 
             <table className="table">
               <thead><tr><th>التاريخ</th><th>المستند</th><th>البيان</th><th className="end">{kind === 'account' ? 'وارد' : 'مدين'}</th><th className="end">{kind === 'account' ? 'صادر' : 'دائن'}</th><th className="end">الرصيد</th></tr></thead>
               <tbody>
-                <tr><td /><td /><td><b>رصيد افتتاحي</b></td><td /><td /><td className="end"><b>{m(Math.abs(st.opening[c]), c)}</b> <span className="faint">{label(st.opening[c])}</span></td></tr>
+                <tr><td /><td /><td><b>رصيد افتتاحي</b></td><td /><td /><td className="end"><b>{m(amt(st.opening[c]), c)}</b> <span className="faint">{label(st.opening[c])}</span></td></tr>
                 {st.rows.filter((r) => r.currency === c).map((r, i) => (
                   <tr key={`${r.doc_id}-${i}`}>
                     <td className="dim" style={{ whiteSpace: 'nowrap' }}>{fmt.date(r.at)}</td>
@@ -30,11 +32,11 @@ export function StatementView({ st, kind }: { st: Statement; kind: 'customer' | 
                     <td>{r.description}</td>
                     <td className="end">{r.debit ? m(r.debit, c, true) : ''}</td>
                     <td className="end">{r.credit ? m(r.credit, c, true) : ''}</td>
-                    <td className="end"><b>{m(Math.abs(r.balance), c, true)}</b> <span className="faint">{label(r.balance)}</span></td>
+                    <td className="end"><b>{m(amt(r.balance), c, true)}</b> <span className="faint">{label(r.balance)}</span></td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot><tr><td colSpan={3}><b>الرصيد الختامي</b></td><td className="end">{m(st.rows.filter((r) => r.currency === c).reduce((s, r) => s + r.debit, 0), c, true)}</td><td className="end">{m(st.rows.filter((r) => r.currency === c).reduce((s, r) => s + r.credit, 0), c, true)}</td><td className="end"><b>{m(Math.abs(st.closing[c]), c)}</b> <span className="faint">{label(st.closing[c])}</span></td></tr></tfoot>
+              <tfoot><tr><td colSpan={3}><b>الرصيد الختامي</b></td><td className="end">{m(st.rows.filter((r) => r.currency === c).reduce((s, r) => s + r.debit, 0), c, true)}</td><td className="end">{m(st.rows.filter((r) => r.currency === c).reduce((s, r) => s + r.credit, 0), c, true)}</td><td className="end"><b>{m(amt(st.closing[c]), c)}</b> <span className="faint">{label(st.closing[c])}</span></td></tr></tfoot>
             </table>
           </div>
         </Card>

@@ -47,7 +47,7 @@ function CategoryTree({ cats, loading, counts, reload }: { cats: Category[]; loa
     try { await reorderCategories(arr.map((x, k) => ({ id: x.id, sort: k, parent_id: x.parent_id }))); reload(); } catch (e) { toast.error(errorMessage(e)); }
   };
   const remove = async (c: Category) => {
-    if (!(await askConfirm({ title: `حذف قسم «${c.name}»؟`, body: 'المنتجات فيه تبقى بلا قسم، والأقسام الفرعية تصير رئيسية.', danger: true, confirm: 'حذف القسم' }))) return;
+    if (!(await askConfirm({ title: `حذف قسم «${c.name}»؟`, body: 'المنتجات فيه تبقى بلا قسم. القسم الذي له أقسام فرعية لا يُحذف حتى تنقلها أو تحذفها أولاً.', danger: true, confirm: 'حذف القسم' }))) return;
     try { await deleteCategory(c.id); toast.success('حُذف القسم'); reload(); } catch (e) { toast.error(errorMessage(e)); }
   };
   const row = (c: Category, child: boolean, idx: number, len: number) => (

@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../../lib/auth';
 import { useAction, useDebounced, useLoad, useStored } from '../../lib/hooks';
 import { useFmt } from '../../lib/settings';
+import { useSetting } from '../sales/data/app-settings';
 import { downloadText, parseCsv, toCsv } from '../../lib/csv';
 import { imgUrl } from '../../lib/media';
 import { errorMessage } from '../../lib/supabase';
@@ -43,6 +44,7 @@ export default function Products() {
     q: qs.q, category_id: qs.cat, brand_id: qs.brand, stock: qs.stock as StockFilter, published: qs.pub as ProductQuery['published'],
     archived: qs.arch === '1', sort: qs.sort as ProductSort, page: Number(qs.page) || 1, pageSize: PAGE,
   };
+  const lowDefault = Number(useSetting('inventory').low_stock_default) || 0;
   const list = useLoad(() => listProducts(query, meta.categories), [JSON.stringify(query), meta.categories.length]);
   const rows = list.data?.rows;
   const selRows = (rows ?? []).filter((r) => sel.has(r.id));
@@ -178,7 +180,7 @@ export default function Products() {
           <div className="pgrid">
             {(rows ?? []).map((p) => {
               const r = priceRange(p.variants);
-              const st = productStockKey(p.variants);
+              const st = productStockKey(p.variants, lowDefault);
               const url = imgUrl(p.cover_key, 'md');
               return (
                 <div key={p.id} className={`pcard ${sel.has(p.id) ? 'selected' : ''}`} onClick={() => nav(`/products/${p.id}`)}>

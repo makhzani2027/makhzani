@@ -52,7 +52,7 @@ export function AdjustModal({ open, onClose, onDone, target, warehouseId }: {
   const submit = async () => {
     setTried(true);
     if (!valid || !item) return;
-    const r = await save.run({ variant_id: item.variant_id, warehouse_id: wh, mode, qty: mode === 'delta' && kind === 'damage' ? Math.abs(qty ?? 0) : qty ?? 0, kind, note: note.trim() });
+    const r = await save.run({ variant_id: item.variant_id, warehouse_id: wh, mode, qty: mode === 'delta' && kind === 'damage' ? -Math.abs(qty ?? 0) : qty ?? 0, kind, note: note.trim() });
     if (r !== undefined) { counts.refresh(); onDone?.(); onClose(); }
   };
 

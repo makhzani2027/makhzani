@@ -13,7 +13,7 @@ import {
 import { IS_DEMO } from '../../lib/env';
 import { demoDelay, demoId } from '../../lib/demo-db';
 import { AppError, rpc, sb } from '../../lib/supabase';
-import { costsOf, like, staffMap, vTitle } from './api';
+import { costsOf, fetchAll, like, staffMap, vTitle } from './api';
 import { DEMO_STAFF, ddb, demoApplyMovement, demoCurrency, demoNow, demoTransaction, nextDocNumber, type DemoDb } from './demo';
 
 // ------------------------------------------------------------------ العملة والصناديق
@@ -224,12 +224,12 @@ function demoOutstanding(db: DemoDb): SampleOutstanding[] {
 
 export async function outstandingSamples(): Promise<SampleOutstanding[]> {
   if (IS_DEMO) { await demoDelay(); return demoOutstanding(ddb()); }
-  const { data, error } = await sb().from('stock_vouchers')
-    .select('kind,customer_id,warehouse_id,created_at,customers(name),warehouses(name),stock_voucher_items(variant_id,qty,product_variants(title,sku,products(name)))')
-    .in('kind', ['sample_out', 'sample_return']).order('created_at', { ascending: false }).limit(3000);
-  if (error) throw error;
+  // كل السندات على دفعات (كان limit 3000 يُقصّ عند ١٠٠٠ فتسقط أقدم العينات الخارجة ويختل المتبقي)
   type Row = { kind: StockVoucherKind; customer_id: string | null; warehouse_id: string; created_at: string; customers: { name: string } | null; warehouses: { name: string } | null; stock_voucher_items: { variant_id: string; qty: number; product_variants: { title: string; sku: string; products: { name: string } | null } | null }[] };
-  return tallySamples(((data ?? []) as unknown as Row[]).map((v) => ({
+  const data = await fetchAll<Row>((a, b) => sb().from('stock_vouchers')
+    .select('kind,customer_id,warehouse_id,created_at,customers(name),warehouses(name),stock_voucher_items(variant_id,qty,product_variants(title,sku,products(name)))')
+    .in('kind', ['sample_out', 'sample_return']).order('created_at').order('id').range(a, b));
+  return tallySamples(data.map((v) => ({
     kind: v.kind, customer_id: v.customer_id, customer_name: v.customers?.name ?? '', warehouse_id: v.warehouse_id, warehouse_name: v.warehouses?.name ?? '', created_at: v.created_at,
     items: v.stock_voucher_items.map((i) => ({ variant_id: i.variant_id, qty: Number(i.qty), name: i.product_variants?.products?.name ?? '', variant_title: vTitle(i.product_variants?.title), sku: i.product_variants?.sku ?? '' })),
   })));

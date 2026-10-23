@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { matchScore, normalizeIraqiPhone, formatPhone, type IconName } from '@raqeem/shared';
+import { matchScore, normalizeArabic, normalizeIraqiPhone, formatPhone, type IconName } from '@raqeem/shared';
 import type { AppRoute } from '../../routes/types';
 import { Icon, Modal, Thumb } from '../../ui';
 import { useDebounced } from '../../lib/hooks';
@@ -51,8 +51,11 @@ export default function CommandPalette({ open, onClose, routes }: { open: boolea
         const like = `%${term.replace(/[%_]/g, '')}%`;
         const tasks: Promise<void>[] = [];
         if (can('products.view')) tasks.push((async () => {
-          const { data } = await supabase!.from('product_variants').select('id,sku,title,product_id,products!inner(name,cover_key)').or(`sku.ilike.${like},barcode.eq.${term}`).limit(5);
-          const { data: byName } = await supabase!.from('products').select('id,name,cover_key').ilike('search_text', `%${term}%`).is('archived_at', null).limit(6);
+          // فاصلة أو قوس في النص يكسر صيغة or() فيفشل البحث كله
+          const safe = term.replace(/[,()]/g, '');
+          const { data } = await supabase!.from('product_variants').select('id,sku,title,product_id,products!inner(name,cover_key)').or(`sku.ilike.${like.replace(/[,()]/g, '')},barcode.eq.${safe}`).limit(5);
+          // search_text مخزّن بعد normalize_ar (أ←ا، ة←ه…): نطبّع النص بالقواعد نفسها وإلا لا يطابق «سماعة» مثلاً
+          const { data: byName } = await supabase!.from('products').select('id,name,cover_key').ilike('search_text', `%${normalizeArabic(term)}%`).is('archived_at', null).limit(6);
           for (const v of (data ?? []) as unknown as { id: string; sku: string; title: string; product_id: string; products: { name: string; cover_key: string | null } }[]) out.push({ key: v.id, icon: 'box', title: v.products.name, sub: v.sku, to: `/products/${v.product_id}`, image: v.products.cover_key });
           for (const p of byName ?? []) if (!out.some((h) => h.to === `/products/${p.id}`)) out.push({ key: p.id, icon: 'box', title: p.name, to: `/products/${p.id}`, image: p.cover_key });
         })());

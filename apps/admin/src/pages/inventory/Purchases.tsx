@@ -4,7 +4,7 @@ import { Badge, Button, DataTable, Drawer, PageHeader, Pagination, SearchInput, 
 import { useDebounced, useLoad } from '../../lib/hooks';
 import { useFmt, useSettings } from '../../lib/settings';
 import { useMoneyIn, useQueryState } from '../catalog/components/hooks';
-import { getInvoiceItems, listPurchases, listSuppliers, type PurchaseRow } from './api';
+import { getInvoiceItems, getPurchase, listPurchases, listSuppliers, type PurchaseRow } from './api';
 import { printPurchase } from './components/purchasePrint';
 import '../catalog/catalog.css';
 
@@ -20,7 +20,9 @@ export default function Purchases() {
   const sups = useLoad(listSuppliers, []);
   const page = Number(qs.page) || 1;
   const list = useLoad(() => listPurchases({ q: dq, supplier_id: qs.supplier, status: qs.status as '' | 'due' | 'paid', page, pageSize: PAGE }), [dq, qs.supplier, qs.status, page]);
-  const open = list.data?.rows.find((r) => r.id === qs.open) ?? null;
+  // الرابط ?open= (من صفحة المورد) قد يشير لفاتورة ليست في هذه الصفحة من القائمة
+  const one = useLoad(() => (qs.open ? getPurchase(qs.open) : Promise.resolve(null)), [qs.open]);
+  const open = list.data?.rows.find((r) => r.id === qs.open) ?? (qs.open && one.data?.id === qs.open ? one.data : null);
   const columns: Column<PurchaseRow>[] = [
     { key: 'n', header: 'الفاتورة', primary: true, cell: (i) => <span><span className="code">{i.number}</span> {i.kind === 'purchase_return' ? <Badge tone="warning">إرجاع</Badge> : null}{i.status === 'void' ? <Badge tone="danger">ملغاة</Badge> : null}</span> },
     { key: 's', header: 'المورد', cell: (i) => <Link to={`/suppliers/${i.supplier_id}`} onClick={(e) => e.stopPropagation()}>{i.supplier_name}</Link> },

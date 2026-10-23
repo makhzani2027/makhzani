@@ -11,6 +11,8 @@ export function buildStatementA4(o: {
   const f = printFmt(o.store);
   const digits = o.store.digits ?? 'arab';
   const m = (n: number, c: CurrencyCode) => formatMoney(n, { currency: c, digits, bare: true });
+  // رصيد الصندوق بإشارته (السالب = مكشوف)؛ للزبون والمورد القيمة المطلقة مع «عليه/له»
+  const amt = (b: number) => (o.party.kind === 'account' ? b : Math.abs(b));
   const balLabel = (b: number) => {
     if (o.party.kind === 'account' || !b) return '';
     const owes = o.party.kind === 'customer' ? b > 0 : b < 0;
@@ -34,19 +36,19 @@ export function buildStatementA4(o: {
   <td>${escapeHtml(r.description)}</td>
   <td class="e">${r.debit ? m(r.debit, c) : ''}</td>
   <td class="e">${r.credit ? m(r.credit, c) : ''}</td>
-  <td class="e"><b>${m(Math.abs(r.balance), c)}</b> <span class="muted">${balLabel(r.balance)}</span></td>
+  <td class="e"><b>${m(amt(r.balance), c)}</b> <span class="muted">${balLabel(r.balance)}</span></td>
 </tr>`).join('');
     return `<h3 style="margin:6mm 0 2mm">${c === 'USD' ? 'بالدولار الأمريكي' : 'بالدينار العراقي'}</h3>
 <table>
   <thead><tr><th style="width:24mm">التاريخ</th><th style="width:26mm">المستند</th><th>البيان</th><th class="e" style="width:26mm">${o.party.kind === 'account' ? 'وارد' : 'مدين'}</th><th class="e" style="width:26mm">${o.party.kind === 'account' ? 'صادر' : 'دائن'}</th><th class="e" style="width:32mm">الرصيد</th></tr></thead>
-  <tbody><tr><td></td><td></td><td><b>رصيد افتتاحي</b></td><td></td><td></td><td class="e"><b>${m(Math.abs(opening), c)}</b> <span class="muted">${balLabel(opening)}</span></td></tr>
+  <tbody><tr><td></td><td></td><td><b>رصيد افتتاحي</b></td><td></td><td></td><td class="e"><b>${m(amt(opening), c)}</b> <span class="muted">${balLabel(opening)}</span></td></tr>
   ${body || '<tr><td colspan="6" style="text-align:center;padding:6mm">لا حركات في هذه الفترة</td></tr>'}</tbody>
-  <tfoot><tr><td colspan="3"><b>المجموع</b></td><td class="e"><b>${m(debit, c)}</b></td><td class="e"><b>${m(credit, c)}</b></td><td class="e"><b>${m(Math.abs(closing), c)}</b></td></tr></tfoot>
+  <tfoot><tr><td colspan="3"><b>المجموع</b></td><td class="e"><b>${m(debit, c)}</b></td><td class="e"><b>${m(credit, c)}</b></td><td class="e"><b>${m(amt(closing), c)}</b></td></tr></tfoot>
 </table>`;
   }).join('');
   const period = o.from || o.to ? `الفترة: ${o.from ? f.date(o.from) : 'البداية'} — ${o.to ? f.date(o.to) : 'اليوم'}` : 'كل الحركات';
   const who = o.party.kind === 'customer' ? 'الزبون' : o.party.kind === 'supplier' ? 'المورد' : 'الحساب';
-  const closingTxt = currencies.map((c) => `<div><b>${formatMoney(Math.abs(closingOf(c)), { currency: c, digits })}</b> <span class="muted">${balLabel(closingOf(c))}</span></div>`).join('');
+  const closingTxt = currencies.map((c) => `<div><b>${formatMoney(amt(closingOf(c)), { currency: c, digits })}</b> <span class="muted">${balLabel(closingOf(c))}</span></div>`).join('');
   const html = `<div class="a4">
 ${a4Header(o.store, { kind: 'كشف حساب', meta: [period, `تاريخ الطباعة: ${f.date(Date.now())}`] })}
 <div class="parties">

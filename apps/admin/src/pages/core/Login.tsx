@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Alert, Button, Field, Input, Mark } from '../../ui';
 import { useAuth } from '../../lib/auth';
 import { supabase, errorMessage } from '../../lib/supabase';
@@ -9,13 +9,24 @@ import './login.css';
  * الحسابات يُنشئها صاحب المتجر من «الموظفون» — لا تسجيل ذاتي.
  */
 export default function Login({ denied }: { denied: boolean }) {
-  const { signIn, signOut, reload } = useAuth();
+  const { signIn, signOut, reload, mfaPending } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [factorId, setFactorId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // جلسة بكلمة السر فقط لحساب مفعّل فيه التحقق بخطوتين (بعد الدخول أو عند إعادة فتح اللوحة): نطلب الرمز
+  useEffect(() => {
+    if (!mfaPending || factorId || !supabase) return;
+    let alive = true;
+    void supabase.auth.mfa.listFactors().then(({ data }) => {
+      const totp = data?.totp?.find((x) => x.status === 'verified');
+      if (alive && totp) setFactorId(totp.id);
+    });
+    return () => { alive = false; };
+  }, [mfaPending, factorId]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -84,6 +95,7 @@ export default function Login({ denied }: { denied: boolean }) {
             </>
           )}
           <Button type="submit" variant="primary" size="lg" block loading={busy}>{factorId ? 'تحقق' : 'دخول'}</Button>
+          {factorId ? <Button variant="ghost" block onClick={() => { setFactorId(null); setCode(''); setError(null); void signOut(); }}>الخروج واستعمال حساب آخر</Button> : null}
           <p className="small faint">نسيت كلمة السر؟ اطلب من صاحب المتجر إعادة تعيينها من صفحة الموظفين.</p>
         </form>
       </main>

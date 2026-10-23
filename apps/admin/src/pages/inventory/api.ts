@@ -31,6 +31,19 @@ import { DEMO_STAFF, ddb, demoApplyMovement, demoBranchOf, demoNow, demoRecomput
 export const like = (s: string) => `%${s.replace(/[%_,()]/g, ' ').trim()}%`;
 export const vTitle = (t: string | null | undefined) => (t && t !== 'افتراضي' ? t : null);
 
+/** كل الصفوف على دفعات: الخادم يقصّ كل طلب عند max_rows (١٠٠٠) مهما كان limit. الاستعلام يحتاج ترتيباً ثابتاً */
+export async function fetchAll<T>(page: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>, size = 1000, maxRows = 100_000): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; from < maxRows; from += size) {
+    const { data, error } = await page(from, from + size - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as T[];
+    out.push(...rows);
+    if (rows.length < size) break;
+  }
+  return out;
+}
+
 // ------------------------------------------------------------------ المخازن
 
 export async function listWarehouses(includeInactive = false): Promise<Warehouse[]> {
@@ -105,9 +118,7 @@ export async function warehouseUnits(): Promise<Record<string, { units: number; 
     return out;
   };
   if (IS_DEMO) return tally(ddb().stock_levels);
-  const { data, error } = await sb().from('stock_levels').select('warehouse_id,qty').neq('qty', 0).limit(50000);
-  if (error) throw error;
-  return tally((data ?? []) as { warehouse_id: string; qty: number }[]);
+  return tally(await fetchAll<{ warehouse_id: string; qty: number }>((a, b) => sb().from('stock_levels').select('warehouse_id,qty').neq('qty', 0).order('variant_id').order('warehouse_id').range(a, b)));
 }
 
 // ------------------------------------------------------------------ الأرصدة
@@ -218,12 +229,16 @@ export async function stockTotals(warehouseId: string, withCost: boolean): Promi
     const pick = rows.filter((r) => !warehouseId || r.warehouse_id === warehouseId);
     return pick.reduce<StockTotals>((s, r) => ({ items: s.items + Number(r.items), units: s.units + Number(r.units), cost_value: (s.cost_value ?? 0) + Number(r.cost_value), retail_value: (s.retail_value ?? 0) + Number(r.retail_value) }), { items: 0, units: 0, cost_value: 0, retail_value: 0 });
   }
-  let qb = sb().from('stock_levels').select('qty').gt('qty', 0).limit(50000);
-  if (warehouseId) qb = qb.eq('warehouse_id', warehouseId);
-  const { data, error } = await qb;
-  if (error) throw error;
-  const list = (data ?? []) as { qty: number }[];
-  return { items: list.length, units: list.reduce((s, r) => s + Number(r.qty), 0), cost_value: null, retail_value: null };
+  // بلا costs.view: القيمة بسعر البيع (كما في وضع العرض) — كانت تعود null فتظهر «قيمة المخزون» صفراً
+  const list = await fetchAll<{ qty: number; product_variants: { price: number } | null }>((a, b) => {
+    let qb = sb().from('stock_levels').select('qty,product_variants(price)').gt('qty', 0);
+    if (warehouseId) qb = qb.eq('warehouse_id', warehouseId);
+    return qb.order('variant_id').order('warehouse_id').range(a, b);
+  });
+  return {
+    items: list.length, units: list.reduce((s, r) => s + Number(r.qty), 0), cost_value: null,
+    retail_value: list.reduce((s, r) => s + Number(r.qty) * Number(r.product_variants?.price ?? 0), 0),
+  };
 }
 
 export async function listLowStock(): Promise<LowStockRow[]> {
@@ -565,21 +580,20 @@ export async function getStocktake(id: string, withCost: boolean): Promise<Stock
   if (error) throw error;
   if (!st) throw new AppError('لم نجد هذا الجرد.');
   const { warehouses, ...stocktake } = st as Stocktake & { warehouses: { name: string } | null };
-  const [itemsRes, levelsRes] = await Promise.all([
-    sb().from('stocktake_items').select('variant_id,expected_qty,counted_qty,product_variants(title,sku,barcode,price,product_id,products(name,category_id))').eq('stocktake_id', id),
-    stocktake.status === 'draft'
-      ? sb().from('stock_levels').select('variant_id,qty,product_variants!inner(title,sku,barcode,price,product_id,is_active,products!inner(name,category_id,archived_at))').eq('warehouse_id', stocktake.warehouse_id).eq('product_variants.is_active', true).is('product_variants.products.archived_at', null).limit(20000)
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-  if (itemsRes.error) throw itemsRes.error;
-  if (levelsRes.error) throw levelsRes.error;
   type V = { title: string; sku: string; barcode: string | null; price: number; product_id: string; products: { name: string; category_id: string | null } | null };
+  // على دفعات: مخزن بأكثر من ١٠٠٠ نسخة كان يظهر ناقصاً (max_rows)
+  const [items, levels] = await Promise.all([
+    fetchAll<StocktakeItem & { product_variants: V | null }>((a, b) => sb().from('stocktake_items').select('variant_id,expected_qty,counted_qty,product_variants(title,sku,barcode,price,product_id,products(name,category_id))').eq('stocktake_id', id).order('variant_id').range(a, b)),
+    stocktake.status === 'draft'
+      ? fetchAll<{ variant_id: string; qty: number; product_variants: V }>((a, b) => sb().from('stock_levels').select('variant_id,qty,product_variants!inner(title,sku,barcode,price,product_id,is_active,products!inner(name,category_id,archived_at))').eq('warehouse_id', stocktake.warehouse_id).eq('product_variants.is_active', true).is('product_variants.products.archived_at', null).order('variant_id').range(a, b))
+      : Promise.resolve([]),
+  ]);
   const map = new Map<string, CountLine>();
-  for (const r of (levelsRes.data ?? []) as unknown as { variant_id: string; qty: number; product_variants: V }[]) {
+  for (const r of levels) {
     const v = r.product_variants;
     map.set(r.variant_id, { variant_id: r.variant_id, product_id: v.product_id, category_id: v.products?.category_id ?? null, name: v.products?.name ?? '', variant_title: vTitle(v.title), sku: v.sku, barcode: v.barcode, expected: Number(r.qty), counted: null, price: Number(v.price), cost: null });
   }
-  for (const r of (itemsRes.data ?? []) as unknown as (StocktakeItem & { product_variants: V | null })[]) {
+  for (const r of items) {
     const v = r.product_variants;
     map.set(r.variant_id, { variant_id: r.variant_id, product_id: v?.product_id ?? '', category_id: v?.products?.category_id ?? null, name: v?.products?.name ?? '', variant_title: vTitle(v?.title), sku: v?.sku ?? '', barcode: v?.barcode ?? null, expected: Number(r.expected_qty), counted: r.counted_qty === null ? null : Number(r.counted_qty), price: Number(v?.price ?? 0), cost: null });
   }
@@ -818,6 +832,20 @@ export async function listPurchases(f: PurchaseQuery): Promise<{ rows: PurchaseR
     })),
     total: count ?? 0,
   };
+}
+
+/** فاتورة شراء واحدة (لفتحها من رابط ?open= حين لا تكون في الصفحة الحالية من القائمة) */
+export async function getPurchase(id: string): Promise<PurchaseRow | null> {
+  if (IS_DEMO) {
+    const db = ddb();
+    const i = db.invoices.find((x) => x.id === id && (x.kind === 'purchase' || x.kind === 'purchase_return'));
+    return i ? { ...i, supplier_name: db.suppliers.find((s) => s.id === i.supplier_id)?.name ?? '', warehouse_name: db.warehouses.find((w) => w.id === i.warehouse_id)?.name ?? '', lines: db.invoice_items.filter((x) => x.invoice_id === i.id).length } : null;
+  }
+  const { data, error } = await sb().from('invoices').select('*, suppliers(name), warehouses(name), invoice_items(id)').eq('id', id).in('kind', ['purchase', 'purchase_return']).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const { suppliers, warehouses, invoice_items, ...i } = data as unknown as Invoice & { suppliers: { name: string } | null; warehouses: { name: string } | null; invoice_items: { id: string }[] };
+  return { ...i, supplier_name: suppliers?.name ?? '', warehouse_name: warehouses?.name ?? '', lines: invoice_items.length };
 }
 
 export async function getInvoiceItems(invoiceId: string): Promise<InvoiceItem[]> {

@@ -1,6 +1,6 @@
 /** المصروفات: تسجيل بنوع وعملة وحساب، فلترة بالفترة والنوع، توزيع حسب النوع، تصدير */
 import { useMemo, useState } from 'react';
-import { PAYMENT_METHOD, type CurrencyCode, type PaymentMethod } from '@raqeem/shared';
+import { PAYMENT_METHOD, isoDay, type CurrencyCode, type PaymentMethod } from '@raqeem/shared';
 import { Badge, Button, Card, DataTable, Donut, Field, Input, Modal, MoneyInput, PageHeader, Segmented, Select, Stat, type Column } from '../../ui';
 import { useAuth } from '../../lib/auth';
 import { useAction, useLoad } from '../../lib/hooks';
@@ -66,9 +66,10 @@ function ExpenseModal({ onClose, onDone }: { onClose: () => void; onDone: () => 
   const [method, setMethod] = useState<PaymentMethod>('cash');
   const [account, setAccount] = useState<string | null>(null);
   const [note, setNote] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  // اليوم بتوقيت بغداد (toISOString يعطي تاريخ UTC فيظهر «أمس» بين ١٢ و٣ فجراً)
+  const [date, setDate] = useState(isoDay());
   const acc = account ?? defaultAccountFor(accounts, method, currency)?.id ?? null;
-  const save = useAction(() => recordExpense({ category: category === 'أخرى' && custom.trim() ? custom.trim() : category, amount: amount ?? 0, currency, exchange_rate: currency === 'USD' ? rate : undefined, account_id: acc, method, note: note || null, spent_at: date === new Date().toISOString().slice(0, 10) ? undefined : new Date(`${date}T12:00:00`).toISOString() }), { success: 'سُجّل المصروف' });
+  const save = useAction(() => recordExpense({ category: category === 'أخرى' && custom.trim() ? custom.trim() : category, amount: amount ?? 0, currency, exchange_rate: currency === 'USD' ? rate : undefined, account_id: acc, method, note: note || null, spent_at: date === isoDay() ? undefined : new Date(`${date}T12:00:00+03:00`).toISOString() }), { success: 'سُجّل المصروف' });
   return (
     <Modal open onClose={onClose} title="مصروف جديد" width={540}
       footer={<><Button onClick={onClose}>إلغاء</Button><Button variant="primary" loading={save.busy} disabled={!amount} onClick={async () => { if (await save.run()) onDone(); }}>حفظ المصروف</Button></>}>

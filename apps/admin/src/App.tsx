@@ -10,12 +10,12 @@ import { useThemePref } from './lib/theme';
 import { Avatar, Button, ErrorState, Icon, IconButton, Loading, Mark, Menu } from './ui';
 import Login from './pages/core/Login';
 import CommandPalette from './pages/core/CommandPalette';
-import NotFound from './pages/core/NotFound';
+import NotFound, { NoAccess } from './pages/core/NotFound';
 
 export default function App() {
   const auth = useAuth();
   if (!auth.ready) return <Loading />;
-  if (!IS_DEMO && (!auth.session || !auth.isStaff)) return <Login denied={!!auth.session && !auth.isStaff} />;
+  if (!IS_DEMO && (!auth.session || !auth.isStaff || auth.mfaPending)) return <Login denied={!!auth.session && !auth.isStaff} />;
   return (
     <SettingsProvider enabled>
       <CountsProvider enabled canOrders={auth.can('orders.view')}>
@@ -180,6 +180,8 @@ function Shell() {
                   const El = r.element;
                   return <Route key={r.path} path={r.path} element={<El />} />;
                 })}
+                {/* مسار غير مسموح لهذا الدور ← «لا صلاحية» (وإلا يطابقه مسار بمعامل: /products/new ← /products/:id) */}
+                {routes.filter((r) => r.path !== '/' && !allowed.includes(r)).map((r) => <Route key={`x${r.path}`} path={r.path} element={<NoAccess />} />)}
                 {/* صفحة رئيسية غير مسموحة لهذا الدور ← أول صفحة مسموحة */}
                 {!allowed.some((r) => r.path === '/') ? <Route path="/" element={<Navigate to={home} replace />} /> : null}
                 <Route path="*" element={<NotFound />} />

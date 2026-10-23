@@ -31,7 +31,7 @@ interface Draft { contact: Contact; site: Site; play: string }
 type SectionId = 'contact' | 'delivery' | 'payments' | 'faq' | 'stats' | 'footer' | 'hero';
 /** مفتاح الخطأ ← التبويب الذي فيه الحقل */
 const sectionOfError = (k: string): SectionId =>
-  k.startsWith('contact.') ? 'contact' : k.startsWith('faq.') ? 'faq' : k.startsWith('pay.') ? 'payments'
+  k === 'contact.name' ? 'footer' : k.startsWith('contact.') ? 'contact' : k.startsWith('faq.') ? 'faq' : k.startsWith('pay.') ? 'payments'
     : k.startsWith('row.') || k.startsWith('delivery.') ? 'delivery' : k.startsWith('footer.') ? 'footer' : 'hero';
 const TabCtx = createContext<SectionId>('contact');
 

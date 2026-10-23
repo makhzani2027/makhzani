@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { marginRatio, MOVEMENT_KIND, SERIAL_STATUS, type SerialStatus } from '@raqeem/shared';
 import {
   Alert, Badge, Barcode, Button, Card, EmptyState, ErrorState, Field, Icon, IconButton, Input, Menu, MoneyInput, NumberInput, PageHeader, QrCode, Select, Skeleton, Switch,
@@ -32,6 +32,7 @@ export default function ProductForm() {
   const fmt = useFmt();
   const isNew = !id || id === 'new';
   const nav = useNavigate();
+  const location = useLocation();
   const { can } = useAuth();
   const withCosts = can('costs.view');
   const readOnly = !can('products.write');
@@ -43,7 +44,12 @@ export default function ProductForm() {
   const save = useAction(upsertProduct);
 
   useEffect(() => {
-    if (isNew) { const e = emptyDraft(); setD(e); setInitial(JSON.stringify(e)); return; }
+    if (isNew) {
+      // «نسخ كمنتج جديد»: المسودة تصل في حالة التنقل (الصفحة تُركَّب من جديد عند تغيّر المسار)
+      const copy = (location.state as { copy?: ProductDraft } | null)?.copy;
+      const e = emptyDraft();
+      setD(copy ?? e); setInitial(JSON.stringify(e)); return;
+    }
     if (loaded.data) { const x = toDraft(loaded.data); setD(x); setInitial(JSON.stringify(x)); }
   }, [loaded.data, isNew]);
 
@@ -53,6 +59,7 @@ export default function ProductForm() {
   const errors = useMemo(() => validate(d), [d]);
 
   const submit = async () => {
+    if (save.busy) return;
     setTried(true);
     if (hasErrors(errors)) {
       const first = (Object.keys(errors.byTab) as TabKey[])[0];
@@ -91,7 +98,7 @@ export default function ProductForm() {
         description={!isNew && loaded.data?.product.archived_at ? <Badge tone="neutral">مؤرشف — لا يظهر في المتجر ولا نقطة البيع</Badge> : undefined}
         actions={!isNew && !readOnly ? (
           <Menu trigger={(open) => <Button icon="more" onClick={open}>المزيد</Button>} items={[
-            { label: 'نسخ كمنتج جديد', icon: 'copy', onClick: () => { const c: ProductDraft = { ...d, id: undefined, name: `${d.name} (نسخة)`, slug: '', variants: d.variants.map((v) => ({ ...v, id: undefined, k: localKey(), sku: `${v.sku}-C`, barcode: '', units: v.units.map((u) => ({ ...u, id: undefined, barcode: null })), opening: {} })) }; nav('/products/new'); setTimeout(() => setD(c), 50); } },
+            { label: 'نسخ كمنتج جديد', icon: 'copy', onClick: () => { const c: ProductDraft = { ...d, id: undefined, name: `${d.name} (نسخة)`, slug: '', variants: d.variants.map((v) => ({ ...v, id: undefined, k: localKey(), sku: `${v.sku}-C`, barcode: '', units: v.units.map((u) => ({ ...u, id: undefined, barcode: null })), opening: {} })) }; nav('/products/new', { state: { copy: c } }); } },
             {
               label: loaded.data?.product.archived_at ? 'استرجاع من الأرشيف' : 'أرشفة المنتج', icon: 'trash', danger: !loaded.data?.product.archived_at,
               onClick: async () => {

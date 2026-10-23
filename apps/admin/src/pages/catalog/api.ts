@@ -31,6 +31,8 @@ import { IS_DEMO } from '../../lib/env';
 import { demoDelay, demoId } from '../../lib/demo-db';
 import { AppError, rpc, sb } from '../../lib/supabase';
 import { DEFAULT_LABEL_SIZE, ddb, demoApplyMovement, demoNow, demoTransaction } from '../inventory/demo';
+import { fetchAll } from '../inventory/api';
+import { getSetting } from '../sales/data/app-settings';
 
 // ------------------------------------------------------------------ الأنواع
 
@@ -140,10 +142,11 @@ export function priceRange(vs: ProductVariant[]) {
 }
 
 /** حالة مخزون المنتج ككل: نفد إن كانت كل النسخ صفراً، قليل إن كانت إحداها تحت الحد */
-export function productStockKey(vs: ProductVariant[]): 'out' | 'low' | 'ok' {
+/** lowDefault: حد التنبيه الافتراضي من الإعدادات للنسخ بلا حد خاص (كما في low_stock على الخادم) */
+export function productStockKey(vs: ProductVariant[], lowDefault = 0): 'out' | 'low' | 'ok' {
   const active = vs.filter((v) => v.is_active);
   if (!active.length || active.every((v) => v.available_qty <= 0)) return 'out';
-  if (active.some((v) => v.available_qty <= v.min_stock)) return 'low';
+  if (active.some((v) => v.available_qty <= (v.min_stock || lowDefault))) return 'low';
   return 'ok';
 }
 
@@ -162,6 +165,7 @@ export async function listProducts(f: ProductQuery, cats: Category[]): Promise<{
   if (IS_DEMO) {
     await demoDelay();
     const db = ddb();
+    const lowDefault = f.stock ? Number((await getSetting('inventory')).low_stock_default) || 0 : 0;
     const catIds = f.category_id ? new Set(categoryWithChildren(cats, f.category_id)) : null;
     let rows = db.products
       .filter((p) => (f.archived ? !!p.archived_at : !p.archived_at))
@@ -169,7 +173,7 @@ export async function listProducts(f: ProductQuery, cats: Category[]): Promise<{
       .filter((p) => !f.brand_id || p.brand_id === f.brand_id)
       .filter((p) => !f.published || p.is_published === (f.published === 'yes'))
       .map((p) => ({ ...p, variants: db.product_variants.filter((v) => v.product_id === p.id).sort((a, b) => a.sort - b.sort) }))
-      .filter((p) => !f.stock || productStockKey(p.variants) === f.stock);
+      .filter((p) => !f.stock || productStockKey(p.variants, lowDefault) === f.stock);
     let scores: Map<string, number> | null = null;
     if (f.q.trim()) {
       scores = new Map();
@@ -210,13 +214,25 @@ export async function listProducts(f: ProductQuery, cats: Category[]): Promise<{
   if (f.brand_id) qb = qb.eq('brand_id', f.brand_id);
   if (f.published) qb = qb.eq('is_published', f.published === 'yes');
   if (f.stock) {
-    const low = await rpc<{ product_id: string; qty: number }[]>('low_stock', { lim: 5000 });
-    const out = new Set(low.filter((r) => r.qty <= 0).map((r) => r.product_id));
-    const lowIds = new Set(low.map((r) => r.product_id));
-    const pick = f.stock === 'out' ? [...out] : f.stock === 'low' ? [...lowIds].filter((id) => !out.has(id)) : [...lowIds];
-    if (f.stock === 'ok') { if (pick.length) qb = qb.not('id', 'in', `(${pick.join(',')})`); }
-    else if (!pick.length) return { rows: [], total: 0 };
-    else qb = qb.in('id', pick);
+    // نفس قاعدة وضع العرض (productStockKey على النسخ الفعالة): نصنّف كل منتج من أرصدة نسخه
+    const [vs, inv] = await Promise.all([
+      fetchAll<Pick<ProductVariant, 'product_id' | 'available_qty' | 'min_stock' | 'is_active'>>((a, b) => sb().from('product_variants').select('product_id,available_qty,min_stock,is_active').order('id').range(a, b)),
+      getSetting('inventory'),
+    ]);
+    const lowDefault = Number(inv.low_stock_default) || 0;
+    const byProduct = new Map<string, ProductVariant[]>();
+    for (const v of vs) {
+      const list = byProduct.get(v.product_id) ?? [];
+      list.push({ ...v, available_qty: Number(v.available_qty), min_stock: Number(v.min_stock) } as ProductVariant);
+      byProduct.set(v.product_id, list);
+    }
+    const match: string[] = [];
+    const rest: string[] = [];
+    for (const [pid, list] of byProduct) (productStockKey(list, lowDefault) === f.stock ? match : rest).push(pid);
+    if (!match.length) return { rows: [], total: 0 };
+    // القائمة الأقصر في الرابط
+    if (match.length <= rest.length) qb = qb.in('id', match);
+    else if (rest.length) qb = qb.not('id', 'in', `(${rest.join(',')})`);
   }
   const order: Record<ProductSort, [string, boolean]> = { newest: ['created_at', false], oldest: ['created_at', true], name: ['name', true], sold: ['sold_count', false], updated: ['updated_at', false] };
   const [col, asc] = order[f.sort];
@@ -465,14 +481,20 @@ export async function findVariantByCode(code: string): Promise<VariantHit | null
   }
   // باركود وحدة تعبئة (كرتونة = عدة قطع)
   if (/^[\w-]{4,}$/.test(c)) {
-    const { data: u } = await sb().from('variant_units').select('unit_name,factor,product_variants!inner(id,product_id,title,sku,barcode,price,min_stock,available_qty,products!inner(name,cover_key,track_serials,track_expiry))').eq('barcode', c).limit(1);
+    const { data: u } = await sb().from('variant_units').select('unit_name,factor,product_variants!inner(id,product_id,title,sku,barcode,price,min_stock,available_qty,products!inner(name,cover_key,track_serials,track_expiry,archived_at))').eq('barcode', c).is('product_variants.products.archived_at', null).limit(1);
     const row = (u?.[0] ?? null) as unknown as ({ unit_name: string; factor: number; product_variants: ProductVariant & { products: Pick<Product, 'name' | 'cover_key' | 'track_serials' | 'track_expiry'> } }) | null;
     if (row) return hitOf({ ...row.product_variants.products, id: row.product_variants.product_id }, row.product_variants, row);
   }
-  const { data, error } = await sb().from('product_variants')
-    .select('id,product_id,title,sku,barcode,price,min_stock,available_qty,products!inner(name,cover_key,track_serials,track_expiry,archived_at)')
-    .or(`barcode.eq.${c.replace(/[^\w-]/g, '')},sku.ilike.${c.replace(/[%_,()]/g, '')}`).limit(1);
-  if (error) throw error;
+  // المؤرشف لا يُطابَق (كوضع العرض). الباركود مطابقة تامة، ثم SKU بلا حالة أحرف مع تهريب أحرف LIKE (SKU قد يحوي _ أو %)
+  const sel = 'id,product_id,title,sku,barcode,price,min_stock,available_qty,products!inner(name,cover_key,track_serials,track_expiry,archived_at)';
+  const byBarcode = await sb().from('product_variants').select(sel).eq('barcode', c).is('products.archived_at', null).limit(1);
+  if (byBarcode.error) throw byBarcode.error;
+  let data = byBarcode.data;
+  if (!data?.length) {
+    const bySku = await sb().from('product_variants').select(sel).ilike('sku', c.replace(/[\\%_]/g, (x) => `\\${x}`)).is('products.archived_at', null).limit(1);
+    if (bySku.error) throw bySku.error;
+    data = bySku.data;
+  }
   const r = (data?.[0] ?? null) as unknown as (ProductVariant & { products: Pick<Product, 'name' | 'cover_key' | 'track_serials' | 'track_expiry'> }) | null;
   return r ? hitOf({ ...r.products, id: r.product_id }, r) : null;
 }
@@ -521,9 +543,7 @@ export async function catalogCounts(): Promise<{ byCategory: Record<string, numb
     return { byCategory, byBrand };
   };
   if (IS_DEMO) return tally(ddb().products.filter((p) => !p.archived_at));
-  const { data, error } = await sb().from('products').select('category_id,brand_id').is('archived_at', null).limit(20000);
-  if (error) throw error;
-  return tally((data ?? []) as { category_id: string | null; brand_id: string | null }[]);
+  return tally(await fetchAll<{ category_id: string | null; brand_id: string | null }>((a, b) => sb().from('products').select('category_id,brand_id').is('archived_at', null).order('id').range(a, b)));
 }
 
 export type CategoryDraft = Pick<Category, 'name' | 'parent_id' | 'description' | 'image_key' | 'icon' | 'is_visible'> & { id?: string; slug?: string; sort?: number };
@@ -566,11 +586,14 @@ export async function deleteCategory(id: string): Promise<void> {
     await demoDelay(120);
     const db = ddb();
     if (db.categories.some((c) => c.parent_id === id)) throw new AppError('احذف الأقسام الفرعية أولاً أو انقلها لقسم آخر.');
-    if (db.products.some((p) => p.category_id === id)) throw new AppError('لا يمكن حذف قسم فيه منتجات. انقل منتجاته أولاً أو أخفِ القسم.');
+    // مثل قاعدة البيانات: products.category_id on delete set null
+    for (const p of db.products) if (p.category_id === id) p.category_id = null;
     db.categories = db.categories.filter((c) => c.id !== id);
     return;
   }
   const { error } = await sb().from('categories').delete().eq('id', id);
+  // categories.parent_id on delete restrict: القسم الذي له فروع لا يُحذف
+  if (error?.code === '23503') throw new AppError('احذف الأقسام الفرعية أولاً أو انقلها لقسم آخر.');
   if (error) throw error;
 }
 
@@ -651,9 +674,8 @@ export async function listSerials(variantIds: string[]): Promise<SerialRow[]> {
       return { ...s, variant_title: v?.title ?? '', sku: v?.sku ?? '', warehouse_name: db.warehouses.find((w) => w.id === s.warehouse_id)?.name ?? null };
     }).sort((a, b) => b.created_at.localeCompare(a.created_at));
   }
-  const { data, error } = await sb().from('serials').select('*, product_variants(title,sku), warehouses(name)').in('variant_id', variantIds).order('created_at', { ascending: false }).limit(2000);
-  if (error) throw error;
-  return ((data ?? []) as (Serial & { product_variants: { title: string; sku: string } | null; warehouses: { name: string } | null })[]).map(({ product_variants, warehouses, ...s }) => ({
+  const data = await fetchAll<Serial & { product_variants: { title: string; sku: string } | null; warehouses: { name: string } | null }>((a, b) => sb().from('serials').select('*, product_variants(title,sku), warehouses(name)').in('variant_id', variantIds).order('created_at', { ascending: false }).order('id').range(a, b));
+  return data.map(({ product_variants, warehouses, ...s }) => ({
     ...s, variant_title: product_variants?.title ?? '', sku: product_variants?.sku ?? '', warehouse_name: warehouses?.name ?? null,
   }));
 }

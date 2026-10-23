@@ -31,8 +31,14 @@ export default function Movements() {
   ];
   const exportCsv = async () => {
     try {
-      const all = await listMovements({ ...query, page: 1, pageSize: 10000 });
-      downloadText(`movements-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(all.rows, [
+      // على دفعات من ١٠٠٠ (الخادم يقصّ كل طلب عند max_rows) حتى ١٠٠٠٠ سطر
+      const rows: MovementRow[] = [];
+      for (let p = 1; p <= 10; p++) {
+        const r = await listMovements({ ...query, page: p, pageSize: 1000 });
+        rows.push(...r.rows);
+        if (r.rows.length < 1000) break;
+      }
+      downloadText(`movements-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows, [
         { key: 't', label: 'at', value: (m) => m.created_at }, { key: 'sku', label: 'sku', value: (m) => m.sku }, { key: 'n', label: 'name', value: (m) => m.name },
         { key: 'k', label: 'kind', value: (m) => MOVEMENT_KIND[m.kind].label }, { key: 'w', label: 'warehouse', value: (m) => m.warehouse_name }, { key: 'q', label: 'qty', value: (m) => m.qty },
         { key: 'b', label: 'balance_after', value: (m) => m.balance_after }, { key: 'note', label: 'note', value: (m) => m.note }, { key: 's', label: 'staff', value: (m) => m.staff_name },

@@ -27,6 +27,32 @@ const nowIso = () => new Date().toISOString();
 const inRange = (t: string, r: DateRange | null) => !r || (t >= r.from && t < r.to);
 const DAY = 86_400_000;
 
+/**
+ * الخادم يقطع أي طلب عند ١٠٠٠ صف (max_rows في supabase/config.toml)، و.limit() الأكبر لا يتجاوزه:
+ * للتجميعات والأرصدة والكشوفات نجلب صفحة بعد صفحة حتى النهاية. الاستعلام يجب أن يكون مرتباً ترتيباً ثابتاً.
+ */
+const PAGE = 1000;
+type Page = PromiseLike<{ data: unknown[] | null; error: unknown }>;
+async function fetchAll<T>(page: (from: number, to: number) => Page): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await page(from, from + PAGE - 1);
+    if (error) throw error;
+    out.push(...((data ?? []) as T[]));
+    if (!data || data.length < PAGE) return out;
+  }
+}
+/** .in('id', …) بمئات المعرّفات يتجاوز طول الرابط المسموح: نقسمها دفعات */
+async function inChunks<T>(ids: string[], page: (chunk: string[]) => Page): Promise<T[]> {
+  const out: T[] = [];
+  for (let i = 0; i < ids.length; i += 150) {
+    const { data, error } = await page(ids.slice(i, i + 150));
+    if (error) throw error;
+    out.push(...((data ?? []) as T[]));
+  }
+  return out;
+}
+
 // ================================================================== الزبائن
 
 export interface CustomerRow extends Customer { balance: number; balance_usd: number; sales_total: number; last_activity_at: string | null }
@@ -37,12 +63,11 @@ export async function listCustomers(): Promise<CustomerRow[]> {
     return demoDb.customers.filter((c) => !c.is_cash_customer).map((c) => withBal(c, demoCustomerBalance(c.id)));
   }
   const [cs, bs] = await Promise.all([
-    sb().from('customers').select('*').eq('is_cash_customer', false).order('updated_at', { ascending: false }).limit(5000),
-    sb().from('customer_balances').select('*').limit(5000),
+    fetchAll<Customer>((a, b) => sb().from('customers').select('*').eq('is_cash_customer', false).order('updated_at', { ascending: false }).order('id').range(a, b)),
+    fetchAll<CustomerBalance>((a, b) => sb().from('customer_balances').select('*').order('customer_id').range(a, b)).catch(() => [] as CustomerBalance[]),
   ]);
-  if (cs.error) throw cs.error;
-  const bal = new Map(((bs.data ?? []) as CustomerBalance[]).map((b) => [b.customer_id, b]));
-  return (cs.data as Customer[]).map((c) => withBal(c, bal.get(c.id)));
+  const bal = new Map(bs.map((b) => [b.customer_id, b]));
+  return cs.map((c) => withBal(c, bal.get(c.id)));
 }
 const withBal = (c: Customer, b?: CustomerBalance): CustomerRow => ({
   ...c, balance: Number(b?.balance ?? 0), balance_usd: Number(b?.balance_usd ?? 0), sales_total: Number(b?.sales_total ?? 0), last_activity_at: b?.last_activity_at ?? null,
@@ -68,27 +93,27 @@ export async function listDebts(): Promise<DebtRow[]> {
     open = ledger.invoices.filter((i) => i.kind === 'sale' && i.status === 'posted' && i.due > 0.001);
   } else {
     const [bs, inv] = await Promise.all([
-      sb().from('customer_balances').select('customer_id,balance,balance_usd').or('balance.gt.0,balance_usd.gt.0').limit(5000),
-      sb().from('invoices').select('customer_id,due,currency,exchange_rate,created_at').eq('kind', 'sale').eq('status', 'posted').gt('due', 0).limit(20000),
+      fetchAll<CustomerBalance>((a, b) => sb().from('customer_balances').select('customer_id,balance,balance_usd').or('balance.gt.0,balance_usd.gt.0').order('customer_id').range(a, b)),
+      fetchAll<typeof open[number]>((a, b) => sb().from('invoices').select('customer_id,due,currency,exchange_rate,created_at').eq('kind', 'sale').eq('status', 'posted').gt('due', 0).order('id').range(a, b)),
     ]);
-    if (bs.error) throw bs.error;
-    if (inv.error) throw inv.error;
-    bal = new Map(((bs.data ?? []) as CustomerBalance[]).map((b) => [b.customer_id, { balance: Number(b.balance), balance_usd: Number(b.balance_usd) }]));
-    open = (inv.data ?? []) as typeof open;
-    const ids = [...bal.keys()];
-    const cs = ids.length ? await sb().from('customers').select('*').in('id', ids) : { data: [], error: null };
-    if (cs.error) throw cs.error;
-    customers = cs.data as Customer[];
+    bal = new Map(bs.map((b) => [b.customer_id, { balance: Number(b.balance), balance_usd: Number(b.balance_usd) }]));
+    open = inv;
+    customers = await inChunks<Customer>([...bal.keys()], (ids) => sb().from('customers').select('*').in('id', ids));
   }
   const now = Date.now();
   const rows: DebtRow[] = [];
   for (const c of customers) {
     const b = bal.get(c.id);
     if (!b || (b.balance <= 0.001 && b.balance_usd <= 0.001)) continue;
-    const mine = open.filter((i) => i.customer_id === c.id);
+    // سند القبض بلا فاتورة (من «الديون» أو ملف الزبون) والمرتجعات تنقص الرصيد لا «المتبقي» على الفواتير:
+    // نوزّع الرصيد الفعلي بكل عملة على أحدث الفواتير المفتوحة (الأقدم يُعدّ مسدداً أولاً) حتى لا تتجاوز الأعمار الدين نفسه
+    const left: Record<CurrencyCode, number> = { IQD: Math.max(0, b.balance), USD: Math.max(0, b.balance_usd) };
+    const mine = open.filter((i) => i.customer_id === c.id).sort((x, y) => y.created_at.localeCompare(x.created_at))
+      .map((i) => { const due = Math.min(Number(i.due), left[i.currency]); left[i.currency] -= due; return { ...i, due }; })
+      .filter((i) => i.due > 0.001);
     const aging = { d30: 0, d60: 0, d90: 0, older: 0 };
     for (const i of mine) {
-      const iqd = i.currency === 'USD' ? i.due * i.exchange_rate : i.due;
+      const iqd = i.currency === 'USD' ? i.due * Number(i.exchange_rate) : i.due;
       const age = (now - Date.parse(i.created_at)) / DAY;
       if (age <= 30) aging.d30 += iqd; else if (age <= 60) aging.d60 += iqd; else if (age <= 90) aging.d90 += iqd; else aging.older += iqd;
     }
@@ -116,20 +141,27 @@ export async function listPayments(f: PaymentFilter): Promise<{ rows: PaymentRow
     const outIqd = filtered.filter((p) => p.direction === 'out').reduce((s, p) => s + p.amount_iqd, 0);
     return { rows: filtered.slice((f.page - 1) * f.pageSize, f.page * f.pageSize), total: filtered.length, inIqd, outIqd };
   }
-  let query = sb().from('payments').select('*, customers(name), suppliers(name), invoices(number)', { count: 'exact' }).is('voided_at', null).order('created_at', { ascending: false });
-  if (f.direction) query = query.eq('direction', f.direction);
-  if (f.range) query = query.gte('created_at', f.range.from).lt('created_at', f.range.to);
-  if (f.accountId) query = query.eq('account_id', f.accountId);
-  if (f.customerId) query = query.eq('customer_id', f.customerId);
-  if (f.supplierId) query = query.eq('supplier_id', f.supplierId);
-  if (f.q.trim()) query = query.or(`number.ilike.%${f.q.trim().replace(/[%_,()]/g, '')}%,note.ilike.%${f.q.trim().replace(/[%_,()]/g, '')}%`);
-  const { data, error, count } = await query.range((f.page - 1) * f.pageSize, f.page * f.pageSize - 1);
+  // نفس المرشحات للصفحة المعروضة ولمجموعَي المقبوض والمصروف (المجموع للفترة كلها لا للصفحة الحالية فقط)
+  const filtered = (cols: string, count?: 'exact') => {
+    let query = sb().from('payments').select(cols, count ? { count } : undefined).is('voided_at', null);
+    if (f.direction) query = query.eq('direction', f.direction);
+    if (f.range) query = query.gte('created_at', f.range.from).lt('created_at', f.range.to);
+    if (f.accountId) query = query.eq('account_id', f.accountId);
+    if (f.customerId) query = query.eq('customer_id', f.customerId);
+    if (f.supplierId) query = query.eq('supplier_id', f.supplierId);
+    if (f.q.trim()) query = query.or(`number.ilike.%${f.q.trim().replace(/[%_,()]/g, '')}%,note.ilike.%${f.q.trim().replace(/[%_,()]/g, '')}%`);
+    return query;
+  };
+  const [{ data, error, count }, sums] = await Promise.all([
+    filtered('*, customers(name), suppliers(name), invoices(number)', 'exact').order('created_at', { ascending: false }).range((f.page - 1) * f.pageSize, f.page * f.pageSize - 1),
+    fetchAll<Pick<Payment, 'direction' | 'amount_iqd'>>((a, b) => filtered('direction,amount_iqd').order('id').range(a, b)),
+  ]);
   if (error) throw error;
   const names = await staffNames();
   type R = Payment & { customers: { name: string } | null; suppliers: { name: string } | null; invoices: { number: string } | null };
-  const rows = ((data ?? []) as R[]).map(({ customers, suppliers, invoices, ...p }) => ({ ...p, party_name: customers?.name ?? suppliers?.name ?? null, invoice_number: invoices?.number ?? null, created_by_name: p.created_by ? names[p.created_by] ?? null : null }));
-  const inIqd = rows.filter((p) => p.direction === 'in').reduce((s, p) => s + Number(p.amount_iqd), 0);
-  const outIqd = rows.filter((p) => p.direction === 'out').reduce((s, p) => s + Number(p.amount_iqd), 0);
+  const rows = ((data ?? []) as unknown as R[]).map(({ customers, suppliers, invoices, ...p }) => ({ ...p, party_name: customers?.name ?? suppliers?.name ?? null, invoice_number: invoices?.number ?? null, created_by_name: p.created_by ? names[p.created_by] ?? null : null }));
+  const inIqd = sums.filter((p) => p.direction === 'in').reduce((s, p) => s + Number(p.amount_iqd), 0);
+  const outIqd = sums.filter((p) => p.direction === 'out').reduce((s, p) => s + Number(p.amount_iqd), 0);
   return { rows, total: count ?? rows.length, inIqd, outIqd };
 }
 
@@ -184,6 +216,13 @@ export async function saveAccount(input: AccountInput, id?: string): Promise<Mon
     demoChanged();
     return a;
   }
+  // الافتراضي واحد لكل عملة (money_accounts_default_key): نلغي الافتراضي السابق بالعملة نفسها أولاً وإلا يرفض الخادم الحفظ (قيمة مكررة)
+  if (input.is_default) {
+    let clear = sb().from('money_accounts').update({ is_default: false }).eq('is_default', true).eq('currency', input.currency);
+    if (id) clear = clear.neq('id', id);
+    const { error: e1 } = await clear;
+    if (e1) throw e1;
+  }
   const q = id ? sb().from('money_accounts').update(input).eq('id', id) : sb().from('money_accounts').insert(input);
   const { data, error } = await q.select().single();
   if (error) throw error;
@@ -236,18 +275,18 @@ export async function accountStatement(accountId: string, range: DateRange | nul
     exps = ledger.expenses.filter((e) => e.account_id === accountId);
     trs = ledger.account_transfers.filter((t) => t.from_account_id === accountId || t.to_account_id === accountId);
   } else {
+    type R = Payment & { customers: { name: string } | null; suppliers: { name: string } | null; invoices: { number: string } | null };
     const [a, p, e, t, all] = await Promise.all([
       sb().from('money_accounts').select('*').eq('id', accountId).single(),
-      sb().from('payments').select('*, customers(name), suppliers(name), invoices(number)').eq('account_id', accountId).is('voided_at', null).limit(20000),
-      sb().from('expenses').select('*').eq('account_id', accountId).limit(20000),
-      sb().from('account_transfers').select('*').or(`from_account_id.eq.${accountId},to_account_id.eq.${accountId}`).limit(20000),
+      fetchAll<R>((x, y) => sb().from('payments').select('*, customers(name), suppliers(name), invoices(number)').eq('account_id', accountId).is('voided_at', null).order('id').range(x, y)),
+      fetchAll<Expense>((x, y) => sb().from('expenses').select('*').eq('account_id', accountId).order('id').range(x, y)),
+      fetchAll<AccountTransfer>((x, y) => sb().from('account_transfers').select('*').or(`from_account_id.eq.${accountId},to_account_id.eq.${accountId}`).order('id').range(x, y)),
       sb().from('money_accounts').select('*'),
     ]);
     if (a.error) throw a.error;
     account = a.data as MoneyAccount;
-    type R = Payment & { customers: { name: string } | null; suppliers: { name: string } | null; invoices: { number: string } | null };
-    pays = ((p.data ?? []) as R[]).map((x) => ({ ...x, party: x.customers?.name ?? x.suppliers?.name ?? null, inv: x.invoices?.number ?? null }));
-    exps = (e.data ?? []) as Expense[]; trs = (t.data ?? []) as AccountTransfer[]; accounts = (all.data ?? []) as MoneyAccount[];
+    pays = p.map((x) => ({ ...x, party: x.customers?.name ?? x.suppliers?.name ?? null, inv: x.invoices?.number ?? null }));
+    exps = e; trs = t; accounts = (all.data ?? []) as MoneyAccount[];
   }
   if (!account) throw new AppError('الحساب غير موجود.');
   const cur = account.currency;
@@ -265,7 +304,8 @@ export async function accountStatement(accountId: string, range: DateRange | nul
     const out = t.from_account_id === accountId;
     const other = accounts.find((a) => a.id === (out ? t.to_account_id : t.from_account_id));
     const fromCur = out ? cur : other?.currency ?? cur;
-    const amt = out ? Number(t.amount) : convert(Number(t.amount), fromCur, cur, Number(t.exchange_rate));
+    // التحويل الوارد بعملة أخرى يُقرَّب لعملة الحساب كما في money_account_balances (وإلا يختلف الكشف عن الرصيد بالكسور)
+    const amt = out ? Number(t.amount) : roundMoney(convert(Number(t.amount), fromCur, cur, Number(t.exchange_rate)), cur);
     evs.push({ at: t.created_at, doc_type: out ? 'transfer_out' : 'transfer_in', doc_id: t.id, number: t.number, currency: cur, description: `${out ? 'تحويل إلى' : 'تحويل من'} ${other?.name ?? '—'}${t.note ? ` — ${t.note}` : ''}`, debit: out ? 0 : amt, credit: out ? amt : 0 });
   }
   evs.sort((a, b) => a.at.localeCompare(b.at));
@@ -342,10 +382,30 @@ export async function listCashSessions(range: DateRange | null): Promise<Session
   const { data, error } = await q;
   if (error) throw error;
   const names = await staffNames();
-  return (data as CashSession[]).map((s) => ({
-    ...s, opened_by_name: names[s.opened_by] ?? null, closed_by_name: s.closed_by ? names[s.closed_by] ?? null : null, expected: s.expected_cash,
-    difference: s.counted_cash !== null && s.expected_cash !== null ? roundMoney(Number(s.counted_cash) - Number(s.expected_cash)) : null, cash_in: null, cash_out: null, expenses: null,
-  }));
+  // الجلسة المفتوحة لا expected_cash لها بعد: نحسبه كما يحسبه close_cash_session (private.session_expected):
+  // الافتتاحي + نقد داخل − نقد خارج − مصروفات نقدية، بالدينار فقط
+  const openIds = (data as CashSession[]).filter((s) => s.status === 'open').map((s) => s.id);
+  const live = openIds.length ? await Promise.all([
+    fetchAll<Pick<Payment, 'cash_session_id' | 'direction' | 'amount'>>((a, b) => sb().from('payments').select('cash_session_id,direction,amount').in('cash_session_id', openIds).eq('method', 'cash').eq('currency', 'IQD').is('voided_at', null).order('id').range(a, b)),
+    fetchAll<Pick<Expense, 'cash_session_id' | 'amount'>>((a, b) => sb().from('expenses').select('cash_session_id,amount').in('cash_session_id', openIds).eq('method', 'cash').eq('currency', 'IQD').order('id').range(a, b)),
+  ]).catch(() => null) : null;
+  const totals = (sid: string) => {
+    const pays = (live?.[0] ?? []).filter((p) => p.cash_session_id === sid);
+    const cash_in = pays.filter((p) => p.direction === 'in').reduce((a, p) => a + Number(p.amount), 0);
+    const cash_out = pays.filter((p) => p.direction === 'out').reduce((a, p) => a + Number(p.amount), 0);
+    const expenses = (live?.[1] ?? []).filter((e) => e.cash_session_id === sid).reduce((a, e) => a + Number(e.amount), 0);
+    return { cash_in, cash_out, expenses };
+  };
+  return (data as CashSession[]).map((s) => {
+    if (s.status === 'open' && live) {
+      const t = totals(s.id);
+      return { ...s, opened_by_name: names[s.opened_by] ?? null, closed_by_name: null, expected: roundMoney(Number(s.opening_float) + t.cash_in - t.cash_out - t.expenses), difference: null, ...t };
+    }
+    return {
+      ...s, opened_by_name: names[s.opened_by] ?? null, closed_by_name: s.closed_by ? names[s.closed_by] ?? null : null, expected: s.expected_cash,
+      difference: s.counted_cash !== null && s.expected_cash !== null ? roundMoney(Number(s.counted_cash) - Number(s.expected_cash)) : null, cash_in: null, cash_out: null, expenses: null,
+    };
+  });
 }
 
 // ================================================================== المصروفات
@@ -361,14 +421,15 @@ export async function listExpenses(range: DateRange | null, category = ''): Prom
       .map((e) => ({ ...e, account_name: demoDb.money_accounts.find((a) => a.id === e.account_id)?.name ?? null, created_by_name: staffName(e.created_by) }))
       .sort((a, b) => b.spent_at.localeCompare(a.spent_at));
   }
-  let q = sb().from('expenses').select('*, money_accounts(name)').order('spent_at', { ascending: false }).limit(2000);
-  if (range) q = q.gte('spent_at', range.from).lt('spent_at', range.to);
-  if (category) q = q.eq('category', category);
-  const { data, error } = await q;
-  if (error) throw error;
-  const names = await staffNames();
   type R = Expense & { money_accounts: { name: string } | null };
-  return ((data ?? []) as R[]).map(({ money_accounts, ...e }) => ({ ...e, amount: Number(e.amount), account_name: money_accounts?.name ?? null, created_by_name: e.created_by ? names[e.created_by] ?? null : null }));
+  const data = await fetchAll<R>((a, b) => {
+    let q = sb().from('expenses').select('*, money_accounts(name)').order('spent_at', { ascending: false }).order('id');
+    if (range) q = q.gte('spent_at', range.from).lt('spent_at', range.to);
+    if (category) q = q.eq('category', category);
+    return q.range(a, b);
+  });
+  const names = await staffNames();
+  return data.map(({ money_accounts, ...e }) => ({ ...e, amount: Number(e.amount), account_name: money_accounts?.name ?? null, created_by_name: e.created_by ? names[e.created_by] ?? null : null }));
 }
 
 export interface ExpensePayload { category: string; amount: number; currency: CurrencyCode; exchange_rate?: number; account_id: string | null; method: PaymentMethod; note: string | null; spent_at?: string }
@@ -398,10 +459,8 @@ export async function invoicesIn(range: DateRange): Promise<InvoiceLite[]> {
     await demoDelay();
     return ledger.invoices.filter((i) => i.status === 'posted' && (i.kind === 'sale' || i.kind === 'sale_return') && inRange(i.created_at, range));
   }
-  const { data, error } = await sb().from('invoices').select('id,kind,total,cost_total,currency,exchange_rate,customer_id,created_by,created_at,channel')
-    .eq('status', 'posted').in('kind', ['sale', 'sale_return']).gte('created_at', range.from).lt('created_at', range.to).limit(50000);
-  if (error) throw error;
-  return (data ?? []) as InvoiceLite[];
+  return fetchAll<InvoiceLite>((a, b) => sb().from('invoices').select('id,kind,total,cost_total,currency,exchange_rate,customer_id,created_by,created_at,channel')
+    .eq('status', 'posted').in('kind', ['sale', 'sale_return']).gte('created_at', range.from).lt('created_at', range.to).order('id').range(a, b));
 }
 
 export const iqdOf = (i: Pick<InvoiceLite, 'total' | 'currency' | 'exchange_rate'>) => Number(i.total) * (i.currency === 'USD' ? Number(i.exchange_rate) : 1);
@@ -409,8 +468,8 @@ export const iqdOf = (i: Pick<InvoiceLite, 'total' | 'currency' | 'exchange_rate
 export async function customerNames(ids: string[]): Promise<Record<string, string>> {
   if (!ids.length) return {};
   if (IS_DEMO) return Object.fromEntries(demoDb.customers.filter((c) => ids.includes(c.id)).map((c) => [c.id, c.name]));
-  const { data } = await sb().from('customers').select('id,name').in('id', ids.slice(0, 1000));
-  return Object.fromEntries((data ?? []).map((c) => [c.id as string, c.name as string]));
+  const data = await inChunks<{ id: string; name: string }>(ids.filter((id) => id !== '—'), (chunk) => sb().from('customers').select('id,name').in('id', chunk)).catch(() => []);
+  return Object.fromEntries(data.map((c) => [c.id, c.name]));
 }
 
 export async function inventoryValuation(): Promise<(InventoryValuationRow & { warehouse_name: string })[]> {

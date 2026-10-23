@@ -18,6 +18,8 @@ export interface VariantDraft {
   compare_at_price: number | null;
   wholesale_price: number | null;
   cost: number | null;
+  /** التكلفة كما حُمّلت من الخادم: لا نرسل cost إلا إن تغيّرت (وإلا يُستبدل متوسط التكلفة وآخر تكلفة شراء بقيمة قديمة) */
+  cost0?: number | null;
   min_stock: number | null;
   is_active: boolean;
   units: UnitDraft[];
@@ -79,7 +81,7 @@ export function toDraft(f: ProductFull): ProductDraft {
     images: f.images.map((i) => ({ key: i.key, alt: i.alt })),
     variants: (f.variants.length ? f.variants : []).map((v) => ({
       k: v.id, id: v.id, title: v.title, options: { ...v.options }, sku: v.sku, barcode: v.barcode ?? '', price: v.price, compare_at_price: v.compare_at_price,
-      wholesale_price: v.wholesale_price, cost: f.costs ? f.costs[v.id] ?? 0 : null, min_stock: v.min_stock, is_active: v.is_active,
+      wholesale_price: v.wholesale_price, cost: f.costs ? f.costs[v.id] ?? 0 : null, cost0: f.costs ? f.costs[v.id] ?? 0 : null, min_stock: v.min_stock, is_active: v.is_active,
       units: f.units.filter((u) => u.variant_id === v.id).map((u) => ({ id: u.id, unit_name: u.unit_name, factor: u.factor, barcode: u.barcode, price: u.price })),
       opening: {},
     })),
@@ -174,7 +176,7 @@ export function toPayload(d: ProductDraft, withCosts: boolean): UpsertProductPay
       }));
       return {
         ...(v.id ? { id: v.id } : {}), title: v.title, options: v.options, sku: v.sku.trim(), barcode: v.barcode.trim() || null, price: v.price ?? 0,
-        compare_at_price: v.compare_at_price || null, wholesale_price: v.wholesale_price || null, ...(withCosts && v.cost !== null ? { cost: v.cost } : {}),
+        compare_at_price: v.compare_at_price || null, wholesale_price: v.wholesale_price || null, ...(withCosts && v.cost !== null && (!v.id || v.cost !== v.cost0) ? { cost: v.cost } : {}),
         min_stock: v.min_stock ?? 0, is_active: v.is_active, sort: i,
         units: v.units.map((u) => ({ ...(u.id ? { id: u.id } : {}), unit_name: u.unit_name.trim(), factor: u.factor, barcode: u.barcode?.trim() || null, price: u.price })),
         ...(!v.id && opening.length ? { opening } : {}),

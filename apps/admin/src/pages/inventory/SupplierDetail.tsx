@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { PAYMENT_METHOD, formatPhone, type CurrencyCode } from '@raqeem/shared';
+import { PAYMENT_METHOD, formatPhone, isoDay, type CurrencyCode } from '@raqeem/shared';
 import { Alert, Badge, Button, DataTable, ErrorState, Field, Input, Modal, NumberInput, PageHeader, Segmented, Select, Skeleton, Stat, Tabs, Textarea, type Column } from '../../ui';
 import { useAuth } from '../../lib/auth';
 import { useAction, useLoad } from '../../lib/hooks';
@@ -14,7 +14,8 @@ import { useMoneyIn } from '../catalog/components/hooks';
 import '../catalog/catalog.css';
 
 const KIND_LABEL: Record<StatementRow['kind'], string> = { purchase: 'فاتورة شراء', purchase_return: 'إرجاع شراء', payment: 'سند صرف', refund: 'استرداد', other: 'أخرى' };
-const monthAgo = () => new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10);
+// التواريخ بتوقيت بغداد (toISOString يعطي يوم UTC فيُسقط حركات اليوم بين منتصف الليل و٣ فجراً)
+const monthAgo = () => isoDay(Date.now() - 90 * 86_400_000);
 
 export default function SupplierDetail() {
   const { id = '' } = useParams();
@@ -64,7 +65,7 @@ function Statement({ s }: { s: SupplierRow }) {
   const m = useMoneyIn();
   const [cur, setCur] = useState<CurrencyCode>('IQD');
   const [from, setFrom] = useState(monthAgo());
-  const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
+  const [to, setTo] = useState(isoDay());
   const st = useLoad(() => supplierStatement(s.id, from, to, cur), [s.id, from, to, cur]);
   const print = () => {
     if (!st.data) return;
