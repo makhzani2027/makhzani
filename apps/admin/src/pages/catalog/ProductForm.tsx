@@ -477,8 +477,8 @@ function SpecsTab({ d, set, readOnly }: TabProps) {
 // ------------------------------------------------------------------ الأرقام التسلسلية
 
 function SerialsTab({ d, readOnly: ro }: TabProps) {
-  // لا توجد دالة خادم لإضافة/تعديل السريالات يدوياً بعد (الجدول للقراءة فقط عبر RLS): تُسجَّل مع فاتورة الشراء
-  const readOnly = ro || !IS_DEMO;
+  // الإضافة اليدوية للقطع الموجودة، والتعليم كمعيب (يُخرجها من الرصيد كتالف) عبر دوال الخادم
+  const readOnly = ro;
   const fmt = useFmt();
   const meta = useCatalogMeta();
   const ids = d.variants.filter((v) => v.id).map((v) => v.id!);
@@ -515,9 +515,10 @@ function SerialsTab({ d, readOnly: ro }: TabProps) {
                 <tr key={s.id}>
                   <td className="code">{s.serial}</td><td>{s.variant_title || s.sku}</td><td>{s.warehouse_name ?? '—'}</td>
                   <td><Badge tone={SERIAL_STATUS[s.status].tone}>{SERIAL_STATUS[s.status].label}</Badge></td>
-                  <td>{!readOnly && (s.status === 'in_stock' || s.status === 'defective') ? (
+                  <td>{!readOnly && (s.status === 'in_stock' || (IS_DEMO && s.status === 'defective')) ? (
                     <Button size="sm" variant="ghost" onClick={async () => {
                       const next: SerialStatus = s.status === 'in_stock' ? 'defective' : 'in_stock';
+                      if (next === 'defective' && !(await askConfirm({ title: `تعليم ${s.serial} كمعيب؟`, body: 'تخرج القطعة من رصيد المخزن كتالف.', confirm: 'تعليم كمعيب', danger: true }))) return;
                       try { await setSerialStatus(s.id, next); void list.reload(); } catch (e) { toast.error(errorMessage(e)); }
                     }}>{s.status === 'in_stock' ? 'تعليم كمعيب' : 'إرجاع للمخزن'}</Button>
                   ) : null}</td>

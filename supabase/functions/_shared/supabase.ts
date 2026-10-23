@@ -23,7 +23,8 @@ export interface Caller {
   client: SupabaseClient;
 }
 
-export async function getCaller(req: Request): Promise<Caller> {
+/** opts.allowBlocked: لحذف الحساب فقط — delete_my_account يجعل الحالة blocked، فإعادة المحاولة بعد فشل حذف مستخدم auth يجب أن تمر */
+export async function getCaller(req: Request, opts: { allowBlocked?: boolean } = {}): Promise<Caller> {
   const auth = req.headers.get('Authorization');
   if (!auth?.startsWith('Bearer ')) throw new HttpError(401, 'سجّل الدخول أولاً.');
   const client = createClient(url(), anonKey(), {
@@ -34,7 +35,7 @@ export async function getCaller(req: Request): Promise<Caller> {
   if (error || !data.user) throw new HttpError(401, 'انتهت الجلسة، سجّل الدخول من جديد.');
   const { data: p } = await admin().from('profiles').select('kind, is_owner, status').eq('id', data.user.id).maybeSingle();
   if (!p) throw new HttpError(403, 'الحساب غير موجود.');
-  if (p.status !== 'active') throw new HttpError(403, 'حسابك موقوف، تواصل مع المتجر.');
+  if (p.status !== 'active' && !opts.allowBlocked) throw new HttpError(403, 'حسابك موقوف، تواصل مع المتجر.');
   return { id: data.user.id, email: data.user.email ?? null, kind: p.kind, is_owner: p.is_owner, status: p.status, client };
 }
 

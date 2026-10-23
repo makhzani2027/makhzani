@@ -6,7 +6,7 @@ import { provider } from '../_shared/payments/index.ts';
 import { mockPage, sendMockWebhook } from '../_shared/payments/mock.ts';
 
 const fnUrl = (name: string) => `${(Deno.env.get('SUPABASE_URL') ?? '').replace(/\/$/, '')}/functions/v1/${name}`;
-const appRedirect = () => Deno.env.get('PAYMENT_REDIRECT_URL') ?? 'raqeem://payment-result';
+const appRedirect = () => Deno.env.get('PAYMENT_REDIRECT_URL') ?? 'raqeem://payment-return';
 
 async function handleMock(req: Request, url: URL): Promise<Response> {
   if (provider().name !== 'mock') throw new HttpError(404, 'غير متاح');

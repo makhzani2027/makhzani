@@ -224,8 +224,9 @@ export const remoteApi: Api = {
   async markNotificationsRead(ids) {
     await must(sb().rpc('mark_notifications_read', { ids }));
   },
-  async savePushToken(uid, token, platform) {
-    await must(sb().from('push_tokens').upsert({ profile_id: uid, token, platform, updated_at: new Date().toISOString() }, { onConflict: 'token' }));
+  async savePushToken(_uid, token, platform) {
+    // دالة خادم تنقل الرمز للحساب الحالي (حساب ثانٍ على نفس الهاتف كان يُرفض بسياسة RLS فلا تصله إشعارات)
+    await must(sb().rpc('register_push_token', { p_token: token, p_platform: platform }));
   },
   async deletePushToken(uid, token) {
     await must(sb().from('push_tokens').delete().eq('profile_id', uid).eq('token', token));

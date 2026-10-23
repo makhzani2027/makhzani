@@ -619,6 +619,16 @@ export async function setStocktakeCount(id: string, variantId: string, counted: 
   it.counted_qty = counted;
 }
 
+/** إلغاء جرد مفتوح (مسودة منسية تمنع جرداً جديداً للمخزن) */
+export async function cancelStocktake(id: string): Promise<true> {
+  if (!IS_DEMO) { await rpc('cancel_stocktake', { p_id: id }); return true; }
+  await demoDelay(200);
+  const st = ddb().stocktakes.find((s) => s.id === id);
+  if (!st || st.status !== 'draft') throw new AppError('الجرد مطبّق أو ملغى سابقاً.');
+  st.status = 'cancelled';
+  return true;
+}
+
 export async function applyStocktake(id: string): Promise<{ adjusted: number }> {
   if (!IS_DEMO) {
     const r = await rpc<{ adjusted?: number } | null>('apply_stocktake', { id });

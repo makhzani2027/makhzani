@@ -693,9 +693,9 @@ export async function addSerials(variantId: string, warehouseId: string, serials
     for (const s of list) db.serials.push({ id: demoId(), variant_id: variantId, serial: s, status: 'in_stock', warehouse_id: warehouseId, purchase_invoice_id: null, sale_invoice_id: null, note: null, created_at: now, updated_at: now });
     return list.length;
   }
-  const { error } = await sb().from('serials').insert(list.map((serial) => ({ variant_id: variantId, serial, status: 'in_stock', warehouse_id: warehouseId })));
-  if (error) throw error;
-  return list.length;
+  // للقطع الموجودة فعلاً (لا يتغير الرصيد): الخادم يرفض المكرر وما يزيد عن رصيد المخزن
+  const r = await rpc<{ added: number }>('add_serials', { p_variant: variantId, p_warehouse: warehouseId, p_serials: list });
+  return Number(r?.added ?? list.length);
 }
 
 export async function setSerialStatus(id: string, status: SerialStatus): Promise<void> {
@@ -704,8 +704,9 @@ export async function setSerialStatus(id: string, status: SerialStatus): Promise
     if (s) { s.status = status; s.updated_at = demoNow(); }
     return;
   }
-  const { error } = await sb().from('serials').update({ status }).eq('id', id);
-  if (error) throw error;
+  // على الخادم: «معيب» فقط، ويُخرج القطعة من الرصيد كتالف (لا عودة للمخزن من هنا)
+  if (status !== 'defective') throw new AppError('إرجاع القطعة المعيبة للمخزن يتم بسند إدخال.');
+  await rpc('mark_serial_defective', { p_id: id });
 }
 
 // ------------------------------------------------------------------ الإعدادات

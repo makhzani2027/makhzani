@@ -49,7 +49,9 @@ export const wayl: PaymentProvider = {
     const out = await res.json().catch(() => ({}));
     const d = (out?.data ?? out) as Record<string, unknown>;
     if (!res.ok || !d?.url) throw new Error(`Wayl ${res.status}: ${JSON.stringify(out).slice(0, 300)}`);
-    return { providerRef: String(d.id ?? d.referenceId ?? input.transactionId), checkoutUrl: String(d.url), raw: out };
+    // لا نخزّن سر الـ webhook إن أعاده Wayl في الرد (raw يقرؤه موظفو orders.view ← تزوير «تم الدفع»)
+    const raw = JSON.parse(JSON.stringify(out ?? {}), (k, v) => (/secret/i.test(k) ? undefined : v)) as Record<string, unknown>;
+    return { providerRef: String(d.id ?? d.referenceId ?? input.transactionId), checkoutUrl: String(d.url), raw };
   },
   async parseWebhook(req: Request, rawBody: string): Promise<WebhookEvent> {
     if (!(await verifySignature(rawBody, req.headers.get('x-wayl-signature'), env('WAYL_WEBHOOK_SECRET')))) {

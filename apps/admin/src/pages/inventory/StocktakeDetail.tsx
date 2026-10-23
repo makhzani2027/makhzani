@@ -10,7 +10,7 @@ import { beep, useBarcodeScanner } from '../../lib/scanner';
 import { downloadText, toCsv } from '../../lib/csv';
 import { errorMessage } from '../../lib/supabase';
 import { findVariantByCode } from '../catalog/api';
-import { applyStocktake, getStocktake, setStocktakeCount, type CountLine } from './api';
+import { applyStocktake, cancelStocktake, getStocktake, setStocktakeCount, type CountLine } from './api';
 import '../catalog/catalog.css';
 
 type Show = 'all' | 'counted' | 'uncounted' | 'diff';
@@ -28,6 +28,7 @@ export default function StocktakeDetail() {
   const [last, setLast] = useState<{ name: string; counted: number; at: number } | null>(null);
   const [manual, setManual] = useState('');
   const apply = useAction(applyStocktake);
+  const cancel = useAction(cancelStocktake, { success: 'أُلغي الجرد' });
   const draft = st.data?.stocktake.status === 'draft';
   // آخر نسخة من الأسطر (تُحدَّث فوراً بعد كل حفظ، قبل إعادة الرسم) + طابور للمسحات حتى لا تضيع مسحة سريعة
   const linesRef = useRef<CountLine[] | undefined>(undefined);
@@ -108,11 +109,15 @@ export default function StocktakeDetail() {
   return (
     <>
       <PageHeader crumbs={[{ label: 'الجرد', to: '/stocktakes' }, { label: s.number }]} title={`جرد ${st.data.warehouse_name}`}
-        description={<span>{s.number} · {fmt.date(s.created_at, true)} {draft ? <Badge tone="warning">مفتوح</Badge> : <Badge tone="success">معتمد {s.applied_at ? fmt.date(s.applied_at) : ''}</Badge>}{s.note ? ` · ${s.note}` : ''}</span>}
+        description={<span>{s.number} · {fmt.date(s.created_at, true)} {draft ? <Badge tone="warning">مفتوح</Badge> : s.status === 'cancelled' ? <Badge tone="neutral">ملغى</Badge> : <Badge tone="success">معتمد {s.applied_at ? fmt.date(s.applied_at) : ''}</Badge>}{s.note ? ` · ${s.note}` : ''}</span>}
         actions={<>
           <Button icon="download" onClick={() => downloadText(`${s.number}.csv`, toCsv(st.data!.lines.filter((l) => l.counted !== null), [
             { key: 'sku', label: 'sku', value: (l) => l.sku }, { key: 'name', label: 'name', value: (l) => l.name }, { key: 'e', label: 'expected', value: (l) => l.expected }, { key: 'c', label: 'counted', value: (l) => l.counted }, { key: 'd', label: 'diff', value: (l) => (l.counted ?? 0) - l.expected },
           ]))}>تصدير</Button>
+          {draft ? <Button variant="danger" icon="close" loading={cancel.busy} onClick={async () => {
+            if (!(await askConfirm({ title: 'إلغاء الجرد؟', body: 'لا تتغير الأرصدة، ويمكن بدء جرد جديد لهذا المخزن.', confirm: 'إلغاء الجرد', danger: true }))) return;
+            if (await cancel.run(id)) { counts.refresh(); void st.reload(); }
+          }}>إلغاء الجرد</Button> : null}
           {draft ? <Button variant="primary" icon="check" loading={apply.busy} disabled={!sum.counted} onClick={async () => {
             if (!(await askConfirm({ title: 'اعتماد الجرد؟', body: `سيُضبط رصيد ${fmt.num(sum.diffs)} نسخة على المعدود (+${fmt.qty(sum.plus)} / −${fmt.qty(sum.minus)}). النسخ التي لم تُعدّ لا تتغير. لا يمكن التراجع.`, confirm: 'اعتماد الفروق' }))) return;
             // احفظ الأعداد المكتوبة يدوياً بلا Enter أولاً، وإلا يُعتمد الجرد بدونها

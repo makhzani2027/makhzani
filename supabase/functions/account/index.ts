@@ -5,7 +5,7 @@ import { admin, getCaller } from '../_shared/supabase.ts';
 
 Deno.serve(handler(async (req) => {
   if (req.method !== 'POST') throw new HttpError(405, 'method not allowed');
-  const caller = await getCaller(req);
+  const caller = await getCaller(req, { allowBlocked: true });
   if (caller.kind !== 'customer') throw new HttpError(403, 'حسابات الموظفين يحذفها المالك من لوحة التحكم.');
   const { error } = await caller.client.rpc('delete_my_account');
   if (error) throw new HttpError(400, error.message);

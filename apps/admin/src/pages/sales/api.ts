@@ -810,16 +810,8 @@ export async function saveQuotation(p: QuotationPayload): Promise<{ id: string; 
 }
 
 export async function setQuotationStatus(id: string, status: QuotationStatus): Promise<void> {
-  if (!IS_DEMO) {
-    // save_quotation يشترط warehouse_id و items دائماً (لا يدعم {id, status} وحدها) — نعيد إرسال العرض كما هو بالحالة الجديدة
-    const { quotation: q, items } = await getQuotation(id);
-    await rpc('save_quotation', { p: {
-      id, status, customer_id: q.customer_id, customer_name: q.customer_name, warehouse_id: q.warehouse_id, currency: q.currency, exchange_rate: q.exchange_rate,
-      valid_until: q.valid_until, discount: q.discount, note: q.note,
-      items: items.map((i) => ({ variant_id: i.variant_id, qty: i.qty, unit_price: i.unit_price, discount: i.discount, price_tier: i.price_tier })),
-    } });
-    return;
-  }
+  // save_quotation بلا items يغيّر الحالة فقط (البنود والأسعار كما هي)
+  if (!IS_DEMO) { await rpc('save_quotation', { p: { id, status } }); return; }
   await demoDelay();
   const q = ledger.quotations.find((x) => x.id === id);
   if (!q) throw new AppError('عرض السعر غير موجود.');
