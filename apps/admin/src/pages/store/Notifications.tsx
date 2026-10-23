@@ -5,6 +5,7 @@ import { Alert, Badge, Button, Card, DataTable, Field, Input, Mark, PageHeader, 
 import { useAction, useLoad } from '../../lib/hooks';
 import { useFmt, useSettings } from '../../lib/settings';
 import { imgUrl, uploadImage } from '../../lib/media';
+import { errorMessage } from '../../lib/supabase';
 import { campaigns, sendCampaign } from './api';
 import '../sales/sales.css';
 
@@ -38,7 +39,7 @@ export default function Notifications() {
             <Field label="العنوان" required><Input value={f.title} maxLength={60} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="وصلت سماعات جديدة" /></Field>
             <Field label="النص" hint={`${fmt.num(f.body.length)} / ١٧٨`}><Textarea rows={3} maxLength={178} value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} placeholder="خصم ١٥٪ لأول ٥٠ طلب، اليوم فقط." /></Field>
             <div className="sx-row">
-              <label className="btn"><input type="file" accept="image/*" hidden onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; setUp(true); try { setF({ ...f, image_key: await uploadImage(file, 'campaigns', 'all') }); } finally { setUp(false); } }} />{up ? 'جارٍ الرفع…' : f.image_key ? 'تغيير الصورة' : 'صورة (اختياري)'}</label>
+              <label className="btn"><input type="file" accept="image/*" hidden onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; setUp(true); try { setF({ ...f, image_key: await uploadImage(file, 'campaigns', 'all') }); } catch (err) { toast.error(errorMessage(err)); } finally { setUp(false); } }} />{up ? 'جارٍ الرفع…' : f.image_key ? 'تغيير الصورة' : 'صورة (اختياري)'}</label>
               {f.image_key ? <Button variant="ghost" onClick={() => setF({ ...f, image_key: null })}>إزالة الصورة</Button> : null}
             </div>
             <div className="form-grid">
@@ -58,7 +59,7 @@ export default function Notifications() {
             <Alert tone="info">يصل لكل زبون نشط في التطبيق، ويظهر في صندوق إشعاراته.</Alert>
             <div className="sx-row">
               <Button disabled={!valid} loading={save.busy} onClick={async () => { if (await save.run()) { setF({ title: '', body: '', image_key: null, link_kind: 'none', link_value: '' }); void list.reload(); } }}>حفظ كمسودة</Button>
-              <Button variant="primary" icon="megaphone" disabled={!valid} loading={save.busy || send.busy} onClick={async () => { const c = await save.run(); if (c) { setF({ title: '', body: '', image_key: null, link_kind: 'none', link_value: '' }); await send.run(c); } }}>حفظ وإرسال</Button>
+              <Button variant="primary" icon="megaphone" disabled={!valid} loading={save.busy || send.busy} onClick={async () => { const c = await save.run(); if (c) { setF({ title: '', body: '', image_key: null, link_kind: 'none', link_value: '' }); if (!(await send.run(c))) void list.reload(); } }}>حفظ وإرسال</Button>
             </div>
           </div>
         </Card>

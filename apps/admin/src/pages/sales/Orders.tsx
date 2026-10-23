@@ -1,5 +1,5 @@
 /** طلبات التطبيق: تبويبات بالحالة مع عدّاداتها، بحث، وانتقال سريع للحالة التالية */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ORDER_PAYMENT_METHOD, ORDER_PAYMENT_STATUS, ORDER_STATUS, FULFILLMENT, formatPhone, governorateName, primaryNext, type OrderStatus } from '@raqeem/shared';
 import { Badge, Button, DataTable, PageHeader, Pagination, SearchInput, Tabs, type Column } from '../../ui';
@@ -25,6 +25,8 @@ export default function Orders() {
   const dq = useDebounced(q, 250);
   const [page, setPage] = useState(1);
   const pageSize = 25;
+  // تغيير الفترة يعيد للصفحة الأولى
+  useEffect(() => setPage(1), [r.range]);
   const list = useLoad(() => listOrders({ status, q: dq, range: r.range, page, pageSize }), [status, dq, r.range, page]);
   const cnt = useLoad(orderCounts, []);
   const advance = useAction(async (o: OrderRow, to: OrderStatus) => {

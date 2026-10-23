@@ -1,5 +1,5 @@
 /** فواتير البيع (/invoices) والمرتجعات (/returns): بحث، فترة، قناة، حالة، تصدير */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { INVOICE_CHANNEL, type InvoiceChannel } from '@raqeem/shared';
 import { Badge, Button, DataTable, PageHeader, Pagination, SearchInput, Select, Stat, askText, toast, type Column } from '../../ui';
@@ -27,6 +27,8 @@ export default function Invoices() {
   const [page, setPage] = useState(1);
   const pageSize = 25;
   const kind = isReturns ? 'sale_return' : 'sale';
+  // تغيير الفترة يعيد للصفحة الأولى (وإلا تظهر صفحة فارغة بعد تضييق الفترة)
+  useEffect(() => setPage(1), [r.range]);
   const list = useLoad(() => listInvoices({ kind, q: dq, channel, status, range: r.range, page, pageSize }), [kind, dq, channel, status, r.range, page]);
 
   const columns: Column<InvoiceRow>[] = [

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { INVOICE_CHANNEL, INVOICE_KIND, PAYMENT_METHOD, PRICE_TIER, formatPhone, roundMoney, whatsappLink, type PaymentMethod } from '@raqeem/shared';
-import { Alert, Badge, Button, Card, DataTable, ErrorState, Field, Input, Loading, Modal, MoneyInput, NumberInput, PageHeader, Select, askConfirm, askText, type Column } from '../../ui';
+import { Alert, Badge, Button, Card, Checkbox, DataTable, ErrorState, Field, Input, Loading, Modal, MoneyInput, NumberInput, PageHeader, Select, askConfirm, askText, type Column } from '../../ui';
 import { useAuth } from '../../lib/auth';
 import { useAction, useLoad } from '../../lib/hooks';
 import { useFmt, useSettings } from '../../lib/settings';
@@ -109,7 +109,7 @@ export default function InvoiceDetail() {
               {cur === 'USD' ? <div className="dim"><span>بسعر صرف</span><span>{m(i.exchange_rate, 'IQD', true)}</span></div> : null}
               <div><span>المدفوع</span><span>{m(i.paid, cur)}</span></div>
               <div><span>المتبقي</span><span className={i.due > 0.004 ? 'sx-neg' : ''}>{m(i.due, cur)}</span></div>
-              {can('costs.view') && isSale ? <div className="dim"><span>الربح التقريبي</span><span>{m(i.total * (cur === 'USD' ? i.exchange_rate : 1) - i.cost_total)}</span></div> : null}
+              {can('costs.view') && isSale ? <div className="dim"><span>الربح التقريبي</span><span>{m((i.total - i.delivery_fee) * (cur === 'USD' ? i.exchange_rate : 1) - i.cost_total)}</span></div> : null}
             </div>
           </Card>
           {i.note && !original ? <Card title="ملاحظة" icon="note"><p className="sx-pre">{i.note}</p></Card> : null}
@@ -133,14 +133,27 @@ function ReturnModal({ full, onClose, onDone }: { full: InvoiceFull; onClose: ()
   const [method, setMethod] = useState<PaymentMethod>('cash');
   const [account, setAccount] = useState<string | null>(null);
   const [refund, setRefund] = useState<number | null>(null);
-  const share = i.subtotal > 0 ? 1 - i.discount / i.subtotal : 1;
-  const value = useMemo(() => roundMoney(full.items.reduce((s, it) => s + (qty[it.id] ?? 0) * (it.line_total / it.qty) * share, 0), cur), [qty, full.items, share, cur]);
+  const [sers, setSers] = useState<Record<string, string[]>>({});
+  // بند بأرقام تسلسلية (قطعة = رقم): الكمية = عدد الأرقام المختارة، وتُرسل للخادم (الإرجاع الجزئي يرفض بدونها)
+  const serialItem = (it: InvoiceItem) => it.serials.length > 0 && it.unit_factor === 1;
+  const toggleSerial = (it: InvoiceItem, sn: string) => {
+    const cur0 = sers[it.id] ?? [];
+    const next = cur0.includes(sn) ? cur0.filter((x) => x !== sn) : [...cur0, sn];
+    setSers({ ...sers, [it.id]: next });
+    setQty({ ...qty, [it.id]: next.length });
+  };
+  // مطابق لـ make_return: كل بند يُقرّب وحده، ثم حصة خصم الفاتورة من المجموع (وإلا قد يزيد المسترد ديناراً فيُرفض)
+  const value = useMemo(() => {
+    const sub = roundMoney(full.items.reduce((s, it) => s + ((qty[it.id] ?? 0) > 0 ? roundMoney((it.line_total * qty[it.id]) / it.qty, cur) : 0), 0), cur);
+    const disc = i.subtotal > 0 ? Math.min(roundMoney((sub * i.discount) / i.subtotal, cur), sub) : 0;
+    return roundMoney(sub - disc, cur);
+  }, [qty, full.items, i.subtotal, i.discount, cur]);
   const maxRefund = Math.min(value, i.paid);
   useEffect(() => setRefund(maxRefund), [maxRefund]);
   const save = useAction(async () => {
     const res = await postReturn({
       invoice_id: i.id, reason: reason.trim() || 'إرجاع',
-      items: full.items.filter((it) => (qty[it.id] ?? 0) > 0).map((it) => ({ invoice_item_id: it.id, qty: qty[it.id] })),
+      items: full.items.filter((it) => (qty[it.id] ?? 0) > 0).map((it) => ({ invoice_item_id: it.id, qty: qty[it.id], ...(serialItem(it) ? { serials: sers[it.id] ?? [] } : {}) })),
       refund: refund && refund > 0 ? { method, amount: refund, currency: cur, account_id: account ?? defaultAccountFor(accounts, method, cur)?.id ?? null } : null,
     });
     void printInvoice(res.invoice_id, store, 'thermal').catch(() => undefined);
@@ -152,10 +165,18 @@ function ReturnModal({ full, onClose, onDone }: { full: InvoiceFull; onClose: ()
       <div className="stack">
         {full.items.map((it) => {
           const left = it.qty - (full.returned[it.id] ?? 0);
+          const done = full.returnedSerials?.[it.id] ?? [];
           return (
-            <div key={it.id} className="sx-between" style={{ borderBottom: '1px dashed var(--line-strong)', paddingBottom: 8 }}>
-              <span style={{ minWidth: 0 }}><b>{it.name}</b>{it.variant_title ? <span className="dim"> — {it.variant_title}</span> : null}<div className="sx-muted">بيع {fmt.qty(it.qty)} · متاح للإرجاع {fmt.qty(left)} · {m(it.line_total / it.qty, cur)}</div></span>
-              <span style={{ width: 120 }}><NumberInput value={qty[it.id] ?? null} onChange={(v) => setQty({ ...qty, [it.id]: Math.min(left, v ?? 0) })} max={left} min={0} disabled={left <= 0} ariaLabel={`كمية إرجاع ${it.name}`} /></span>
+            <div key={it.id} style={{ borderBottom: '1px dashed var(--line-strong)', paddingBottom: 8 }}>
+              <div className="sx-between">
+                <span style={{ minWidth: 0 }}><b>{it.name}</b>{it.variant_title ? <span className="dim"> — {it.variant_title}</span> : null}<div className="sx-muted">بيع {fmt.qty(it.qty)} · متاح للإرجاع {fmt.qty(left)} · {m(it.line_total / it.qty, cur)}</div></span>
+                <span style={{ width: 120 }}><NumberInput value={qty[it.id] ?? null} onChange={(v) => setQty({ ...qty, [it.id]: Math.min(left, v ?? 0) })} max={left} min={0} disabled={left <= 0 || serialItem(it)} ariaLabel={`كمية إرجاع ${it.name}`} /></span>
+              </div>
+              {serialItem(it) && left > 0 ? (
+                <div className="serial-list">
+                  {it.serials.filter((sn) => !done.includes(sn)).map((sn) => <Checkbox key={sn} label={<span className="ltr">{sn}</span>} checked={(sers[it.id] ?? []).includes(sn)} onChange={() => toggleSerial(it, sn)} />)}
+                </div>
+              ) : null}
             </div>
           );
         })}

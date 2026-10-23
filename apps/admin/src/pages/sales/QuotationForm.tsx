@@ -49,7 +49,8 @@ function Editor({ full, reload }: { full: QuotationFull | null; reload: () => Pr
   const [paying, setPaying] = useState(false);
   const wh = whId || whs.data?.find((w) => w.is_default)?.id || whs.data?.[0]?.id || '';
   const catalog = useLoad(() => (wh ? loadPosCatalog(wh) : Promise.resolve([])), [wh]);
-  const r = currency === 'USD' ? q0?.exchange_rate ?? rate : 1;
+  // عرض محفوظ بالدينار سعر صرفه 1؛ عند تحويله للدولار نأخذ سعر اليوم لا 1
+  const r = currency === 'USD' ? (q0?.currency === 'USD' ? q0.exchange_rate : rate) : 1;
   useEffect(() => { if (!whId && wh) setWhId(wh); }, [wh, whId]);
 
   const lineTotal = (l: Line) => Math.max(0, roundMoney(l.unit_price * l.qty - l.discount, currency));

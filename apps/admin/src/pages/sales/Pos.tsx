@@ -4,7 +4,7 @@
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { formatPhone, matchScore, roundMoney, type CurrencyCode, type PriceTier } from '@raqeem/shared';
+import { formatPhone, matchScore, parseNumber, roundMoney, toLatinDigits, type CurrencyCode, type PriceTier } from '@raqeem/shared';
 import { Alert, Avatar, Badge, Button, EmptyState, ErrorState, Field, IconButton, Input, Kbd, Modal, MoneyInput, NumberInput, Segmented, Select, Skeleton, Thumb, Icon, askConfirm, askText, toast, Checkbox } from '../../ui';
 import { useAuth } from '../../lib/auth';
 import { useAction, useHotkey, useLoad, useStored } from '../../lib/hooks';
@@ -190,7 +190,8 @@ export default function Pos() {
   const openSession = useAction(async () => {
     const f = await askText({ title: 'فتح جلسة الصندوق', label: 'المبلغ الافتتاحي في الدرج (د.ع)', initial: '0', confirm: 'فتح الجلسة' });
     if (f === null) return null;
-    const s = await openCashSession(Number(f.replace(/[^\d.]/g, '')) || 0);
+    // parseNumber يقبل الأرقام المشرقية «٥٠٬٠٠٠» (كانت تُحذف فيُفتح الصندوق بصفر)
+    const s = await openCashSession(parseNumber(toLatinDigits(f).replace(/[^\d.٫]/g, '')) ?? 0);
     await session.reload();
     return s;
   }, { success: 'فُتحت جلسة الصندوق' });
@@ -270,7 +271,7 @@ export default function Pos() {
               <div className="bot">
                 <span className="qty-step">
                   <button type="button" aria-label="إنقاص" onClick={() => setQty(l.key, l.qty - 1)}><Icon name="minus" size={14} /></button>
-                  <input aria-label="الكمية" inputMode="numeric" value={l.qty} onChange={(e) => { const v = Number(e.target.value.replace(/\D/g, '')); if (v >= 0) setQty(l.key, v || 1); }} onFocus={(e) => e.target.select()} />
+                  <input aria-label="الكمية" inputMode="numeric" value={l.qty} onChange={(e) => { const v = Number(toLatinDigits(e.target.value).replace(/\D/g, '')); if (v >= 0) setQty(l.key, v || 1); }} onFocus={(e) => e.target.select()} />
                   <button type="button" aria-label="زيادة" onClick={() => add(l.item)}><Icon name="plus" size={14} /></button>
                 </span>
                 <span className="sx-muted sx-mono">× {m(unitPrice(l), currency, true)}{l.price !== null ? ' (يدوي)' : ''}</span>

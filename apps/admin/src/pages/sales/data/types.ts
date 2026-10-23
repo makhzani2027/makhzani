@@ -25,6 +25,8 @@ export interface InvoiceFull {
   original: Pick<Invoice, 'id' | 'number'> | null;
   /** الكمية المُرجعة سابقاً لكل بند (invoice_item_id ← qty) لمنع الإرجاع المكرر */
   returned: Record<string, number>;
+  /** الأرقام التسلسلية المُرجعة سابقاً لكل بند (invoice_item_id ← serials) */
+  returnedSerials: Record<string, string[]>;
 }
 
 export interface OrderRow extends Order {

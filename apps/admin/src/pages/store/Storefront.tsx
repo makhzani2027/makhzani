@@ -1,10 +1,11 @@
 /** واجهة المتجر: البانرات (صورة أو نصية بألوان الهوية) وأقسام الرئيسية، مع ترتيب ومعاينة على شاشة هاتف */
 import { useEffect, useState } from 'react';
 import { BANNER_LINK_KIND, HOME_SECTION_KIND, type Banner, type BannerLinkKind, type BannerPlacement, type HomeSection, type HomeSectionKind } from '@raqeem/shared';
-import { Badge, Button, Card, EmptyState, Field, IconButton, Input, Modal, NumberInput, PageHeader, Select, Skeleton, Switch, Thumb, askConfirm } from '../../ui';
+import { Badge, Button, Card, EmptyState, Field, IconButton, Input, Modal, NumberInput, PageHeader, Select, Skeleton, Switch, Thumb, askConfirm, toast } from '../../ui';
 import { useAction, useLoad } from '../../lib/hooks';
 import { useFmt, useSettings } from '../../lib/settings';
 import { imgUrl, uploadImage } from '../../lib/media';
+import { errorMessage } from '../../lib/supabase';
 import { listCategories } from '../sales/data/lookups';
 import { banners, brandOptions, homeSections, productOptions, saveOrder } from './api';
 import '../sales/sales.css';
@@ -123,7 +124,7 @@ function BannerModal({ b, onClose, onDone, nextSort }: { b: Banner | null; onClo
         <div className="stack">
           <Field label="الصورة" hint="بلا صورة = بانر نصي بألوان الهوية">
             <div className="sx-row">
-              <label className="btn"><input type="file" accept="image/*" hidden onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; setBusyUp(true); try { setF({ ...f, image_key: await uploadImage(file, 'banners', 'home') }); } finally { setBusyUp(false); } }} />{busyUp ? 'جارٍ الرفع…' : f.image_key ? 'تغيير الصورة' : 'رفع صورة'}</label>
+              <label className="btn"><input type="file" accept="image/*" hidden onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; setBusyUp(true); try { setF({ ...f, image_key: await uploadImage(file, 'banners', 'home') }); } catch (err) { toast.error(errorMessage(err)); } finally { setBusyUp(false); } }} />{busyUp ? 'جارٍ الرفع…' : f.image_key ? 'تغيير الصورة' : 'رفع صورة'}</label>
               {f.image_key ? <Button variant="ghost" onClick={() => setF({ ...f, image_key: null })}>بانر نصي</Button> : null}
             </div>
           </Field>

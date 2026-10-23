@@ -211,8 +211,9 @@ function toPosItem(
 
 /** الأرقام التسلسلية المتوفرة لنسخة في مخزن (اقتراحات عند البيع) */
 export async function availableSerials(variantId: string, warehouseId: string): Promise<string[]> {
-  if (IS_DEMO) return ledger.serials.filter((s) => s.variant_id === variantId && s.status === 'in_stock' && (!s.warehouse_id || s.warehouse_id === warehouseId)).map((s) => s.serial);
-  const { data } = await sb().from('serials').select('serial').eq('variant_id', variantId).eq('status', 'in_stock').eq('warehouse_id', warehouseId).limit(200);
+  if (IS_DEMO) return ledger.serials.filter((s) => s.variant_id === variantId && (s.status === 'in_stock' || s.status === 'returned') && (!s.warehouse_id || s.warehouse_id === warehouseId)).map((s) => s.serial);
+  // post_sale يقبل in_stock و returned (المُرجع من زبون يعود للبيع)
+  const { data } = await sb().from('serials').select('serial').eq('variant_id', variantId).in('status', ['in_stock', 'returned']).eq('warehouse_id', warehouseId).limit(200);
   return (data ?? []).map((s) => s.serial as string);
 }
 
@@ -336,26 +337,43 @@ export async function listInvoices(f: InvoiceFilter): Promise<{ rows: InvoiceRow
     }));
     const filtered = q ? withNames.filter((i) => i.number.toLowerCase().includes(q) || (i.customer_name ?? '').includes(f.q.trim()) || (i.supplier_name ?? '').includes(f.q.trim())) : withNames;
     filtered.sort((a, b) => b.created_at.localeCompare(a.created_at));
-    return { rows: filtered.slice((f.page - 1) * f.pageSize, f.page * f.pageSize), total: filtered.length, sum: filtered.filter((i) => i.status === 'posted').reduce((s, i) => s + i.total, 0) };
+    return { rows: filtered.slice((f.page - 1) * f.pageSize, f.page * f.pageSize), total: filtered.length, sum: roundMoney(filtered.filter((i) => i.status === 'posted').reduce((s, i) => s + i.total * (i.currency === 'USD' ? i.exchange_rate : 1), 0)) };
   }
-  let query = sb().from('invoices').select('*, customers(name), suppliers(name)', { count: 'exact' }).eq('kind', f.kind);
-  if (f.channel) query = query.eq('channel', f.channel);
-  if (f.status) query = query.eq('status', f.status);
-  if (f.customerId) query = query.eq('customer_id', f.customerId);
-  if (f.supplierId) query = query.eq('supplier_id', f.supplierId);
-  if (f.range) query = query.gte('created_at', f.range.from).lt('created_at', f.range.to);
   const q = f.q.trim().replace(/[%_,()]/g, '');
+  let ids: string[] = [];
   if (q) {
     const { data: cs } = await sb().from('customers').select('id').ilike('name', `%${q}%`).limit(50);
-    const ids = (cs ?? []).map((c) => c.id as string);
-    query = ids.length ? query.or(`number.ilike.%${q}%,customer_id.in.(${ids.join(',')})`) : query.ilike('number', `%${q}%`);
+    ids = (cs ?? []).map((c) => c.id as string);
   }
-  const { data, error, count } = await query.order('created_at', { ascending: false }).range((f.page - 1) * f.pageSize, f.page * f.pageSize - 1);
+  // نفس المرشحات للصفحة ولمجموع الفترة
+  const build = (cols: string, count?: 'exact') => {
+    let query = sb().from('invoices').select(cols, count ? { count } : undefined).eq('kind', f.kind);
+    if (f.channel) query = query.eq('channel', f.channel);
+    if (f.status) query = query.eq('status', f.status);
+    if (f.customerId) query = query.eq('customer_id', f.customerId);
+    if (f.supplierId) query = query.eq('supplier_id', f.supplierId);
+    if (f.range) query = query.gte('created_at', f.range.from).lt('created_at', f.range.to);
+    if (q) query = ids.length ? query.or(`number.ilike.%${q}%,customer_id.in.(${ids.join(',')})`) : query.ilike('number', `%${q}%`);
+    return query;
+  };
+  const { data, error, count } = await build('*, customers(name), suppliers(name)', 'exact').order('created_at', { ascending: false }).range((f.page - 1) * f.pageSize, f.page * f.pageSize - 1);
   if (error) throw error;
   const names = await staffNames();
   type R = Invoice & { customers: { name: string } | null; suppliers: { name: string } | null };
-  const rows = ((data ?? []) as R[]).map(({ customers, suppliers, ...i }) => ({ ...i, customer_name: customers?.name ?? null, supplier_name: suppliers?.name ?? null, created_by_name: i.created_by ? names[i.created_by] ?? null : null }));
-  return { rows, total: count ?? rows.length, sum: rows.filter((i) => i.status === 'posted').reduce((s, i) => s + Number(i.total), 0) };
+  const rows = ((data ?? []) as unknown as R[]).map(({ customers, suppliers, ...i }) => ({ ...i, customer_name: customers?.name ?? null, supplier_name: suppliers?.name ?? null, created_by_name: i.created_by ? names[i.created_by] ?? null : null }));
+  // مجموع الفترة كلها (لا الصفحة الحالية فقط) بالدينار — فواتير الدولار بسعر صرفها. PostgREST يحد الصف بـ١٠٠٠ فنقرأ على دفعات
+  let sum = 0;
+  if (f.status !== 'void') {
+    const CHUNK = 1000;
+    for (let from = 0; from < 200 * CHUNK; from += CHUNK) {
+      const { data: part, error: e2 } = await build('id,total,exchange_rate').eq('status', 'posted').order('id').range(from, from + CHUNK - 1);
+      if (e2) throw e2;
+      const arr = (part ?? []) as unknown as { total: number; exchange_rate: number }[];
+      sum += arr.reduce((s, i) => s + Number(i.total) * Number(i.exchange_rate || 1), 0);
+      if (arr.length < CHUNK) break;
+    }
+  }
+  return { rows, total: count ?? rows.length, sum: roundMoney(sum) };
 }
 
 export async function getInvoice(id: string): Promise<InvoiceFull> {
@@ -365,14 +383,18 @@ export async function getInvoice(id: string): Promise<InvoiceFull> {
     if (!invoice) throw new AppError('الفاتورة غير موجودة.');
     const returns = ledger.invoices.filter((i) => i.return_of === id && i.status === 'posted');
     const returned: Record<string, number> = {};
+    const returnedSerials: Record<string, string[]> = {};
     const items = ledger.invoice_items.filter((i) => i.invoice_id === id);
     for (const r of returns) for (const ri of ledger.invoice_items.filter((x) => x.invoice_id === r.id)) {
       const src = items.find((x) => x.variant_id === ri.variant_id);
-      if (src) returned[src.id] = (returned[src.id] ?? 0) + ri.qty;
+      if (src) {
+        returned[src.id] = (returned[src.id] ?? 0) + ri.qty;
+        if (ri.serials.length) returnedSerials[src.id] = [...(returnedSerials[src.id] ?? []), ...ri.serials];
+      }
     }
     const orig = invoice.return_of ? ledger.invoices.find((i) => i.id === invoice.return_of) : null;
     return {
-      invoice, items, payments: ledger.payments.filter((p) => p.invoice_id === id), returns, returned,
+      invoice, items, payments: ledger.payments.filter((p) => p.invoice_id === id), returns, returned, returnedSerials,
       customer: demoDb.customers.find((c) => c.id === invoice.customer_id) ?? null, supplier: demoDb.suppliers.find((s) => s.id === invoice.supplier_id) ?? null,
       cashier: staffName(invoice.created_by), original: orig ? { id: orig.id, number: orig.number } : null,
     };
@@ -393,15 +415,19 @@ export async function getInvoice(id: string): Promise<InvoiceFull> {
   const its = (items.data ?? []) as InvoiceItem[];
   const returns = (rets.data ?? []) as Invoice[];
   const returned: Record<string, number> = {};
+  const returnedSerials: Record<string, string[]> = {};
   if (returns.length) {
-    const { data: ri } = await sb().from('invoice_items').select('variant_id,qty').in('invoice_id', returns.map((r) => r.id));
+    const { data: ri } = await sb().from('invoice_items').select('variant_id,qty,serials,return_of_item_id').in('invoice_id', returns.map((r) => r.id));
     for (const x of ri ?? []) {
-      const src = its.find((i) => i.variant_id === x.variant_id);
-      if (src) returned[src.id] = (returned[src.id] ?? 0) + Number(x.qty);
+      // البند الأصلي بالضبط (return_of_item_id) — نفس النسخة قد تتكرر في بندين (سريالات تُضاف كبنود منفصلة)
+      const src = (x.return_of_item_id ? its.find((i) => i.id === x.return_of_item_id) : undefined) ?? its.find((i) => i.variant_id === x.variant_id);
+      if (!src) continue;
+      returned[src.id] = (returned[src.id] ?? 0) + Number(x.qty);
+      if ((x.serials as string[] | null)?.length) returnedSerials[src.id] = [...(returnedSerials[src.id] ?? []), ...(x.serials as string[])];
     }
   }
   return {
-    invoice: inv, items: its, payments: (pays.data ?? []) as Payment[], returns, returned,
+    invoice: inv, items: its, payments: (pays.data ?? []) as Payment[], returns, returned, returnedSerials,
     customer: (cust.data as Customer | null) ?? null, supplier: (sup.data as Supplier | null) ?? null,
     cashier: inv.created_by ? names[inv.created_by] ?? null : null, original: (orig.data as { id: string; number: string } | null) ?? null,
   };
@@ -423,7 +449,7 @@ export async function postReturn(p: ReturnPayload): Promise<{ invoice_id: string
     if (x.qty > left) throw new AppError(`لا يمكن إرجاع أكثر من ${left} من «${it.name}».`);
     // سعر البند الصافي بعد خصمه وحصته من خصم الفاتورة
     const share = src.subtotal > 0 ? 1 - src.discount / src.subtotal : 1;
-    return { variant_id: it.variant_id, qty: x.qty, unit_price: roundMoney((it.line_total / it.qty) * share), unit_cost: it.unit_cost, name: it.name, variant_title: it.variant_title, sku: it.sku, product_id: it.product_id, serials: it.serials.slice(0, x.qty) };
+    return { variant_id: it.variant_id, qty: x.qty, unit_price: roundMoney((it.line_total / it.qty) * share), unit_cost: it.unit_cost, name: it.name, variant_title: it.variant_title, sku: it.sku, product_id: it.product_id, serials: x.serials?.length ? x.serials : it.serials.slice(0, x.qty) };
   });
   if (!lines.length) throw new AppError('اختر كمية للإرجاع.');
   const kind: InvoiceKind = src.kind === 'sale' ? 'sale_return' : 'purchase_return';
@@ -784,7 +810,16 @@ export async function saveQuotation(p: QuotationPayload): Promise<{ id: string; 
 }
 
 export async function setQuotationStatus(id: string, status: QuotationStatus): Promise<void> {
-  if (!IS_DEMO) { await rpc('save_quotation', { p: { id, status } }); return; }
+  if (!IS_DEMO) {
+    // save_quotation يشترط warehouse_id و items دائماً (لا يدعم {id, status} وحدها) — نعيد إرسال العرض كما هو بالحالة الجديدة
+    const { quotation: q, items } = await getQuotation(id);
+    await rpc('save_quotation', { p: {
+      id, status, customer_id: q.customer_id, customer_name: q.customer_name, warehouse_id: q.warehouse_id, currency: q.currency, exchange_rate: q.exchange_rate,
+      valid_until: q.valid_until, discount: q.discount, note: q.note,
+      items: items.map((i) => ({ variant_id: i.variant_id, qty: i.qty, unit_price: i.unit_price, discount: i.discount, price_tier: i.price_tier })),
+    } });
+    return;
+  }
   await demoDelay();
   const q = ledger.quotations.find((x) => x.id === id);
   if (!q) throw new AppError('عرض السعر غير موجود.');

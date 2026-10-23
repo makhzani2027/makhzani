@@ -21,8 +21,10 @@ export default function Overview() {
   const range = rangeOf(rk)!;
   const bucket: Bucket = rk === 'year' ? 'month' : 'day';
   const sum = useLoad(() => Promise.all([dashboardSummary(range), dashboardSummary(previousRange(range))]), [rk]);
-  const series = useLoad(() => salesSeries(range, bucket), [rk]);
-  const top = useLoad(() => topProducts(range, 6), [rk]);
+  // sales_series و top_products تتطلبان reports.view (الكاشير لديه dashboard.view فقط)
+  const reports = can('reports.view');
+  const series = useLoad(() => (reports ? salesSeries(range, bucket) : Promise.resolve([])), [rk, reports]);
+  const top = useLoad(() => (reports ? topProducts(range, 6) : Promise.resolve([])), [rk, reports]);
   const orders = useLoad(() => (can('orders.view') ? listOrders({ status: 'all', q: '', range: null, page: 1, pageSize: 6 }) : Promise.resolve({ rows: [], total: 0 })), []);
   const low = useLoad(() => lowStock(6), []);
   const sessions = useLoad(openSessions, []);
@@ -78,13 +80,13 @@ export default function Overview() {
 
       <div className="sx-split">
         <div className="sx-stack">
-          <Card title="المبيعات" icon="chartBar" actions={<Button size="sm" variant="ghost" onClick={() => nav('/reports')}>التقارير</Button>}>
+          {reports ? <Card title="المبيعات" icon="chartBar" actions={<Button size="sm" variant="ghost" onClick={() => nav('/reports')}>التقارير</Button>}>
             {series.loading && !series.data ? <Skeleton h={220} /> : series.error ? <ErrorState message={series.error} onRetry={series.reload} /> : (
               <BarChart height={230} labels={(series.data ?? []).map((p) => (bucket === 'month' ? fmt.date(p.bucket).split(' ').slice(1).join(' ') : fmt.date(p.bucket).split(' ').slice(0, 2).join(' ')))}
                 series={[{ name: 'المبيعات', values: (series.data ?? []).map((p) => p.sales - p.returns) }, ...(can('costs.view') ? [{ name: 'الربح', values: (series.data ?? []).map((p) => p.profit ?? 0) }] : [])]}
                 format={(v) => m(v, 'IQD', true)} />
             )}
-          </Card>
+          </Card> : null}
           {can('orders.view') ? (
             <Card title="أحدث الطلبات" icon="bag" actions={<Button size="sm" variant="ghost" onClick={() => nav('/orders')}>كل الطلبات</Button>} flush>
               {orders.loading && !orders.data ? <div style={{ padding: 16 }}><Skeleton h={160} /></div> : !(orders.data?.rows.length) ? <EmptyState icon="bag" title="لا طلبات بعد" text="طلبات تطبيق المتجر تظهر هنا فور وصولها." /> : (
@@ -115,7 +117,7 @@ export default function Overview() {
               {cur && !late.length && !cur.orders_new && !cur.requests_new && !cur.low_stock_count && !cur.out_of_stock_count && !(sessions.data ?? []).length ? <p className="sx-muted">كل شيء على ما يرام.</p> : null}
             </div>
           </Card>
-          <Card title="الأكثر مبيعاً" icon="trendUp">
+          {reports ? <Card title="الأكثر مبيعاً" icon="trendUp">
             {top.loading && !top.data ? <Skeleton h={180} /> : !(top.data ?? []).length ? <p className="sx-muted">لا مبيعات في هذه الفترة.</p> : (
               <div className="list">
                 {(top.data ?? []).map((t, i) => (
@@ -127,7 +129,7 @@ export default function Overview() {
                 ))}
               </div>
             )}
-          </Card>
+          </Card> : null}
           {(low.data ?? []).length ? (
             <Card title="قارب على النفاد" icon="layers" actions={<Button size="sm" variant="ghost" onClick={() => nav('/inventory')}>المخزون</Button>}>
               <div className="list">

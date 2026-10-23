@@ -1,7 +1,7 @@
 /** عروض الأسعار: قائمة بالحالة، ثم إنشاء/تعديل/طباعة/إرسال واتساب/تحويل لفاتورة */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { QUOTATION_STATUS, type QuotationStatus } from '@raqeem/shared';
+import { QUOTATION_STATUS, isoDay, type QuotationStatus } from '@raqeem/shared';
 import { Badge, Button, DataTable, PageHeader, SearchInput, Tabs, type Column } from '../../ui';
 import { useDebounced, useLoad } from '../../lib/hooks';
 import { useFmt } from '../../lib/settings';
@@ -17,7 +17,7 @@ export default function Quotations() {
   const [q, setQ] = useState('');
   const dq = useDebounced(q, 250);
   const list = useLoad(() => listQuotations(tab, dq), [tab, dq]);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = isoDay(); // يوم بغداد (لا UTC) مثل QuotationForm
   const cols: Column<QuotationRow>[] = [
     { key: 'n', header: 'الرقم', primary: true, cell: (x) => <b className="ltr">{x.number}</b> },
     { key: 'c', header: 'الزبون', cell: (x) => x.display_name },
