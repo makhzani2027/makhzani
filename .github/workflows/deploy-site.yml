@@ -110,3 +110,5 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: ${{ vars.FIREBASE_PROJECT_ID || 'raqeem-iq' }}
           channelId: live
+          # 15.34.1 يطلب serviceusage.services.get فيرفض حساب الخدمة (403) — نثبّت آخر نسخة تعمل
+          firebaseToolsVersion: '15.34.0'
