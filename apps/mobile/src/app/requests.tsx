@@ -22,7 +22,7 @@ export default function Requests() {
       footer={uid ? <Button title="اطلب منتجاً جديداً" icon="plus" onPress={() => router.push('/request/new')} /> : undefined}>
       {!uid ? (
         <Empty icon="user" title="سجّل الدخول" action="تسجيل الدخول" onAction={() => router.push('/login')} />
-      ) : q.isLoading ? (
+      ) : q.isPending ? (
         <Skeleton style={{ gap: 12 }}>{[0, 1].map((i) => <Bone key={i} h={100} r={20} />)}</Skeleton>
       ) : q.error && !q.data ? (
         <ErrorState message={friendlyError(q.error)} onRetry={() => q.refetch()} />

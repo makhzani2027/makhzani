@@ -68,7 +68,7 @@ export default function Search() {
       </View>
 
       <ProductResults
-        params={{ q: q || null, category: p.category ?? null, ...filters, sort: browsing ? 'best' : filters.sort }}
+        params={{ q: q || null, category: p.category || null, ...filters, sort: browsing ? 'best' : filters.sort }}
         emptyTitle={q ? `لا نتائج لـ«${q}»` : 'لا نتائج'}
         emptyBody="جرّب كلمة أقصر، أو اطلب المنتج ونوفّره لك."
         header={

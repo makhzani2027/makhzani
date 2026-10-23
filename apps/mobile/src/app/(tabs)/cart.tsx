@@ -60,7 +60,7 @@ export default function Cart() {
         const price = ql?.unit_price ?? info?.price ?? 0;
         const changed = l.price_seen !== undefined && info && l.price_seen !== info.price;
         if (!info) {
-          return infos.isLoading ? (
+          return infos.isPending ? (
             <Skeleton key={l.variant_id} style={{ flexDirection: 'row', gap: 12 }}><Bone w={84} h={84} r={16} /><View style={{ flex: 1, gap: 8 }}><Bone w="70%" /><Bone w="40%" /></View></Skeleton>
           ) : (
             <Card key={l.variant_id}>

@@ -30,7 +30,7 @@ export default function CategoryScreen() {
           <IconButton name="sliders" label="الفلاتر" onPress={() => setSheet(true)} badge={activeFilters(filters) || undefined} />
         </>}
       />
-      {!cat && !cats.isLoading ? (
+      {!cat && !cats.isPending ? (
         <Empty icon="grid" title="القسم غير موجود" body="ربما أُخفي أو تغيّر اسمه." action="الأقسام" onAction={() => router.navigate('/categories')} />
       ) : cat ? (
         <ProductResults

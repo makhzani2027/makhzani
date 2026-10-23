@@ -109,7 +109,7 @@ export default function OrderDetail() {
   }), [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const d = q.data;
-  if (q.isLoading) {
+  if (q.isPending) {
     return <Screen header={<AppBar title="الطلب" />}><Skeleton style={{ gap: 12 }}><Bone h={260} r={20} /><Bone h={120} r={20} /></Skeleton></Screen>;
   }
   if (!d) {

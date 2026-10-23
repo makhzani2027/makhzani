@@ -61,7 +61,7 @@ export default function Home() {
         </PressScale>
       </View>
 
-      {home.isLoading ? (
+      {home.isPending ? (
         <View style={[contentColumn, { paddingHorizontal: GUTTER, gap: 22 }]}>
           <Skeleton><Bone h={150} r={22} /></Skeleton>
           <Skeleton style={{ flexDirection: 'row', gap: 14 }}>{[0, 1, 2, 3, 4].map((i) => <Bone key={i} w={64} h={64} r={32} />)}</Skeleton>

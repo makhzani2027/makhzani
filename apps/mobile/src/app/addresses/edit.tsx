@@ -9,6 +9,7 @@ import { AppBar, Button, Chip, Input, Row, Screen, T, Toggle } from '@/component
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { friendlyError } from '@/lib/errors';
+import { addressPick } from '@/lib/hooks';
 import { useFmt } from '@/lib/format';
 import { qk, useZones } from '@/lib/query';
 
@@ -55,12 +56,13 @@ export default function EditAddress() {
     if (Object.values(errs).some(Boolean) || !uid) return;
     setBusy(true);
     try {
-      await api.saveAddress(uid, existing?.id ?? null, {
+      const saved = await api.saveAddress(uid, existing?.id ?? null, {
         label: label.trim() || null, recipient_name: name.trim(), phone: normalizeIraqiPhone(toLatinDigits(phone))!, governorate: gov!,
         city: city.trim() || null, area: area.trim() || null, street: street.trim() || null, landmark: landmark.trim() || null,
         is_default: isDefault || !list.data?.length,
       });
       await qc.invalidateQueries({ queryKey: ['addresses'] });
+      if (pick) addressPick.set(saved.id);
       toast.show('حُفظ العنوان', 'success');
       router.back();
     } catch (e) {

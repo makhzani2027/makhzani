@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { api, type SearchParams, type SearchSort } from '@/lib/api';
 import { friendlyError } from '@/lib/errors';
@@ -29,6 +29,13 @@ export function FilterSheet({ visible, onClose, value, onApply }: { visible: boo
   const [d, setD] = useState<Filters>(value);
   const [min, setMin] = useState(value.min_price != null ? String(value.min_price) : '');
   const [max, setMax] = useState(value.max_price != null ? String(value.max_price) : '');
+  // الفلاتر قد تتغير من خارج الورقة (شريحة «المتوفر فقط»): نبدأ من القيمة الحالية عند كل فتح
+  useEffect(() => {
+    if (!visible) return;
+    setD(value);
+    setMin(value.min_price != null ? String(value.min_price) : '');
+    setMax(value.max_price != null ? String(value.max_price) : '');
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
   const num = (s: string) => { const n = Number(s.replace(/[^\d]/g, '')); return s.trim() && Number.isFinite(n) ? n : null; };
   return (
     <Sheet visible={visible} onClose={onClose} title="الترتيب والفلاتر"
@@ -110,7 +117,7 @@ export function ProductResults({ params, header, emptyTitle = 'لا نتائج',
         </View>
       }
       ListEmptyComponent={
-        q.isLoading ? <GridSkeleton /> : q.error ? <ErrorState message={friendlyError(q.error)} onRetry={() => q.refetch()} /> : <Empty icon="search" title={emptyTitle} body={emptyBody} />
+        q.isPending ? <GridSkeleton /> : q.error ? <ErrorState message={friendlyError(q.error)} onRetry={() => q.refetch()} /> : <Empty icon="search" title={emptyTitle} body={emptyBody} />
       }
       ListFooterComponent={q.isFetchingNextPage ? <ActivityIndicator color={c.accent} style={{ marginTop: 12 }} /> : undefined}
     />

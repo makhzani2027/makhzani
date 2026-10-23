@@ -11,7 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
 import { friendlyError } from '@/lib/errors';
 import { landmarkText, useFmt } from '@/lib/format';
-import { couponStore, useCoupon, useQuote } from '@/lib/hooks';
+import { addressPick, couponStore, useCoupon, useQuote } from '@/lib/hooks';
 import { payOnline } from '@/lib/pay';
 import { qk, useSettings, useZones } from '@/lib/query';
 import { useTheme } from '@/lib/theme';
@@ -64,7 +64,12 @@ export default function Checkout() {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
 
-  useFocusEffect(useCallback(() => { addresses.refetch(); }, [addresses.refetch])); // عائد من إضافة عنوان
+  // عائد من إضافة عنوان: نختار العنوان الجديد («حفظ واستعمال العنوان»)
+  useFocusEffect(useCallback(() => {
+    const picked = addressPick.take();
+    if (picked) setAddressId(picked);
+    addresses.refetch();
+  }, [addresses.refetch]));
   const list = addresses.data ?? [];
   useEffect(() => {
     if (!list.length) return;
@@ -108,6 +113,8 @@ export default function Checkout() {
     q?.delivery_error ?? null,
     q && !q.lines.every((l) => l.ok) ? 'بعض المنتجات لم تعد متوفرة بالكمية المطلوبة. عدّل السلة.' : null,
     q && q.subtotal < q.min_order_total ? `أقل مبلغ للطلب ${f.money(q.min_order_total)}` : null,
+    // place_order يرفض الطلب إن كان الكوبون المكتوب غير صالح
+    coupon && q?.coupon_error ? `الكوبون: ${q.coupon_error}. أزله من السلة أو صحّحه.` : null,
     !available.length ? 'لا طريقة دفع متاحة حالياً. تواصل مع المتجر.' : null,
   ].filter(Boolean) as string[];
 

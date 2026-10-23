@@ -178,7 +178,9 @@ export const remoteApi: Api = {
   },
   subscribeOrder(id, onChange) {
     const client = sb();
-    const ch = client.channel(`order:${id}`)
+    // اسم فريد لكل اشتراك: channel() تعيد القناة المشتركة نفسها إن تكرر الاسم، و.on() بعد subscribe() ترمي
+    // (صفحتا الطلب نفسه مفتوحتان معاً: من إشعار أو العودة من الدفع)
+    const ch = client.channel(`order:${id}:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `id=eq.${id}` }, () => onChange())
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_events', filter: `order_id=eq.${id}` }, () => onChange())
       .subscribe();

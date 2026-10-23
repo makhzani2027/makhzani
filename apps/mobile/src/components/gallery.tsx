@@ -1,7 +1,7 @@
 import { mediaUrl } from '@raqeem/shared';
 import { Image } from 'expo-image';
-import { useState } from 'react';
-import { FlatList, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useEffect, useState } from 'react';
+import { BackHandler, FlatList, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -56,10 +56,19 @@ export function Gallery({ keys, categoryId, width }: { keys: string[]; categoryI
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const { width: win, height: winH } = useWindowDimensions();
-  const [i, setI] = useState(0);
+  const [sel, setI] = useState(0);
   const [open, setOpen] = useState(false);
   const list = keys.length ? keys : [null];
+  // تغيير النسخة يغيّر عدد الصور: فهرس خارج القائمة يُخفي كل الصور
+  const i = Math.min(sel, list.length - 1);
   const canZoom = !!env.mediaBase && keys.length > 0;
+
+  // زر الرجوع في أندرويد يغلق العارض بدل الخروج من صفحة المنتج
+  useEffect(() => {
+    if (!open || Platform.OS === 'web') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setOpen(false); return true; });
+    return () => sub.remove();
+  }, [open]);
 
   return (
     <View style={{ gap: 10 }}>

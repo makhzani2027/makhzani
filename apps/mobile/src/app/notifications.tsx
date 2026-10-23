@@ -35,14 +35,14 @@ export default function Notifications() {
     <Screen header={<AppBar title="الإشعارات" />} onRefresh={() => q.refetch()} refreshing={q.isRefetching} gap={10}>
       {!uid ? (
         <Empty icon="bell" title="سجّل الدخول" body="لتصلك تحديثات طلباتك والعروض." action="تسجيل الدخول" onAction={() => router.push('/login')} />
-      ) : q.isLoading ? (
+      ) : q.isPending ? (
         <Skeleton style={{ gap: 10 }}>{[0, 1, 2].map((i) => <Bone key={i} h={72} r={16} />)}</Skeleton>
       ) : q.error && !q.data ? (
         <ErrorState message={friendlyError(q.error)} onRetry={() => q.refetch()} />
       ) : !list.length ? (
         <Empty icon="bell" title="لا إشعارات" body="هنا تصلك حالة طلباتك والعروض الجديدة." />
       ) : list.map((n) => (
-        <PressScale key={n.id} onPress={() => router.push(notificationRoute(n.data) as never)} accessibilityRole="button" scaleTo={0.99}
+        <PressScale key={n.id} onPress={() => { const to = notificationRoute(n.data); if (to !== '/notifications') router.push(to as never); }} accessibilityRole="button" scaleTo={0.99}
           style={{ flexDirection: 'row', gap: 12, padding: 14, borderRadius: 16, backgroundColor: c.card, borderWidth: 1, borderColor: n.read_at ? c.line : c.accent }}>
           <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: n.read_at ? c.sunken : c.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name={ICON[n.kind] ?? 'bell'} size={20} color={n.read_at ? c.ink2 : c.accent} />

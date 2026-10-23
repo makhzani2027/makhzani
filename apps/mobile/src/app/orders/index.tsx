@@ -27,7 +27,7 @@ export default function Orders() {
       <Segmented options={[{ key: 'open', label: 'الحالية' }, { key: 'past', label: 'السابقة' }]} value={tab} onChange={setTab} />
       {!uid ? (
         <Empty icon="user" title="سجّل الدخول" body="لترى طلباتك وتتابعها." action="تسجيل الدخول" onAction={() => router.push('/login')} />
-      ) : q.isLoading ? (
+      ) : q.isPending ? (
         <Skeleton style={{ gap: 12 }}>{[0, 1, 2].map((i) => <Bone key={i} h={110} r={20} />)}</Skeleton>
       ) : q.error && !q.data ? (
         <ErrorState message={friendlyError(q.error)} onRetry={() => q.refetch()} />

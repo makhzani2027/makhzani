@@ -65,7 +65,7 @@ export default function ProductScreen() {
     ? (names.length ? d.variants.find((v) => matches(v, sel)) ?? null : d.variants[0] ?? null)
     : null;
 
-  if (q.isLoading) {
+  if (q.isPending) {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top }}>
         <Skeleton style={[contentColumn, { gap: 14, padding: GUTTER }]}><Bone h={colW - GUTTER * 2} r={20} /><Bone w="70%" h={22} /><Bone w="40%" h={28} /><Bone h={80} /></Skeleton>
@@ -83,7 +83,7 @@ export default function ProductScreen() {
 
   const p = d.product;
   const keys = [...new Set([variant?.image_key, ...d.images.map((i) => i.key), p.cover_key].filter((k): k is string => !!k))];
-  const price = variant?.price ?? Math.min(...d.variants.map((v) => v.price));
+  const price = variant?.price ?? (d.variants.length ? Math.min(...d.variants.map((v) => v.price)) : 0);
   const compare = variant?.compare_at_price ?? null;
   const off = discountOf(price, compare);
   const avail = variant?.available_qty ?? 0;

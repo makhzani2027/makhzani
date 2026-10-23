@@ -53,6 +53,13 @@ export const afterAuth = {
   take(): string { const v = pendingNext; pendingNext = null; return v || '/'; },
 };
 
+/** العنوان الذي أُضيف من الإتمام («حفظ واستعمال العنوان») ليُختار عند العودة */
+let pickedAddress: string | null = null;
+export const addressPick = {
+  set(id: string | null) { pickedAddress = id; },
+  take(): string | null { const v = pickedAddress; pickedAddress = null; return v; },
+};
+
 // ---------------------------------------------------------------- هل رأى الترحيب (null = لم يُقرأ بعد)
 let welcomed: boolean | null = null;
 const welcomeListeners = new Set<() => void>();

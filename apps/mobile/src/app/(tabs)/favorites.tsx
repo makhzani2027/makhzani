@@ -22,7 +22,7 @@ export default function Favorites() {
     <Screen inTabs header={<PageTitle title="المفضلة" subtitle={items.length ? f.products(items.length) : undefined} />} onRefresh={() => q.refetch()} refreshing={q.isRefetching}>
       {!fav.ids.length ? (
         <Empty icon="heart" title="لا شيء في المفضلة" body="اضغط القلب على أي منتج لتحفظه هنا وترجع له لاحقاً." action="تصفّح المتجر" onAction={() => router.navigate('/')} />
-      ) : q.isLoading ? (
+      ) : q.isPending ? (
         <GridSkeleton />
       ) : q.error && !q.data ? (
         <ErrorState message={friendlyError(q.error)} onRetry={() => q.refetch()} />

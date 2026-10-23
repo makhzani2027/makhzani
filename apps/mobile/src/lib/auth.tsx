@@ -30,6 +30,7 @@ export const authRedirectUrl = () => Linking.createURL('auth-callback');
 
 // الرمز قد يصل من طريقين معاً (نتيجة نافذة الدخول + فتح رابط auth-callback): نستبدله مرة واحدة فقط
 const exchanges = new Map<string, Promise<void>>();
+let lastExchange: Promise<void> | null = null;
 export function exchangeCode(code: string): Promise<void> {
   let p = exchanges.get(code);
   if (!p) {
@@ -42,11 +43,12 @@ export function exchangeCode(code: string): Promise<void> {
       }
     })();
     exchanges.set(code, p);
+    lastExchange = p;
   }
   return p;
 }
 
-async function completeFromUrl(url: string): Promise<boolean> {
+export async function completeFromUrl(url: string): Promise<boolean> {
   const parsed = Linking.parse(url);
   const code = parsed.queryParams?.code;
   if (typeof code === 'string') {
@@ -118,9 +120,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         options: { redirectTo, skipBrowserRedirect: true, queryParams: { prompt: 'select_account' } },
       });
       if (error || !data.url) throw new Error(error?.message ?? 'تعذّر بدء تسجيل الدخول');
+      lastExchange = null;
       const res = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-      if (res.type !== 'success') return false;
-      return completeFromUrl(res.url);
+      if (res.type === 'success') return completeFromUrl(res.url);
+      // أندرويد: عودة التطبيق للواجهة قد تُنهي النافذة بـ dismiss قبل حدث الرابط، والرابط التقطه +native-intent
+      if (lastExchange) { await lastExchange; return true; }
+      return false;
     },
     signInDemo: () => {
       const p = demoApi.signIn();

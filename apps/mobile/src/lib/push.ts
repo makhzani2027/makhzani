@@ -35,6 +35,9 @@ export async function registerPush(uid: string): Promise<'ok' | 'unsupported' | 
     if (Platform.OS === 'android') {
       await n.setNotificationChannelAsync('orders', { name: 'حالة الطلبات', importance: n.AndroidImportance.HIGH });
       await n.setNotificationChannelAsync('promo', { name: 'العروض', importance: n.AndroidImportance.DEFAULT });
+      // دالة push ترسل أيضاً على القناتين requests و system (_shared/fcm.ts)
+      await n.setNotificationChannelAsync('requests', { name: 'طلبات التوفير', importance: n.AndroidImportance.HIGH });
+      await n.setNotificationChannelAsync('system', { name: 'عام', importance: n.AndroidImportance.DEFAULT });
     }
     let { status } = await n.getPermissionsAsync();
     if (status !== 'granted') status = (await n.requestPermissionsAsync()).status;
@@ -68,6 +71,14 @@ export function notificationRoute(d: Record<string, unknown>): string {
   if (typeof d.product_id === 'string') return `/product/${d.product_id}`;
   if (typeof d.category_slug === 'string') return `/category/${d.category_slug}`;
   if (typeof d.url === 'string' && d.url.startsWith('/')) return d.url;
+  // إشعار حملة (send_campaign): {link_kind, link_value} مثل البانرات
+  const v = typeof d.link_value === 'string' ? d.link_value.trim() : '';
+  if (v) {
+    if (d.link_kind === 'product') return `/product/${encodeURIComponent(v)}`;
+    if (d.link_kind === 'category') return `/category/${encodeURIComponent(v)}`;
+    if (d.link_kind === 'brand') return `/search?brand=${encodeURIComponent(v)}`;
+    if (d.link_kind === 'search') return `/search?q=${encodeURIComponent(v)}`;
+  }
   return '/notifications';
 }
 

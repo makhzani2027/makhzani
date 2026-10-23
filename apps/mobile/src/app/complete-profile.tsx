@@ -49,7 +49,7 @@ export default function CompleteProfile() {
       <Input label="رقم الهاتف" value={phone} onChangeText={setPhone} placeholder="07XX XXX XXXX" keyboardType="phone-pad" autoComplete="tel" ltr icon="phone"
         error={tried ? phoneErr : null} hint="رقم عراقي (زين، آسيا، كورك)" maxLength={14} />
       <GovernorateField value={gov} onChange={setGov} error={tried ? govErr : null} />
-      {!editing ? <Button variant="ghost" title="ليس الآن — تسجيل الخروج" onPress={() => { signOut(); router.replace('/'); }} /> : null}
+      {!editing ? <Button variant="ghost" title="ليس الآن — تسجيل الخروج" onPress={async () => { await signOut(); router.replace('/'); }} /> : null}
     </Screen>
   );
 }

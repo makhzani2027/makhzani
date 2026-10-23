@@ -44,7 +44,7 @@ export default function Categories() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top }}>
       <PageTitle title="الأقسام" right={<IconButton name="search" label="بحث" onPress={() => router.push('/search')} />} />
-      {q.isLoading ? (
+      {q.isPending ? (
         <Skeleton style={[contentColumn, { flexDirection: 'row', gap: 12, paddingHorizontal: 12, paddingTop: 8 }]}>
           <View style={{ width: RAIL - 16, gap: 10 }}>{[0, 1, 2, 3, 4, 5].map((i) => <Bone key={i} h={72} r={18} />)}</View>
           <View style={{ flex: 1, gap: 12 }}>
