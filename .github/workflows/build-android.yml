@@ -155,8 +155,13 @@ jobs:
             "- raqeem.apk — لأغلب الهواتف (64 بت)." \
             "- raqeem-armv7.apk — للهواتف القديمة (32 بت) إن لم يُثبَّت الأول." \
             "" "يُثبَّت فوق النسخة السابقة دون فقدان البيانات." > "$RUNNER_TEMP/notes.md"
-          gh release create "$tag" out/raqeem.apk out/raqeem-armv7.apk --repo "$REPO" \
-            --title "رقيم لأندرويد ${tag}" --notes-file "$RUNNER_TEMP/notes.md" --latest
+          # إعادة تشغيل البناء نفسه (Re-run) تبقي رقم التشغيل: الإصدار موجود فنستبدل ملفاته بدل الفشل
+          if gh release view "$tag" --repo "$REPO" >/dev/null 2>&1; then
+            gh release upload "$tag" out/raqeem.apk out/raqeem-armv7.apk --repo "$REPO" --clobber
+          else
+            gh release create "$tag" out/raqeem.apk out/raqeem-armv7.apk --repo "$REPO" \
+              --title "رقيم لأندرويد ${tag}" --notes-file "$RUNNER_TEMP/notes.md" --latest
+          fi
           echo "url=https://github.com/$REPO/releases/latest/download/raqeem.apk" >> "$GITHUB_OUTPUT"
           echo "✓ رابط التنزيل الثابت: https://github.com/$REPO/releases/latest/download/raqeem.apk"
 

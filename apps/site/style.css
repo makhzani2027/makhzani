@@ -624,7 +624,7 @@ a.c-wa:hover { background: var(--accent-hover); border-color: transparent; }
 .is-draft .draft-bar { display: flex; gap: 10px; align-items: center; padding: 12px 0; background: var(--accent-soft); color: var(--accent-soft-ink); font: 500 14.5px/1.6 var(--sans); }
 .is-draft .draft-bar .i { width: 18px; height: 18px; }
 .is-draft .ph { background: var(--accent-soft); border-radius: 4px; padding-inline: 3px; }
-@media (max-width: 900px) { .doc-grid { grid-template-columns: 1fr; } .toc { position: static; } .toc nav { display: flex; flex-wrap: wrap; gap: 6px; } .toc a { border: 1px solid var(--line); border-radius: 99px; padding: 4px 12px; } .doc { font-size: 17px; } }
+@media (max-width: 900px) { .doc-grid { grid-template-columns: minmax(0, 1fr); } .toc { position: static; } .toc nav { display: flex; flex-wrap: wrap; gap: 6px; } .toc a { border: 1px solid var(--line); border-radius: 99px; padding: 4px 12px; } .doc { font-size: 17px; } }
 
 /* صفحة مشاركة المنتج /p/<slug> */
 .pv { padding-block: clamp(32px, 6vw, 80px) var(--sec); position: relative; isolation: isolate; }

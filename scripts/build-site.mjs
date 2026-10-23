@@ -60,6 +60,8 @@ async function buildSite() {
   // الافتراضي من config.json (= DEFAULT_SITE_CONTENT في packages/shared/src/site.ts)، وفوقه لقطة حية من Supabase إن توفرت عند البناء.
   // يُرسم في HTML نفسه (بلا JavaScript تبقى الصفحة كاملة)، ويُكتب hosting/config.json منه، ثم يحدّثه main.js من البيانات الحية.
   const conf = JSON.parse(fs.readFileSync(path.join(SRC, 'config.json'), 'utf8'));
+  // نسخة من config.json قبل الدمج: مسار data-tpl يُفحص عليها، والبيانات الحية قد تحذف ما يشير إليه (مثل صف توصيل) فنرجع للافتراضي
+  const defaults = JSON.parse(JSON.stringify(conf));
   if (sbUrl && sbKey) {
     try {
       const r = await fetch(`${sbUrl}/rest/v1/app_settings?key=in.(store,site,app)&select=key,value`, {
@@ -126,9 +128,10 @@ async function buildSite() {
     // محتوى الموقع قبل الأيقونات (طرق الدفع بلا شعار تستعمل data-icon)
     s = s.replace(/(<(\w+)[^>]*\sdata-(faq|methods|deliv|governorates)(?:\s[^>]*)?>)<\/\2>/g, (_, open, tag, k) => `${open}${blocks[k]}</${tag}>`);
     s = s.replace(/(<(\w+)[^>]*\sdata-tpl="([\w.]+)"[^>]*>)<\/\2>/g, (_, open, tag, p) => {
+      const d = getP(defaults, p);
+      if (typeof d !== 'string') fail(`${file}: data-tpl="${p}" بلا نص في config.json`);
       const v = getP(conf, p);
-      if (typeof v !== 'string') fail(`${file}: data-tpl="${p}" بلا نص في config.json`);
-      return `${open}${rich(fill(v))}</${tag}>`;
+      return `${open}${rich(fill(typeof v === 'string' ? v : d))}</${tag}>`;
     });
     s = s.replace(/<(\w+)([^>]*)\sdata-stat="(\w+)"([^>]*)><\/\1>/g, (_, tag, a, k, b) =>
       `<${tag}${a} data-stat="${k}"${typeof stats[k] === 'number' ? ` data-count="${stats[k]}"` : ''}${b}>${esc(arD(stats[k] ?? ''))}</${tag}>`);

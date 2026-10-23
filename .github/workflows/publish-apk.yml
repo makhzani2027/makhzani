@@ -23,7 +23,7 @@ jobs:
         run: |
           [ -n "$PUBLIC_TOKEN" ] || { echo "::error::أضف السر RELEASES_TOKEN أولاً (انظر system/08-setup-guide.md)."; exit 1; }
           tag=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 30 --json tagName,isPrerelease \
-            --jq '[.[] | select(.tagName|startswith("android-")) | select(.isPrerelease|not)][0].tagName')
+            --jq '[.[] | select(.tagName|startswith("android-")) | select(.isPrerelease|not)][0].tagName // empty')
           [ -n "$tag" ] || { echo "::error::لا توجد نسخة أندرويد في Releases — شغّل Build Android."; exit 1; }
           # مستودع فارغ (بلا README) لا يقبل إصدارات: ننشئ أول ملف فيه
           if ! GH_TOKEN="$PUBLIC_TOKEN" gh api "repos/$REPO/commits?per_page=1" >/dev/null 2>&1; then

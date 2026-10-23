@@ -53,7 +53,6 @@ export interface NumberFormatOptions {
 export function formatNumber(n: number, opts: NumberFormatOptions = {}): string {
   const digits = opts.digits ?? 'arab';
   if (!Number.isFinite(n)) return digits === 'arab' ? '—' : '—';
-  const neg = n < 0;
   let abs = Math.abs(n);
   let fixed: string;
   if (opts.decimals !== undefined) fixed = abs.toFixed(opts.decimals);
@@ -63,6 +62,8 @@ export function formatNumber(n: number, opts: NumberFormatOptions = {}): string 
     fixed = String(abs);
     if (fixed.includes('e')) fixed = abs.toFixed(max);
   }
+  // سالب يصير صفراً بعد التقريب (مثل 0.3 - 0.1 - 0.2) لا يُعرض «-٠»
+  const neg = n < 0 && Number(fixed) !== 0;
   const [int, frac] = fixed.split('.');
   const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   let out = frac ? `${grouped}.${frac}` : grouped;

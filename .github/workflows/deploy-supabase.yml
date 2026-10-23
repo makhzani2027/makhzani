@@ -71,8 +71,9 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
-          MEDIA_PUBLIC_URL: ${{ secrets.MEDIA_PUBLIC_URL }}
+          # دليل الإعداد (الخطوة ٨) يضع الرابط العام في المتغير MEDIA_BASE_URL — نفس القيمة للدوال إن لم يُضف السرّان
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL || vars.MEDIA_BASE_URL }}
+          MEDIA_PUBLIC_URL: ${{ secrets.MEDIA_PUBLIC_URL || vars.MEDIA_BASE_URL }}
         run: |
           # الفارغة لا تُكتب حتى لا تمسح قيماً مضبوطة سابقاً
           f="$RUNNER_TEMP/secrets.env"
@@ -126,6 +127,7 @@ jobs:
       # إعدادات الدخول في Supabase من GitHub بدل لوحة Supabase: عنوان الموقع، روابط الرجوع المسموحة، ودخول Google
       # (يُفعَّل Google فقط إن وُجد السرّان GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET من Google Cloud ← Clients).
       - name: Auth settings (site URL, redirects, Google sign-in)
+        if: steps.check.outputs.ok == 'true'
         env:
           SITE_URL: ${{ vars.SITE_URL || 'https://raqeem-iq.web.app' }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}

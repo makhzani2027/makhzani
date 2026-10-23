@@ -71,13 +71,18 @@
   // ------------------------------------------------------------ بيانات المتجر
   const get = (o, path) => path.split('.').reduce((v, k) => (v == null ? v : v[k]), o);
   const digits = (p) => String(p || '').replace(/[^\d+]/g, '');
+  // رقم دولي بلا + (wa.me لا يقبل الصيغة المحلية 0770…، وصفحة الإعدادات تحفظ الرقم كما كُتب)
+  const intl = (p) => {
+    const d = digits(p).replace(/^\+/, '').replace(/^00/, '');
+    return /^07\d{9}$/.test(d) ? `964${d.slice(1)}` : /^7\d{9}$/.test(d) ? `964${d}` : d;
+  };
   const prettyPhone = (p) => {
-    const d = digits(p).replace(/^\+/, '');
+    const d = intl(p);
     // +964 7XX XXX XXXX
     return /^9647\d{9}$/.test(d) ? `+964 ${d.slice(3, 6)} ${d.slice(6, 9)} ${d.slice(9)}` : p;
   };
   const links = {
-    whatsapp: (c) => c.whatsapp && `https://wa.me/${digits(c.whatsapp).replace(/^\+/, '')}`,
+    whatsapp: (c) => c.whatsapp && `https://wa.me/${intl(c.whatsapp)}`,
     phone: (c) => c.phone && `tel:${digits(c.phone)}`,
     email: (c) => c.email && `mailto:${c.email}`,
     map: (c) => c.map_url,

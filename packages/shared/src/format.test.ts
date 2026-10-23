@@ -15,6 +15,11 @@ describe('الأرقام', () => {
     expect(formatNumber(0, { digits: 'arab' })).toBe('٠');
     expect(formatNumber(-2500, { digits: 'latn' })).toContain('-2,500');
   });
+  it('سالب يُقرَّب إلى صفر بلا علامة سالب', () => {
+    expect(formatNumber(0.3 - 0.1 - 0.2, { digits: 'latn' })).toBe('0');
+    expect(formatNumber(-0.004, { digits: 'latn', decimals: 2 })).toBe('0.00');
+    expect(formatNumber(-0.006, { digits: 'latn', decimals: 2 })).toContain('-0.01');
+  });
   it('قراءة ما يكتبه المستخدم', () => {
     expect(parseNumber('١٢٬٥٠٠')).toBe(12500);
     expect(parseNumber('12,500')).toBe(12500);
