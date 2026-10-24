@@ -18,7 +18,13 @@ STYLE = (
     "ellipses (…), subtle emphasis on key words, and a steady, unhurried pace. Read ONLY the narration text, nothing else.\n\n"
     "Narration:\n"
 )
-SAMPLE_VOICES = ['Charon', 'Orus', 'Iapetus', 'Algieba', 'Sadaltager', 'Gacrux']
+STYLE_MULTI = (
+    "After each paragraph below, stay completely silent for two full seconds before starting the next one. "
+    "Do not read the paragraph separators.\n\n"
+)
+SAMPLE_VOICES = [v for v in os.environ.get('SAMPLE_VOICES', 'Charon,Orus,Algieba,Gacrux').split(',') if v]
+# الحصة المجانية صغيرة (≈١٠ طلبات يومياً): نولّد المشاهد في دفعات قليلة ثم نقسّمها عند فترات الصمت
+CHUNKS = int(os.environ.get('TTS_CHUNKS', '4'))
 
 
 def call(path, body=None, tries=6):
@@ -129,21 +135,76 @@ def main():
             dur = save_wav(f'{out}/sample-{v}.wav', pcm, rate)
             info['voices'][v] = {'seconds': round(dur, 2), 'transcript': transcribe(text_model, f'{out}/sample-{v}.wav')}
             print(f'{v}: {dur:.1f}s', flush=True)
+            json.dump(info, open(f'{out}/samples.json', 'w'), ensure_ascii=False, indent=1)
         json.dump(info, open(f'{out}/samples.json', 'w'), ensure_ascii=False, indent=1)
         return
 
     voice = sys.argv[3]
     model = pick_tts(ms, sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else None)
     durs, trans = {}, {}
-    for s in scenes:
-        path = f'{out}/{s["id"]}.wav'
-        pcm, rate = synth(model, voice, s['say'])
-        durs[s['id']] = round(save_wav(path, pcm, rate), 3)
-        trans[s['id']] = transcribe(text_model, path)
-        print(f'{s["id"]}: {durs[s["id"]]}s', flush=True)
-        time.sleep(2)
-    json.dump({'model': model, 'voice': voice, 'durations': durs}, open(f'{out}/durations.json', 'w'), indent=1)
-    json.dump(trans, open(f'{out}/transcripts.json', 'w'), ensure_ascii=False, indent=1)
+    size = -(-len(scenes) // max(1, CHUNKS))
+    groups = [scenes[i:i + size] for i in range(0, len(scenes), size)]
+    for gi, g in enumerate(groups):
+        text = '\n\n— — —\n\n'.join(s['say'] for s in g)
+        pcm, rate = synth_multi(model, voice, text) if len(g) > 1 else synth(model, voice, g[0]['say'])
+        save_wav(f'{out}/chunk-{gi + 1}.wav', pcm, rate)
+        parts = split_silences(pcm, rate, len(g))
+        for s, piece in zip(g, parts):
+            path = f'{out}/{s["id"]}.wav'
+            durs[s['id']] = round(save_wav(path, piece, rate), 3)
+            trans[s['id']] = transcribe(text_model, path)
+            print(f'{s["id"]}: {durs[s["id"]]}s', flush=True)
+        json.dump({'model': model, 'voice': voice, 'durations': durs}, open(f'{out}/durations.json', 'w'), indent=1)
+        json.dump(trans, open(f'{out}/transcripts.json', 'w'), ensure_ascii=False, indent=1)
+        time.sleep(5)
+
+
+def synth_multi(model, voice, text):
+    global STYLE
+    keep = STYLE
+    STYLE = STYLE_MULTI + STYLE
+    try:
+        return synth(model, voice, text)
+    finally:
+        STYLE = keep
+
+
+def split_silences(pcm, rate, n):
+    """يقسم الصوت إلى n قطعة عند أطول n-1 فترات صمت (بلا مكتبات خارجية)"""
+    import array
+    a = array.array('h'); a.frombytes(pcm)
+    win = int(rate * 0.02)
+    rms = []
+    for i in range(0, len(a) - win, win):
+        seg = a[i:i + win]
+        rms.append((sum(x * x for x in seg[::4]) / max(1, len(seg[::4]))) ** 0.5)
+    if n <= 1:
+        return [pcm]
+    peak = max(rms) or 1
+    quiet = [r < peak * 0.02 for r in rms]
+    runs, i = [], 0
+    while i < len(quiet):
+        if quiet[i]:
+            j = i
+            while j < len(quiet) and quiet[j]:
+                j += 1
+            runs.append((j - i, i, j))
+            i = j
+        else:
+            i += 1
+    # تجاهل الصمت في البداية والنهاية
+    runs = [r for r in runs if r[1] > 5 and r[2] < len(quiet) - 5]
+    cuts = sorted(sorted(runs, reverse=True)[:n - 1], key=lambda r: r[1])
+    if len(cuts) < n - 1:
+        raise SystemExit(f'could not find {n - 1} pauses (found {len(cuts)})')
+    pieces, start = [], 0
+    for _, a0, b0 in cuts:
+        # اترك ٠٫٢٥ث من الصمت على جانبي القطع
+        end = min(b0, a0 + int(0.25 / 0.02)) * win
+        pieces.append(pcm[start * 2:end * 2])
+        start = max(a0, b0 - int(0.25 / 0.02)) * win
+    pieces.append(pcm[start * 2:])
+    return pieces
 
 
 if __name__ == '__main__':

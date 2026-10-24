@@ -17,6 +17,12 @@ on:
       model:
         description: 'نموذج TTS (فارغ = أحدث نموذج متاح)'
         default: ''
+      voices:
+        description: 'أصوات العيّنات (مفصولة بفواصل)'
+        default: 'Charon,Orus,Algieba,Gacrux'
+      chunks:
+        description: 'عدد دفعات التوليد في full (الحصة المجانية ≈١٠ طلبات يومياً)'
+        default: '4'
 
 permissions:
   contents: write
@@ -37,6 +43,8 @@ jobs:
           MODE: ${{ inputs.mode }}
           VOICE: ${{ inputs.voice }}
           MODEL: ${{ inputs.model }}
+          SAMPLE_VOICES: ${{ inputs.voices }}
+          TTS_CHUNKS: ${{ inputs.chunks }}
         run: |
           [ -n "$GEMINI_API_KEY" ] || { echo "::error::أضف السر GEMINI_API_KEY أولاً (Settings ← Secrets and variables ← Actions)."; exit 1; }
           if [ "$MODE" = samples ]; then
@@ -46,6 +54,8 @@ jobs:
           fi
           ls -la out
       - name: Push audio to the promo-assets branch
+        # حتى لو توقف التوليد في المنتصف (الحصة) نرفع ما اكتمل
+        if: always() && hashFiles('out/*.wav') != ''
         env:
           MODE: ${{ inputs.mode }}
           VOICE: ${{ inputs.voice }}
