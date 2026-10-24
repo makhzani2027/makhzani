@@ -23,3 +23,6 @@ coverage/
 
 # نسخ عمل الوكلاء المؤقتة (لا تُرفع)
 .claude/worktrees/
+
+# Python
+__pycache__/
