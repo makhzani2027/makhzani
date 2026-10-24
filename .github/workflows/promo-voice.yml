@@ -53,12 +53,17 @@ jobs:
           dest="voice/$MODE"; [ "$MODE" = full ] && dest="voice/full-$VOICE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          wt="$RUNNER_TEMP/promo-assets"
           if git ls-remote --exit-code --heads origin promo-assets >/dev/null 2>&1; then
-            git fetch -q origin promo-assets && git worktree add -q assets origin/promo-assets && (cd assets && git checkout -q -B promo-assets)
+            git fetch -q origin promo-assets
+            git worktree add -q -B promo-assets "$wt" origin/promo-assets
           else
-            git worktree add -q --detach assets && (cd assets && git checkout -q --orphan promo-assets && git rm -rq --cached . && find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +)
+            git worktree add -q --detach "$wt"
+            (cd "$wt" && git checkout -q --orphan promo-assets && git rm -rq --cached . && find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +)
           fi
-          rm -rf "assets/$dest" && mkdir -p "assets/$dest" && cp -r out/. "assets/$dest/"
-          cd assets && git add -A && git commit -qm "Promo voice: $dest" && \
-            for i in 1 2 3 4; do git push -q origin promo-assets && break; sleep $((i * 4)); done
+          rm -rf "$wt/$dest" && mkdir -p "$wt/$dest" && cp -r out/. "$wt/$dest/"
+          cd "$wt" && git add -A && git commit -qm "Promo voice: $dest"
+          ok=
+          for i in 1 2 3 4; do if git push -q origin HEAD:refs/heads/promo-assets; then ok=1; break; fi; sleep $((i * 4)); done
+          [ -n "$ok" ] || { echo "::error::تعذّر رفع الصوت إلى الفرع promo-assets"; exit 1; }
           echo "✓ promo-assets/$dest"
