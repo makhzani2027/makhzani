@@ -1,0 +1,64 @@
+# التعليق الصوتي للفيديو التعريفي (Gemini TTS) — يدوي: Actions ← Promo Voice ← Run workflow.
+# الشرط: السر GEMINI_API_KEY (مفتاح Google AI Studio). المفتاح لا يُطبع ولا يُحفظ في المستودع.
+# الناتج يُرفع إلى الفرع promo-assets (ملفات wav + المدد + تفريغ نصي للتحقق)، لا إلى الفرع الرئيسي.
+#   samples: نفس الفقرة بعدة أصوات للاختيار.   full: ملف لكل مشهد بالصوت المختار.
+name: Promo Voice
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'samples أو full'
+        type: choice
+        options: [samples, full]
+        default: samples
+      voice:
+        description: 'اسم الصوت (لـ full)'
+        default: 'Charon'
+      model:
+        description: 'نموذج TTS (فارغ = أحدث نموذج متاح)'
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: promo-voice
+  cancel-in-progress: false
+
+jobs:
+  tts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate narration
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MODE: ${{ inputs.mode }}
+          VOICE: ${{ inputs.voice }}
+          MODEL: ${{ inputs.model }}
+        run: |
+          [ -n "$GEMINI_API_KEY" ] || { echo "::error::أضف السر GEMINI_API_KEY أولاً (Settings ← Secrets and variables ← Actions)."; exit 1; }
+          if [ "$MODE" = samples ]; then
+            python3 promo/tts.py samples out "$MODEL"
+          else
+            python3 promo/tts.py full out "$VOICE" "$MODEL"
+          fi
+          ls -la out
+      - name: Push audio to the promo-assets branch
+        env:
+          MODE: ${{ inputs.mode }}
+          VOICE: ${{ inputs.voice }}
+        run: |
+          dest="voice/$MODE"; [ "$MODE" = full ] && dest="voice/full-$VOICE"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin promo-assets >/dev/null 2>&1; then
+            git fetch -q origin promo-assets && git worktree add -q assets origin/promo-assets && (cd assets && git checkout -q -B promo-assets)
+          else
+            git worktree add -q --detach assets && (cd assets && git checkout -q --orphan promo-assets && git rm -rq --cached . && find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +)
+          fi
+          rm -rf "assets/$dest" && mkdir -p "assets/$dest" && cp -r out/. "assets/$dest/"
+          cd assets && git add -A && git commit -qm "Promo voice: $dest" && \
+            for i in 1 2 3 4; do git push -q origin promo-assets && break; sleep $((i * 4)); done
+          echo "✓ promo-assets/$dest"
