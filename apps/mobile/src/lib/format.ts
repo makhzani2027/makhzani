@@ -55,6 +55,9 @@ export function useFmt(): Fmt {
     text: (s) => withDigits(s, digits),
     gov: (k) => governorateName(k),
     doc: (s) => (s ? `\u2066${s}\u2069` : ''),
-    phone: (p) => (p ? `\u2066${withDigits(formatPhone(p), digits)}\u2069` : ''),
+    // الأرقام المشرقية «أرقام عربية» (AN) في خوارزمية الاتجاه: الفراغ بين مجموعتين منها يُعامل كحرف RTL
+    // فتنعكس المجموعات (٤٥٦٧ ١٢٣ ٠٧٧٠) حتى داخل العزل LTR. علامة LRM على جانبي الفاصل تربطه بالاتجاه LTR
+    // (وتبقي الترتيب صحيحاً ولو لم يُدعم العزل)، والفراغ غير القابل للكسر يبقي الرقم على سطر واحد.
+    phone: (p) => (p ? `\u2066${withDigits(formatPhone(p), digits).replace(/ /g, '\u200E\u00A0\u200E')}\u2069` : ''),
   }), [digits, currency]);
 }

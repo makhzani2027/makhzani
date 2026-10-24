@@ -33,6 +33,8 @@ export default function Cart() {
   }
 
   const blocked = !q || !q.lines.every((l) => l.ok) || q.subtotal < q.min_order_total;
+  // أول فتح: التسعير لم يصل بعد ← هيكل تحميل بدل «—» وزر معطّل
+  const pricing = !q && !quote.isError;
   const checkout = () => {
     if (!uid) router.push({ pathname: '/login', params: { next: '/checkout' } });
     else if (!onboarded) router.push('/complete-profile');
@@ -49,9 +51,13 @@ export default function Cart() {
         <Row>
           <View style={{ flex: 1 }}>
             <T v="small" tone="ink2">المجموع</T>
-            <T size={19} weight="black" tabular>{q ? f.money(q.subtotal - q.discount) : '—'}</T>
+            {pricing ? (
+              <Skeleton style={{ paddingVertical: 7 }}><Bone w={110} h={20} r={6} /></Skeleton>
+            ) : (
+              <T size={19} weight="black" tabular>{q ? f.money(q.subtotal - q.discount) : '—'}</T>
+            )}
           </View>
-          <Button title="إتمام الطلب" icon="next" onPress={checkout} disabled={blocked || quote.isFetching && !q} style={{ minWidth: 180 }} />
+          <Button title="إتمام الطلب" icon="next" onPress={checkout} loading={pricing} disabled={blocked} style={{ minWidth: 180 }} />
         </Row>
       }>
       {cart.lines.map((l) => {
@@ -126,6 +132,8 @@ export default function Cart() {
           <Divider dashed />
           <KeyValue label="الإجمالي قبل التوصيل" value={f.money(q.subtotal - q.discount)} strong />
         </Card>
+      ) : pricing ? (
+        <Skeleton><Bone h={150} r={20} /></Skeleton>
       ) : null}
 
       {q && q.subtotal < q.min_order_total ? (

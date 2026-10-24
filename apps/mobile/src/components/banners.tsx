@@ -71,15 +71,18 @@ export function HeroCarousel({ banners }: { banners: StoreBanner[] }) {
   const height = Math.round(width * 0.46);
   const [i, setI] = useState(0);
   const touching = useRef(false);
+  // يزيد مع كل نهاية لمس: يعيد عدّ الثواني الخمس ولو رجع السحب للبانر نفسه
+  const [touchEnd, setTouchEnd] = useState(0);
   const reduced = useReducedMotion();
   const n = banners.length;
 
   useEffect(() => { if (i > n - 1) setI(0); }, [n, i]);
+  // مؤقت واحد يُعاد ضبطه مع كل تغيّر للفهرس (تلقائي أو بالسحب) ومع نهاية اللمس، فلا يقفز البانر بعد سحب المستخدم مباشرة
   useEffect(() => {
     if (n < 2 || reduced) return;
-    const t = setInterval(() => { if (!touching.current) setI((x) => (x + 1) % n); }, 5000);
-    return () => clearInterval(t);
-  }, [n, reduced]);
+    const t = setTimeout(() => { if (!touching.current) setI((x) => (x + 1) % n); }, 5000);
+    return () => clearTimeout(t);
+  }, [n, reduced, i, touchEnd]);
 
   if (!n) return null;
   return (
@@ -91,7 +94,7 @@ export function HeroCarousel({ banners }: { banners: StoreBanner[] }) {
         gap={12}
         index={Math.min(i, n - 1)}
         onIndexChange={setI}
-        onDragChange={(d) => { touching.current = d; }}
+        onDragChange={(d) => { touching.current = d; if (!d) setTouchEnd((x) => x + 1); }}
         keyOf={(b) => b.id}
         label="العروض"
         onPressItem={(k) => { const b = banners[k]; if (b) openLink(b.link_kind, b.link_value); }}

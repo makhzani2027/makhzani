@@ -1,3 +1,4 @@
+import { toLatinDigits } from '@raqeem/shared';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
@@ -36,7 +37,7 @@ export function FilterSheet({ visible, onClose, value, onApply }: { visible: boo
     setMin(value.min_price != null ? String(value.min_price) : '');
     setMax(value.max_price != null ? String(value.max_price) : '');
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
-  const num = (s: string) => { const n = Number(s.replace(/[^\d]/g, '')); return s.trim() && Number.isFinite(n) ? n : null; };
+  const num = (s: string) => { const v = toLatinDigits(s).replace(/[^\d]/g, ''); return v ? Number(v) : null; };
   return (
     <Sheet visible={visible} onClose={onClose} title="الترتيب والفلاتر"
       footer={

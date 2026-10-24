@@ -97,7 +97,9 @@ export default function OrderDetail() {
   const cart = useCart();
   const store = useSettings().data?.store;
   const { id } = useLocalSearchParams<{ id: string }>();
-  const q = useQuery({ queryKey: qk.order(id), queryFn: () => api.order(id) });
+  // الاشتراك اللحظي لا يلتقط إلا التغييرات القادمة، والنسخة المحفوظة قد تكون من شاشة نجاح الطلب قبل ثوانٍ:
+  // نجلب من جديد عند كل فتح كي لا تظهر حالة قديمة (ثم يقفز الخط الزمني خطوات عند أول تغيير)
+  const q = useQuery({ queryKey: qk.order(id), queryFn: () => api.order(id), refetchOnMount: 'always' });
   const [busy, setBusy] = useState<string | null>(null);
   const [review, setReview] = useState<OrderItem | null>(null);
 
