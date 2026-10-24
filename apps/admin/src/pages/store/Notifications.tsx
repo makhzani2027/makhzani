@@ -19,12 +19,13 @@ export default function Notifications() {
   const send = useAction(async (c: NotificationCampaign) => {
     if (!(await askConfirm({ title: 'إرسال الإشعار لكل الزبائن؟', body: `«${c.title}» — لا يمكن التراجع بعد الإرسال.`, confirm: 'إرسال الآن' }))) return null;
     const r = await sendCampaign(c.id);
-    toast.success(`أُرسل إلى ${fmt.num(r.recipients)} زبون`);
+    // بعد «إلى» الاسم مجرور: زبونين لا زبونان
+    toast.success(r.recipients ? `أُرسل إلى ${fmt.count(r.recipients, { one: 'زبون واحد', two: 'زبونين', few: 'زبائن', many: 'زبوناً' })}` : 'أُرسل الإشعار (لا زبائن في التطبيق بعد)');
     await list.reload();
     return r;
   });
   const cols: Column<NotificationCampaign>[] = [
-    { key: 't', header: 'الحملة', primary: true, cell: (c) => <div><b>{c.title}</b>{c.body ? <div className="small faint truncate" style={{ maxWidth: 380 }} title={c.body}>{c.body}</div> : null}</div> },
+    { key: 't', header: 'الحملة', primary: true, cell: (c) => <div><b>{c.title}</b>{c.body ? <div className="small faint truncate" style={{ maxWidth: 320 }} title={c.body}>{c.body}</div> : null}</div> },
     { key: 'd', header: 'أُنشئت', hideOnMobile: true, cell: (c) => <span className="dim">{fmt.date(c.created_at)}</span> },
     { key: 's', header: 'الحالة', cell: (c) => (c.sent_at ? <Badge tone="success">أُرسلت {fmt.ago(c.sent_at)}</Badge> : <Badge>مسودة</Badge>) },
     { key: 'a', header: '', shrink: true, cell: (c) => (!c.sent_at ? <Button size="sm" variant="primary" icon="megaphone" loading={send.busy} onClick={(e) => { e.stopPropagation(); void send.run(c); }}>إرسال</Button> : null) },
@@ -65,7 +66,7 @@ export default function Notifications() {
         </Card>
         <div className="sx-stack">
           <h2 className="section-title">الحملات السابقة</h2>
-          <DataTable rows={list.data} columns={cols} rowKey={(c) => c.id} loading={list.loading} error={list.error} onRetry={list.reload} empty={{ icon: 'bell', title: 'لا حملات بعد' }} />
+          <div className="sx-narrow-table"><DataTable rows={list.data} columns={cols} rowKey={(c) => c.id} loading={list.loading} error={list.error} onRetry={list.reload} empty={{ icon: 'bell', title: 'لا حملات بعد' }} /></div>
         </div>
       </div>
     </>

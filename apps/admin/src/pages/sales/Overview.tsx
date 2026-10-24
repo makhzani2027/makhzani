@@ -1,7 +1,7 @@
 /** الرئيسية: ابدأ العملية مباشرة، ثم المؤشرات بفروقها، المبيعات، الأكثر مبيعاً، أحدث الطلبات، والتنبيهات */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatPercent, ORDER_STATUS, type IconName } from '@raqeem/shared';
+import { formatPercent, nouns, ORDER_STATUS, type IconName } from '@raqeem/shared';
 import { Badge, BarChart, Button, Card, EmptyState, ErrorState, Icon, PageHeader, Segmented, Skeleton, Stat } from '../../ui';
 import { useAuth } from '../../lib/auth';
 import { useLoad } from '../../lib/hooks';
@@ -10,6 +10,14 @@ import { dashboardSummary, listOrders, lowStock, openSessions, salesSeries, topP
 import { useSetting } from './data/app-settings';
 import { previousRange, rangeOf, useMoney, VoucherModal, type RangeKey } from './components/common';
 import './sales.css';
+
+/** اسم الترحيب: الاسم الأول، وكلمتان إن كان الأول جزءاً من اسم مركّب أو لقباً («عبد الله»، «صاحب المتجر»)، بلا ما بين القوسين */
+const NAME_PREFIX = new Set(['عبد', 'أبو', 'ابو', 'أم', 'ام', 'آل', 'ابن', 'بنت', 'صاحب', 'صاحبة', 'مدير', 'مديرة', 'الحاج', 'الحاجة', 'حاج', 'السيد', 'السيدة', 'الأستاذ', 'الأستاذة', 'د.', 'دكتور']);
+function greetName(full: string | null | undefined): string {
+  const words = (full ?? '').replace(/\([^)]*\)/g, ' ').trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return '';
+  return NAME_PREFIX.has(words[0]) && words[1] ? `${words[0]} ${words[1]}` : words[0];
+}
 
 export default function Overview() {
   const nav = useNavigate();
@@ -48,7 +56,7 @@ export default function Overview() {
 
   return (
     <>
-      <PageHeader title={`أهلاً ${profile?.full_name?.split(' ')[0] ?? ''}`} description={`ملخص ${fmt.date(Date.now())}`}
+      <PageHeader title={`أهلاً ${greetName(profile?.full_name)}`.trim()} description={`ملخص ${fmt.date(Date.now())}`}
         actions={<Segmented value={rk} onChange={setRk} options={[{ value: 'today', label: 'اليوم' }, { value: '7d', label: '٧ أيام' }, { value: '30d', label: '٣٠ يوماً' }, { value: 'year', label: 'السنة' }]} />} />
 
       <section aria-label="ابدأ العملية مباشرة">
@@ -67,7 +75,7 @@ export default function Overview() {
         <div className="sx-stats kpis" style={{ marginBottom: 0 }}>
           {!cur ? Array.from({ length: 6 }, (_, i) => <Skeleton key={i} h={112} r={20} />) : (
             <>
-              <Stat tone="hero" label="المبيعات" icon="chartLine" value={m(cur.sales_total - cur.returns_total)} delta={delta(cur.sales_total - cur.returns_total, prev ? prev.sales_total - prev.returns_total : null)} foot={`${fmt.num(cur.sales_count)} فاتورة`} />
+              <Stat tone="hero" label="المبيعات" icon="chartLine" value={m(cur.sales_total - cur.returns_total)} delta={delta(cur.sales_total - cur.returns_total, prev ? prev.sales_total - prev.returns_total : null)} foot={fmt.count(cur.sales_count, nouns.invoice)} />
               {can('purchases.manage') ? <Stat label="المشتريات" icon="stockIn" value={m(cur.purchases_total)} delta={delta(cur.purchases_total, prev?.purchases_total, true)} /> : null}
               {can('finance.view') ? <Stat label="رصيد الصناديق" icon="wallet" value={m(cur.cash_balance)} foot={`داخل ${m(cur.cash_in)}`} /> : null}
               {can('finance.view') ? <Stat label="لنا عند الزبائن" icon="debt" value={m(cur.receivables)} foot={<button type="button" className="sx-link" onClick={() => nav('/debts')}>الديون</button>} /> : null}
@@ -93,7 +101,7 @@ export default function Overview() {
                 <div className="list" style={{ padding: '0 16px' }}>
                   {orders.data.rows.map((o) => (
                     <button key={o.id} type="button" className="list-item sx-alert-row" style={{ background: 'transparent', borderRadius: 0 }} onClick={() => nav(`/orders/${o.id}`)}>
-                      <span className="grow" style={{ minWidth: 0 }}><b className="ltr">{o.number}</b> · {o.customer_name}<div className="meta">{fmt.ago(o.created_at)} · {fmt.num(o.items_count)} منتج</div></span>
+                      <span className="grow" style={{ minWidth: 0 }}><b className="ltr">{o.number}</b> · {o.customer_name}<div className="meta">{fmt.ago(o.created_at)} · {fmt.count(o.items_count, nouns.product)}</div></span>
                       <span className="sx-order-end">
                         <Badge tone={ORDER_STATUS[o.status].tone}>{ORDER_STATUS[o.status].label}</Badge>
                         <b className="sx-mono">{m(o.total)}</b>
@@ -108,11 +116,11 @@ export default function Overview() {
         <div className="sx-stack">
           <Card title="تنبيهات" icon="bell">
             <div className="sx-alerts">
-              {late.length ? <Alertish icon="clock" tone="danger" text={`${fmt.num(late.length)} طلب ينتظر التأكيد منذ أكثر من ${fmt.num(pos.late_order_minutes)} دقيقة`} go={() => nav('/orders?status=pending')} /> : null}
-              {cur && cur.orders_new ? <Alertish icon="bag" tone="accent" text={`${fmt.num(cur.orders_new)} طلب جديد`} go={() => nav('/orders?status=pending')} /> : null}
-              {cur && cur.requests_new ? <Alertish icon="request" tone="info" text={`${fmt.num(cur.requests_new)} طلب توفير جديد`} go={() => nav('/requests')} /> : null}
-              {cur && cur.out_of_stock_count ? <Alertish icon="alert" tone="danger" text={`${fmt.num(cur.out_of_stock_count)} منتج نفد من المخزون`} go={() => nav('/inventory')} /> : null}
-              {cur && cur.low_stock_count ? <Alertish icon="layers" tone="warning" text={`${fmt.num(cur.low_stock_count)} منتج قارب على النفاد`} go={() => nav('/inventory')} /> : null}
+              {late.length ? <Alertish icon="clock" tone="danger" text={`${fmt.count(late.length, nouns.order)} بانتظار التأكيد منذ أكثر من ${fmt.count(pos.late_order_minutes, nouns.minute)}`} go={() => nav('/orders?status=pending')} /> : null}
+              {cur && cur.orders_new ? <Alertish icon="bag" tone="accent" text={fmt.count(cur.orders_new, { one: 'طلب جديد', two: 'طلبان جديدان', few: 'طلبات جديدة', many: 'طلباً جديداً' })} go={() => nav('/orders?status=pending')} /> : null}
+              {cur && cur.requests_new ? <Alertish icon="request" tone="info" text={fmt.count(cur.requests_new, { one: 'طلب توفير جديد', two: 'طلبا توفير جديدان', few: 'طلبات توفير جديدة', many: 'طلب توفير جديداً' })} go={() => nav('/requests')} /> : null}
+              {cur && cur.out_of_stock_count ? <Alertish icon="alert" tone="danger" text={`${fmt.count(cur.out_of_stock_count, nouns.product)} بلا مخزون`} go={() => nav('/inventory')} /> : null}
+              {cur && cur.low_stock_count ? <Alertish icon="layers" tone="warning" text={`${fmt.count(cur.low_stock_count, nouns.product)} على وشك النفاد`} go={() => nav('/inventory')} /> : null}
               {(sessions.data ?? []).map((s) => <Alertish key={s.id} icon="cash" tone="neutral" text={`جلسة صندوق مفتوحة — ${s.opened_by_name ?? 'موظف'} منذ ${fmt.ago(s.opened_at)}`} go={() => nav('/cash')} />)}
               {cur && !late.length && !cur.orders_new && !cur.requests_new && !cur.low_stock_count && !cur.out_of_stock_count && !(sessions.data ?? []).length ? <p className="sx-muted">كل شيء على ما يرام.</p> : null}
             </div>

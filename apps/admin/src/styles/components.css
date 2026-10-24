@@ -98,6 +98,11 @@
 .input-wrap > svg ~ .input { padding-right: 38px; }
 .input-wrap > .suffix { position: absolute; inset-inline-end: 12px; font-size: 13px; color: var(--ink3); font-weight: 700; pointer-events: none; }
 .input-wrap > .input:has(+ .suffix) { padding-left: 48px; }
+.date-empty > .input:not(:focus) { color: transparent; }
+.date-empty > .input:not(:focus)::-webkit-datetime-edit { color: transparent; }
+/* الصيغة تُرسم يساراً (LTR) والأيقونة يميناً، فالتلميح مكان القيمة */
+.date-empty > .date-ph { position: absolute; left: 13px; color: var(--ink3); pointer-events: none; font-size: 14px; }
+.date-empty > .input:focus + .date-ph { display: none; }
 .form-grid { display: grid; gap: 14px 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: start; }
 .form-grid .full { grid-column: 1 / -1; }
 .form-actions { display: flex; gap: 10px; justify-content: flex-start; flex-wrap: wrap; padding-top: 4px; }

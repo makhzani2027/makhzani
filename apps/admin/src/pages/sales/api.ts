@@ -570,7 +570,8 @@ export async function getOrder(id: string): Promise<OrderFull> {
     const order = demoDb.orders.find((o) => o.id === id);
     if (!order) throw new AppError('الطلب غير موجود.');
     return {
-      order, items: demoDb.order_items.filter((i) => i.order_id === id),
+      // سطر بلا صورة محفوظة ← صورة غلاف المنتج الحالية
+      order, items: demoDb.order_items.filter((i) => i.order_id === id).map((i) => ({ ...i, image_key: i.image_key ?? demoDb.products.find((p) => p.id === i.product_id)?.cover_key ?? null })),
       events: ledger.order_events.filter((e) => e.order_id === id).sort((a, b) => a.created_at.localeCompare(b.created_at)).map((e) => ({ ...e, actor_name: staffName(e.actor_id) })),
       customer: demoDb.customers.find((c) => c.id === order.customer_id) ?? null,
       invoice_number: order.invoice_id ? ledger.invoices.find((i) => i.id === order.invoice_id)?.number ?? null : null,
@@ -581,14 +582,14 @@ export async function getOrder(id: string): Promise<OrderFull> {
   if (!order) throw new AppError('الطلب غير موجود.');
   const o = order as Order;
   const [items, events, cust, inv, names] = await Promise.all([
-    sb().from('order_items').select('*').eq('order_id', id),
+    sb().from('order_items').select('*, products(cover_key)').eq('order_id', id),
     sb().from('order_events').select('*').eq('order_id', id).order('created_at'),
     sb().from('customers').select('*').eq('id', o.customer_id).maybeSingle(),
     o.invoice_id ? sb().from('invoices').select('number').eq('id', o.invoice_id).maybeSingle() : Promise.resolve({ data: null }),
     staffNames(),
   ]);
   return {
-    order: o, items: (items.data ?? []) as OrderItem[],
+    order: o, items: ((items.data ?? []) as (OrderItem & { products: { cover_key: string | null } | null })[]).map(({ products, ...i }) => ({ ...i, image_key: i.image_key ?? products?.cover_key ?? null })),
     events: ((events.data ?? []) as OrderEvent[]).map((e) => ({ ...e, actor_name: e.actor_id ? names[e.actor_id] ?? null : null })),
     customer: (cust.data as Customer | null) ?? null, invoice_number: (inv.data as { number: string } | null)?.number ?? null,
   };

@@ -112,7 +112,7 @@ export default function ProductForm() {
       />
       {readOnly ? <Alert tone="info">تعرض المنتج للقراءة فقط. التعديل يحتاج صلاحية «تعديل المنتجات».</Alert> : null}
       <Tabs value={tab} onChange={setTab} items={tabs.map((t) => ({ ...t, label: <>{t.label}{tried && errors.byTab[t.value] ? <span className="tab-err">{fmt.num(errors.byTab[t.value]!)}</span> : null}</> }))} />
-      <div className="form-layout" style={{ marginTop: 16 }}>
+      <div className={`form-layout ${tab === 'pricing' ? 'wide' : ''}`} style={{ marginTop: 16 }}>
         <div className="stack">
           {tab === 'basic' ? <BasicTab {...p} /> : null}
           {tab === 'images' ? <ImagesTab {...p} /> : null}

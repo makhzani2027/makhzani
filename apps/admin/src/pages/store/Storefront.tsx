@@ -1,13 +1,13 @@
 /** واجهة المتجر: البانرات (صورة أو نصية بألوان الهوية) وأقسام الرئيسية، مع ترتيب ومعاينة على شاشة هاتف */
 import { useEffect, useState } from 'react';
-import { BANNER_LINK_KIND, HOME_SECTION_KIND, type Banner, type BannerLinkKind, type BannerPlacement, type HomeSection, type HomeSectionKind } from '@raqeem/shared';
+import { BANNER_LINK_KIND, HOME_SECTION_KIND, nouns, type Banner, type BannerLinkKind, type BannerPlacement, type HomeSection, type HomeSectionKind } from '@raqeem/shared';
 import { Badge, Button, Card, EmptyState, Field, IconButton, Input, Modal, NumberInput, PageHeader, Select, Skeleton, Switch, Thumb, askConfirm, toast } from '../../ui';
 import { useAction, useLoad } from '../../lib/hooks';
 import { useFmt, useSettings } from '../../lib/settings';
 import { imgUrl, uploadImage } from '../../lib/media';
 import { errorMessage } from '../../lib/supabase';
 import { listCategories } from '../sales/data/lookups';
-import { banners, brandOptions, homeSections, productOptions, saveOrder } from './api';
+import { banners, brandOptions, homeSections, previewProducts, productOptions, saveOrder, type PreviewProduct } from './api';
 import '../sales/sales.css';
 
 const PLACEMENT: Record<BannerPlacement, string> = { home_hero: 'أعلى الرئيسية', home_strip: 'شريط وسط الرئيسية', category_top: 'أعلى صفحة القسم' };
@@ -17,6 +17,8 @@ export default function Storefront() {
   const fmt = useFmt();
   const bl = useLoad(banners.list, []);
   const sl = useLoad(homeSections.list, []);
+  const pl = useLoad(previewProducts, []);
+  const cl = useLoad(listCategories, []);
   const [editB, setEditB] = useState<Banner | 'new' | null>(null);
   const [editS, setEditS] = useState<HomeSection | 'new' | null>(null);
   const move = async (kind: 'banners' | 'home_sections', list: { id: string }[], i: number, d: -1 | 1) => {
@@ -57,7 +59,7 @@ export default function Storefront() {
               <div className="list">
                 {ss.map((s, i) => (
                   <div key={s.id} className="list-item">
-                    <span className="grow"><b>{s.title}</b><span className="meta"> · {HOME_SECTION_KIND[s.kind].label} · حتى {fmt.num(s.max_items)} منتج</span></span>
+                    <span className="grow"><b>{s.title}</b><span className="meta"> · {HOME_SECTION_KIND[s.kind].label} · حتى {fmt.count(s.max_items, nouns.product)}</span></span>
                     <Switch checked={s.is_active} onChange={(v) => void toggle('s', s.id, v)} label="" />
                     <IconButton icon="arrowUp" size="sm" label="أعلى" disabled={i === 0} onClick={() => void move('home_sections', ss, i, -1)} />
                     <IconButton icon="arrowDown" size="sm" label="أسفل" disabled={i === ss.length - 1} onClick={() => void move('home_sections', ss, i, 1)} />
@@ -70,14 +72,17 @@ export default function Storefront() {
         </div>
         <div className="sx-stack">
           <h2 className="section-title">معاينة على الهاتف</h2>
-          <div className="phone" aria-label="معاينة التطبيق">
+          <div className="sf-phone" aria-label="معاينة التطبيق">
             <div style={{ padding: '10px 14px', fontWeight: 900, fontFamily: 'Display, serif', fontSize: 18 }}>{store.name}</div>
-            <div className="phone-body">
+            <div className="sf-phone-body">
               {bs.filter((b) => b.is_active && b.placement === 'home_hero').map((b) => <BannerPreview key={b.id} b={b} />)}
               {ss.filter((s) => s.is_active).map((s, i) => (
                 <div key={s.id} className="sec">
                   <h5>{s.title}</h5>
-                  <div className="items">{Array.from({ length: 4 }, (_, k) => <span key={k} />)}</div>
+                  <div className="items">{sectionTiles(s, pl.data ?? [], cl.data ?? []).map((p, k) => {
+                    const url = p ? imgUrl(p.cover_key, 'sm') : null;
+                    return <span key={p?.id ?? k} title={p?.name}>{url ? <img src={url} alt={p?.name ?? ''} loading="lazy" /> : null}</span>;
+                  })}</div>
                   {i === 0 ? bs.filter((b) => b.is_active && b.placement === 'home_strip').map((b) => <div key={b.id} style={{ marginTop: 10 }}><BannerPreview b={b} /></div>) : null}
                 </div>
               ))}
@@ -89,6 +94,24 @@ export default function Storefront() {
       {editS ? <SectionModal s={editS === 'new' ? null : editS} onClose={() => setEditS(null)} onDone={() => { setEditS(null); void sl.reload(); }} nextSort={ss.length + 1} /> : null}
     </>
   );
+}
+
+/** أول ٤ منتجات يعرضها القسم في التطبيق (نفس قواعد الرئيسية)، أو مربعات فارغة إن لم يطابق شيء */
+function sectionTiles(s: HomeSection, all: PreviewProduct[], cats: { id: string; parent_id: string | null }[]): (PreviewProduct | null)[] {
+  let list = [...all];
+  if (s.kind === 'on_sale') list = list.filter((p) => p.on_sale);
+  if (s.kind === 'featured') list = list.filter((p) => p.is_featured);
+  if (s.kind === 'best_sellers') list.sort((a, b) => b.sold_count - a.sold_count);
+  if (s.kind === 'new') list.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  if (s.kind === 'category' && s.category_id) {
+    const ids = new Set([s.category_id]);
+    for (let grew = true; grew;) { grew = false; for (const c of cats) if (c.parent_id && ids.has(c.parent_id) && !ids.has(c.id)) { ids.add(c.id); grew = true; } }
+    list = list.filter((p) => p.category_id && ids.has(p.category_id));
+  }
+  if (s.kind === 'brand') list = list.filter((p) => p.brand_id === s.brand_id);
+  if (s.kind === 'manual') list = s.product_ids.map((id) => all.find((p) => p.id === id)).filter((p): p is PreviewProduct => !!p);
+  const shown = list.slice(0, Math.min(4, s.max_items || 4));
+  return shown.length ? shown : Array.from({ length: 4 }, () => null);
 }
 
 /** بانر نصي بلا صورة: كتلة الطين أعلى الرئيسية، وكتلة الحبر في الشريط الأوسط (نفس القاعدة في التطبيق) */

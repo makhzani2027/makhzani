@@ -78,7 +78,8 @@ export function toDraft(f: ProductFull): ProductDraft {
     id: p.id, name: p.name, slug: p.slug, description: p.description ?? '', category_id: p.category_id ?? '', brand_id: p.brand_id ?? '', unit: p.unit || 'قطعة',
     tags: [...p.tags], specs: p.specs.map((s) => ({ ...s })), warranty: p.warranty ?? '', options, track_serials: p.track_serials, track_expiry: p.track_expiry,
     is_published: p.is_published, is_featured: p.is_featured, allow_request: p.allow_request,
-    images: f.images.map((i) => ({ key: i.key, alt: i.alt })),
+    // منتج له غلاف بلا صفوف صور (بيانات قديمة/مستوردة) ← الغلاف صورته الأولى
+    images: f.images.length ? f.images.map((i) => ({ key: i.key, alt: i.alt })) : p.cover_key ? [{ key: p.cover_key, alt: null }] : [],
     variants: (f.variants.length ? f.variants : []).map((v) => ({
       k: v.id, id: v.id, title: v.title, options: { ...v.options }, sku: v.sku, barcode: v.barcode ?? '', price: v.price, compare_at_price: v.compare_at_price,
       wholesale_price: v.wholesale_price, cost: f.costs ? f.costs[v.id] ?? 0 : null, cost0: f.costs ? f.costs[v.id] ?? 0 : null, min_stock: v.min_stock, is_active: v.is_active,

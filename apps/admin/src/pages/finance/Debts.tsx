@@ -1,7 +1,7 @@
 /** الديون: من عليه دين، أعمار الذمم (٠–٣٠، ٣١–٦٠، ٦١–٩٠، أقدم)، تذكير واتساب، سند قبض */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatPhone, whatsappLink } from '@raqeem/shared';
+import { formatPhone, nouns, whatsappLink } from '@raqeem/shared';
 import { Button, DataTable, IconButton, PageHeader, SearchInput, Stat, type Column } from '../../ui';
 import { useAuth } from '../../lib/auth';
 import { useLoad } from '../../lib/hooks';
@@ -48,7 +48,7 @@ export default function Debts() {
           { key: 'a', label: 'd0_30', value: (d) => Math.round(d.aging.d30) }, { key: 'b2', label: 'd31_60', value: (d) => Math.round(d.aging.d60) }, { key: 'c', label: 'd61_90', value: (d) => Math.round(d.aging.d90) }, { key: 'd', label: 'older', value: (d) => Math.round(d.aging.older) },
         ]))}>تصدير</Button>} />
       <div className="sx-stats">
-        <Stat tone="hero" label="مجموع الديون (دينار)" icon="debt" value={m(tot.iqd)} foot={`${fmt.num(list.data?.length ?? 0)} زبون`} />
+        <Stat tone="hero" label="مجموع الديون (دينار)" icon="debt" value={m(tot.iqd)} foot={fmt.count(list.data?.length ?? 0, nouns.customer)} />
         {tot.usd ? <Stat label="بالدولار" icon="coins" value={m(tot.usd, 'USD')} /> : null}
         <Stat label="خلال ٣٠ يوماً" icon="clock" value={m(tot.d30)} />
         <Stat label="أقدم من ٦٠ يوماً" icon="alert" value={m(tot.d90 + tot.older)} foot={<span className="sx-legend"><span><i style={{ background: 'var(--c3)' }} />٠–٣٠</span><span><i style={{ background: 'var(--c4)' }} />٣١–٦٠</span><span><i style={{ background: 'var(--c1)' }} />٦١–٩٠</span><span><i style={{ background: 'var(--danger)' }} />أقدم</span></span>} />

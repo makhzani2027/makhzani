@@ -34,6 +34,7 @@ export default function Coupons() {
 }
 
 function CouponModal({ c, onClose, onDone }: { c: Coupon | null; onClose: () => void; onDone: () => void }) {
+  const fmt = useFmt();
   const [f, setF] = useState({ code: c?.code ?? '', kind: c?.kind ?? ('percent' as CouponKind), value: c?.value ?? 10, min_subtotal: c?.min_subtotal ?? 0, max_discount: c?.max_discount ?? null, usage_limit: c?.usage_limit ?? null, per_customer_limit: (c ? c.per_customer_limit : 1) as number | null, starts_at: c?.starts_at ? isoDay(c.starts_at) : '', ends_at: c?.ends_at ? isoDay(c.ends_at) : '', is_active: c?.is_active ?? true });
   const save = useAction(() => saveCoupon({
     code: f.code, kind: f.kind, value: f.kind === 'free_delivery' ? 0 : f.value, min_subtotal: f.min_subtotal, max_discount: f.kind === 'percent' ? f.max_discount : null, usage_limit: f.usage_limit, per_customer_limit: f.per_customer_limit,
@@ -54,8 +55,8 @@ function CouponModal({ c, onClose, onDone }: { c: Coupon | null; onClose: () => 
         <Field label="أقل مجموع للطلب"><MoneyInput value={f.min_subtotal} onChange={(v) => setF({ ...f, min_subtotal: v ?? 0 })} /></Field>
         <Field label="عدد الاستخدامات الكلي" hint="فارغ = بلا حد"><NumberInput value={f.usage_limit} onChange={(v) => setF({ ...f, usage_limit: v })} /></Field>
         <Field label="لكل زبون"><NumberInput value={f.per_customer_limit} onChange={(v) => setF({ ...f, per_customer_limit: v })} /></Field>
-        <Field label="يبدأ"><Input type="date" value={f.starts_at} onChange={(e) => setF({ ...f, starts_at: e.target.value })} /></Field>
-        <Field label="ينتهي"><Input type="date" value={f.ends_at} onChange={(e) => setF({ ...f, ends_at: e.target.value })} /></Field>
+        <Field label="يبدأ" hint={f.starts_at ? fmt.date(f.starts_at) : 'فارغ = من الآن'}><Input type="date" value={f.starts_at} placeholder="من الآن" onChange={(e) => setF({ ...f, starts_at: e.target.value })} /></Field>
+        <Field label="ينتهي" hint={f.ends_at ? fmt.date(f.ends_at) : 'فارغ = بلا نهاية'}><Input type="date" value={f.ends_at} placeholder="بلا نهاية" onChange={(e) => setF({ ...f, ends_at: e.target.value })} /></Field>
       </div>
       <div style={{ marginTop: 12 }}><Switch label="فعّال" checked={f.is_active} onChange={(v) => setF({ ...f, is_active: v })} /></div>
     </Modal>

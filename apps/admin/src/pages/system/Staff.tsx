@@ -1,6 +1,6 @@
 /** المستخدمون والأدوار: إضافة موظف (دالة الخادم staff)، تغيير الدور، إيقاف/تفعيل، كلمة سر مؤقتة، ومصفوفة الصلاحيات لكل دور */
 import { useState } from 'react';
-import { PERMISSION_GROUPS, type Permission, type Profile, type StaffRole } from '@raqeem/shared';
+import { PERMISSION_GROUPS, nouns, type Permission, type Profile, type StaffRole } from '@raqeem/shared';
 import { Alert, Avatar, Badge, Button, Card, Checkbox, DataTable, Field, Input, Menu, Modal, PageHeader, Select, Tabs, Textarea, askConfirm, type Column } from '../../ui';
 import { useAuth } from '../../lib/auth';
 import { useAction, useLoad } from '../../lib/hooks';
@@ -52,7 +52,7 @@ export default function Staff() {
           {(roles.data ?? []).map((r) => (
             <Card key={r.id} title={r.name} icon="shield" actions={<Button size="sm" icon="edit" onClick={() => setRole(r)}>تعديل</Button>}>
               <p className="sx-muted" style={{ margin: '0 0 8px' }}>{r.description ?? ''}</p>
-              <div className="sx-between"><span>{fmt.num(r.permissions.length)} صلاحية</span><span className="dim">{fmt.num((staff.data ?? []).filter((s) => s.role_id === r.id).length)} موظف</span></div>
+              <div className="sx-between"><span>{fmt.count(r.permissions.length, nouns.permission)}</span><span className="dim">{fmt.count((staff.data ?? []).filter((s) => s.role_id === r.id).length, nouns.staff)}</span></div>
             </Card>
           ))}
         </div>

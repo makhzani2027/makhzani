@@ -20,6 +20,15 @@
 .sx-split.preview-aside { grid-template-columns: minmax(0, 1fr) 340px; }
 @media (max-width: 1100px) { .sx-split, .sx-split.preview-aside { grid-template-columns: minmax(0, 1fr); } }
 .sx-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+/* جدول في العمود الجانبي الضيق (٣٦٠px): صفوف كبطاقات كما على الهاتف، وإلا قُصّت كل الأعمدة بعد الأول */
+.sx-narrow-table .table.cards thead { display: none; }
+.sx-narrow-table .table.cards, .sx-narrow-table .table.cards tbody, .sx-narrow-table .table.cards tr, .sx-narrow-table .table.cards td { display: block; width: 100%; }
+.sx-narrow-table .table.cards tr { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.sx-narrow-table .table.cards td { border: 0; padding: 3px 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: start !important; }
+.sx-narrow-table .table.cards td:empty { display: none; }
+.sx-narrow-table .table.cards td[data-label]::before { content: attr(data-label); font-size: 12px; font-weight: 700; color: var(--ink3); flex: none; }
+.sx-narrow-table .table.cards td.primary-cell { display: block; padding-bottom: 6px; }
+.sx-narrow-table .table.cards td.primary-cell::before { display: none; }
 .sx-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .sx-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .sx-muted { color: var(--ink3); font-size: 13px; }
@@ -121,14 +130,15 @@
 .pos-done .change { font-family: 'Display', serif; font-weight: 900; font-size: 40px; }
 
 /* معاينة الهاتف (واجهة المتجر) */
-.phone { width: 300px; max-width: 100%; border-radius: 34px; border: 10px solid var(--ink); background: var(--bg); overflow: hidden; height: 600px; display: flex; flex-direction: column; margin-inline: auto; }
-.phone-body { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
-.phone .bn { border-radius: 16px; min-height: 120px; padding: 16px; display: flex; flex-direction: column; justify-content: flex-end; background: var(--accent); color: var(--accent-ink); background-size: cover; background-position: center; }
-.phone .bn.ink { background-color: var(--hero); color: var(--hero-ink); }
-.phone .bn b { font-family: 'Display', serif; font-size: 18px; }
-.phone .sec h5 { margin: 0 0 6px; font-size: 13px; }
-.phone .sec .items { display: flex; gap: 8px; overflow: hidden; }
-.phone .sec .items span { flex: none; width: 80px; height: 96px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); }
+.sf-phone { width: 300px; max-width: 100%; border-radius: 34px; border: 10px solid var(--ink); background: var(--bg); overflow: hidden; height: 600px; display: flex; flex-direction: column; margin-inline: auto; }
+.sf-phone-body { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.sf-phone .bn { border-radius: 16px; min-height: 120px; padding: 16px; display: flex; flex-direction: column; justify-content: flex-end; background: var(--accent); color: var(--accent-ink); background-size: cover; background-position: center; }
+.sf-phone .bn.ink { background-color: var(--hero); color: var(--hero-ink); }
+.sf-phone .bn b { font-family: 'Display', serif; font-size: 18px; }
+.sf-phone .sec h5 { margin: 0 0 6px; font-size: 13px; }
+.sf-phone .sec .items { display: flex; gap: 8px; overflow: hidden; }
+.sf-phone .sec .items span { flex: none; width: 80px; height: 96px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); overflow: hidden; }
+.sf-phone .sec .items img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .notif-preview { display: flex; gap: 10px; padding: 12px; border-radius: 16px; background: var(--card); box-shadow: var(--shadow-float); max-width: 340px; }
 
 /* مصفوفة الصلاحيات */

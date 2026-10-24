@@ -18,6 +18,10 @@ export function Field({ label, hint, error, required, children, className }: {
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { icon?: IconName; suffix?: ReactNode; size_?: 'sm' | 'md' | 'lg' }>(
   function Input({ icon, suffix, size_ = 'md', className, ...rest }, ref) {
     const input = <input ref={ref} className={`input ${size_ !== 'md' ? size_ : ''} ${className ?? ''}`} {...rest} />;
+    // حقل تاريخ فارغ: المتصفح يكتب صيغته الإنكليزية (mm/dd/yyyy)، فنخفيها ونعرض تلميحاً عربياً بدلها
+    if (rest.type === 'date' && rest.value === '' && !icon && !suffix) {
+      return <span className="input-wrap date-empty">{input}<span className="date-ph">{rest.placeholder || 'يوم / شهر / سنة'}</span></span>;
+    }
     if (!icon && !suffix) return input;
     return (
       <span className="input-wrap">
@@ -88,7 +92,17 @@ export function NumberInput({ value, onChange, allowDecimal = false, min, max, s
     <Input
       id={id} aria-label={ariaLabel} inputMode={allowDecimal ? 'decimal' : 'numeric'} className="num" value={text} placeholder={placeholder}
       suffix={suffix} size_={size_} autoFocus={autoFocus} disabled={disabled}
-      onFocus={(e) => { setFocused(true); setText(value === null || value === undefined ? '' : String(value)); requestAnimationFrame(() => e.target.select()); }}
+      onFocus={(e) => {
+        const el = e.target;
+        const raw = value === null || value === undefined ? '' : String(value);
+        // نضع القيمة الخام ونحدد فوراً حتى تستبدلها أول ضغطة (React لا يعيد كتابة قيمة مطابقة فيبقى التحديد)
+        el.value = raw;
+        el.select();
+        setFocused(true);
+        setText(raw);
+        // ونعيد التحديد بعد الرسم (النقر بالفأرة قد يلغيه) ما لم يكن المستخدم قد كتب، وإلا ضاع أول رقم كتبه
+        requestAnimationFrame(() => { if (document.activeElement === el && el.value === raw) el.select(); });
+      }}
       onBlur={() => { setFocused(false); commit(text); }}
       onChange={(e) => { setText(e.target.value); commit(e.target.value); }}
       onKeyDown={(e) => { if (e.key === 'Enter') { commit(text); onEnter?.(); } }}

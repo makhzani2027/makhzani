@@ -46,7 +46,8 @@ export function labelCss(size: LabelOptions['size']): string {
 /** باركود بلا نص داخلي (نكتبه نحن) يتمدد بعرض الملصق */
 function stretchBarcode(code: string): string {
   const svg = barcodeSvg(code, { height: 60, width: 2, showText: false });
-  return svg.replace(/\s(width|height)="[^"]*"/g, '').replace('<svg', '<svg preserveAspectRatio="none"');
+  // نحذف width/height من وسم <svg> الجذري فقط (تبقى للأشرطة <rect> وإلا اختفت)
+  return svg.replace(/<svg[^>]*>/, (tag) => tag.replace(/\s(width|height)="[^"]*"/g, '').replace('<svg', '<svg preserveAspectRatio="none"'));
 }
 
 export async function labelHtml(item: LabelItem, opts: LabelOptions): Promise<string> {

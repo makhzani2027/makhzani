@@ -20,7 +20,7 @@ export function Barcode({ value, height = 48, width = 1.6, showText = true, colo
     }
   }, [value, height, width, showText, color]);
   if (!value) return null;
-  return bad ? <span className="small faint">رمز غير صالح للباركود</span> : <svg ref={ref} role="img" aria-label={`باركود ${value}`} />;
+  return bad ? <span className="small faint">رمز غير صالح للباركود</span> : <svg ref={ref} direction="ltr" role="img" aria-label={`باركود ${value}`} />;
 }
 
 /** باركود كنص SVG (للطباعة داخل القوالب) */
@@ -31,6 +31,8 @@ export function barcodeSvg(value: string, opts: { height?: number; width?: numbe
       format: /^\d{13}$/.test(value) && isValidGtin(value) ? 'EAN13' : 'CODE128',
       height: opts.height ?? 40, width: opts.width ?? 1.4, displayValue: opts.showText ?? true, fontSize: 11, margin: 0, background: '#fff', font: 'monospace',
     });
+    // نص الرقم يُرسم بـ text-anchor=start؛ في سياق RTL يمتد خارج الرسم فيختفي الرقم الأول لـ EAN-13
+    el.setAttribute('direction', 'ltr');
     return el.outerHTML;
   } catch {
     return '';

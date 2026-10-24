@@ -122,3 +122,25 @@ export async function brandOptions(): Promise<ProductOption[]> {
   const { data } = await sb().from('brands').select('id,name').order('name');
   return (data ?? []) as ProductOption[];
 }
+
+/** منتج منشور لمعاينة أقسام الرئيسية في «واجهة المتجر» */
+export interface PreviewProduct {
+  id: string; name: string; cover_key: string | null; is_featured: boolean; sold_count: number; created_at: string;
+  category_id: string | null; brand_id: string | null; on_sale: boolean;
+}
+export async function previewProducts(): Promise<PreviewProduct[]> {
+  if (IS_DEMO) {
+    return demoDb.products.filter((p) => p.is_published && !p.archived_at).map((p) => ({
+      id: p.id, name: p.name, cover_key: p.cover_key, is_featured: p.is_featured, sold_count: p.sold_count, created_at: p.created_at,
+      category_id: p.category_id, brand_id: p.brand_id,
+      on_sale: demoDb.product_variants.some((v) => v.product_id === p.id && v.compare_at_price !== null && v.compare_at_price > v.price),
+    }));
+  }
+  const { data } = await sb().from('products')
+    .select('id,name,cover_key,is_featured,sold_count,created_at,category_id,brand_id,product_variants(price,compare_at_price)')
+    .eq('is_published', true).is('archived_at', null).order('created_at', { ascending: false }).limit(500);
+  type R = Omit<PreviewProduct, 'on_sale'> & { product_variants: { price: number; compare_at_price: number | null }[] | null };
+  return ((data ?? []) as R[]).map(({ product_variants, ...p }) => ({
+    ...p, on_sale: (product_variants ?? []).some((v) => v.compare_at_price !== null && Number(v.compare_at_price) > Number(v.price)),
+  }));
+}

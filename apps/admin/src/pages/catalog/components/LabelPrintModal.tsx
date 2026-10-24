@@ -66,7 +66,7 @@ export function LabelPrintModal({ open, onClose, items: initial }: { open: boole
         <div className="preview-box" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 170 }}>
           {preview ? (
             <div style={{ width: `${dims.width_mm * scale}mm`, height: `${dims.height_mm * scale}mm` }}>
-              <div className="label-preview" style={{ width: `${dims.width_mm}mm`, height: `${dims.height_mm}mm`, transform: `scale(${scale})`, transformOrigin: 'top right' }}>
+              <div className="label-preview" style={{ width: `${dims.width_mm}mm`, height: `${dims.height_mm}mm`, margin: 0, transform: `scale(${scale})`, transformOrigin: 'top right' }}>
                 <style>{labelCss(dims)}</style>
                 <div dangerouslySetInnerHTML={{ __html: preview }} />
               </div>
