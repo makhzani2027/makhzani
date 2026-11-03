@@ -178,7 +178,7 @@ function Builder({ full, reload }: { full: QuotationFull | null; reload: () => P
     const res = await saveAndStay(q0?.status && q0.status !== 'draft' ? q0.status : 'sent');
     if (res) await printSaved(res.id);
   };
-  const convert = useAction(async (payments: PayLine[]) => convertQuotation(q0!.id, payments), { success: 'حُوّل العرض لفاتورة' });
+  const convert = useAction(async (payments: PayLine[]) => convertQuotation(q0!.id, payments), { success: 'جُهّز العرض وأُنشئت فاتورة البيع' });
   const cancel = useAction(async () => { await setQuotationStatus(q0!.id, 'cancelled'); await reload(); }, { success: 'أُلغي العرض' });
   const accept = useAction(async () => { await setQuotationStatus(q0!.id, 'accepted'); await reload(); }, { success: 'سُجّل قبول الزبون' });
 
@@ -343,7 +343,17 @@ function Builder({ full, reload }: { full: QuotationFull | null; reload: () => P
                   if (wa) window.open(wa, '_blank', 'noopener'); else { void navigator.clipboard?.writeText(waText); toast.success('نُسخ نص العرض'); }
                 }}>{wa ? 'إرسال واتساب' : 'نسخ نص العرض'}</Button>
                 {q0 && q0.status === 'sent' ? <Button icon="checkCircle" loading={accept.busy} onClick={() => void accept.run()}>قبِله الزبون</Button> : null}
-                {q0 && !locked ? <Button icon="receipt" onClick={() => { if (dirty) { toast.error('احفظ التعديلات أولاً.'); return; } setPaying(true); }}>تحويل لفاتورة بيع</Button> : null}
+                {q0 && !locked ? (
+                  <>
+                    <Button icon="receipt" variant={q0.status === 'accepted' ? 'ink' : 'default'} onClick={() => {
+                      if (dirty) { toast.error('احفظ التعديلات أولاً.'); return; }
+                      // العرض المنتهي يُحوَّل بأسعار اليوم: نطلب تحديث الصلاحية حتى يُجهَّز بنفس سعر العرض
+                      if (expired) { toast.error('انتهت صلاحية العرض. حدّث «ساري حتى» من خطوة البيانات واحفظ، ثم جهّزه بنفس الأسعار.'); return; }
+                      setPaying(true);
+                    }}>تجهيز العرض (فاتورة بيع)</Button>
+                    <span className="small dim">العرض لا يمس المخزون. عند التجهيز تُنشأ فاتورة بيع بنفس المكونات والأسعار ويُخصم من المخزن.</span>
+                  </>
+                ) : null}
               </div>
             </Card>
             {!locked ? <div className="qb-nav"><Button icon="arrowRight" onClick={() => go('features')}>السابق</Button></div> : null}
@@ -353,7 +363,7 @@ function Builder({ full, reload }: { full: QuotationFull | null; reload: () => P
 
       <CustomerPicker open={picking} allowCash={false} onClose={() => setPicking(false)} onPick={(c) => { if (c) { setCustomer(c); setDirty(true); } }} />
       {q0 ? (
-        <PaymentModal open={paying} onClose={() => setPaying(false)} title={`تحويل ${q0.number} لفاتورة`} total={q0.total} currency={q0.currency} rate={q0.currency === 'USD' ? q0.exchange_rate : rate} usdEnabled={usd}
+        <PaymentModal open={paying} onClose={() => setPaying(false)} title={`تجهيز العرض ${q0.number}`} total={q0.total} currency={q0.currency} rate={q0.currency === 'USD' ? q0.exchange_rate : rate} usdEnabled={usd}
           customer={customer ? { name: customer.name, credit_limit: customer.credit_limit, balance: customer.balance } : null} busy={convert.busy}
           onConfirm={async (p) => { const res = await convert.run(p); if (res) { setPaying(false); void printInvoice(res.invoice_id, store, 'A4').catch(() => undefined); nav(`/invoices/${res.invoice_id}`); } }} />
       ) : null}
