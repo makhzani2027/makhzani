@@ -56,3 +56,35 @@ begin
   perform test.eq((select status::text from public.quotations where id = qid), 'converted', 'عرض: الحالة محوّل');
 end $$;
 reset role;
+
+-- migration ٢٦: الكاشير (بلا pos.price_override) يعدّل عرضاً قديماً بعد تغيّر سعر الكتالوج
+reset role;
+select test.login('owner');
+set role authenticated;
+do $$
+declare q jsonb; qid uuid; old_price numeric;
+begin
+  q := public.save_quotation(jsonb_build_object('warehouse_id', test.id('main'), 'customer_name', 'زبون السعر القديم',
+    'items', jsonb_build_array(jsonb_build_object('variant_id', test.id('cup'), 'qty', 3))));
+  qid := (q ->> 'id')::uuid;
+  old_price := (q -> 'items' -> 0 ->> 'unit_price')::numeric;
+  perform set_config('test.qid', qid::text, false);
+  perform set_config('test.old_price', old_price::text, false);
+end $$;
+reset role;
+update public.product_variants set price = price + 1000 where id = test.id('cup');
+select test.login('cashier');
+set role authenticated;
+do $$
+declare q jsonb; qid uuid := current_setting('test.qid')::uuid; old_price numeric := current_setting('test.old_price')::numeric;
+begin
+  q := public.save_quotation(jsonb_build_object('id', qid, 'warehouse_id', test.id('main'), 'customer_name', 'زبون السعر القديم', 'note', 'ملاحظة جديدة',
+    'items', jsonb_build_array(jsonb_build_object('variant_id', test.id('cup'), 'qty', 3, 'unit_price', old_price))));
+  perform test.eq((q -> 'items' -> 0 ->> 'unit_price')::numeric, old_price, 'عرض قديم: الكاشير يحفظ تعديلاً بالسعر المثبّت دون صلاحية تعديل الأسعار');
+  perform test.eq(q ->> 'note', 'ملاحظة جديدة', 'عرض قديم: التعديل محفوظ');
+end $$;
+select test.throws(format($q$select public.save_quotation(jsonb_build_object('id', %L, 'warehouse_id', test.id('main'), 'customer_name', 'x',
+  'items', jsonb_build_array(jsonb_build_object('variant_id', test.id('cup'), 'qty', 3, 'unit_price', 1))))$q$, current_setting('test.qid')),
+  'صلاحية', 'عرض قديم: سعر جديد مختلف ما زال يحتاج صلاحية تعديل الأسعار');
+reset role;
+update public.product_variants set price = price - 1000 where id = test.id('cup');

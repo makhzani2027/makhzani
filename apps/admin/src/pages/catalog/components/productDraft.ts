@@ -126,7 +126,7 @@ export type TabKey = 'basic' | 'images' | 'pricing' | 'stock' | 'specs' | 'seria
 export interface DraftErrors {
   name?: string;
   options?: string;
-  variants: Record<string, { sku?: string; barcode?: string; price?: string; units?: string }>;
+  variants: Record<string, { sku?: string; barcode?: string; price?: string; wholesale?: string; units?: string }>;
   byTab: Partial<Record<TabKey, number>>;
 }
 
@@ -149,11 +149,13 @@ export function validate(d: ProductDraft): DraftErrors {
     else if (v.barcode.trim() && (codes.get(v.barcode.trim()) ?? 0) > 1) ve.barcode = 'مكرر';
     if (v.is_active && (v.price === null || v.price < 0)) ve.price = 'السعر إلزامي';
     if (v.compare_at_price !== null && v.price !== null && v.compare_at_price > 0 && v.compare_at_price <= v.price) ve.price = 'السعر قبل الخصم يجب أن يكون أعلى';
+    // سعر الجملة أعلى من المفرد = زبون الجملة يدفع أكثر (خطأ إدخال شائع)
+    if (v.is_active && v.wholesale_price !== null && v.price !== null && v.wholesale_price > v.price) ve.wholesale = 'سعر الجملة أعلى من سعر المفرد';
     if (v.units.some((u) => !u.unit_name.trim() || !(u.factor > 1))) ve.units = 'اسم الوحدة وعدد قطعها (أكثر من ١) إلزاميان';
     else if (v.units.some((u) => u.barcode && (codes.get(u.barcode.trim()) ?? 0) > 1)) ve.units = 'باركود وحدة مكرر';
     if (Object.keys(ve).length) {
       e.variants[v.k] = ve;
-      if (ve.sku || ve.price) bump('pricing');
+      if (ve.sku || ve.price || ve.wholesale) bump('pricing');
       if (ve.barcode || ve.units) bump('codes');
     }
   }

@@ -130,6 +130,17 @@ function Builder({ full, reload, onDiscard }: { full: QuotationFull | null; relo
     setLines((ls) => ls.map((l) => (l.image_key ? l : { ...l, image_key: catalog.data!.find((x) => x.variant_id === l.variant_id)?.image_key ?? null })));
   }, [catalog.data]);
 
+  // مسودة مسترجعة بعد تغيّر أسعار الكتالوج: من لا يملك تعديل الأسعار تُحدَّث أسعار بنوده الجديدة لسعر اليوم
+  // (وإلا رفض الخادم الحفظ). البنود المحفوظة سابقاً في العرض تبقى بسعرها المثبّت (يقبله الخادم).
+  const repricedDraft = useRef(false);
+  useEffect(() => {
+    if (!d0 || repricedDraft.current || !catalog.data || can('pos.price_override')) return;
+    repricedDraft.current = true;
+    const saved = new Set((full?.items ?? []).map((i) => `${i.variant_id}|${i.price_tier}`));
+    setLines((ls) => ls.map((l) => (saved.has(`${l.variant_id}|${l.price_tier}`) ? l : { ...l, unit_price: priceFor(l.variant_id, l.price_tier, l.unit_price) })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalog.data]);
+
   const lineTotal = (l: Line) => Math.max(0, roundMoney(l.unit_price * l.qty - l.discount, currency));
   const subtotal = roundMoney(lines.reduce((s, l) => s + lineTotal(l), 0), currency);
   const disc = Math.min(Math.max(discount, 0), subtotal);

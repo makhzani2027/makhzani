@@ -270,6 +270,7 @@ function ImportModal({ open, onClose, categories, onDone }: { open: boolean; onC
       let existing: string | null = null;
       if (!error) { try { existing = (await findVariantByCode(sku))?.product_id ?? null; } catch { /* نكمل كجديد */ } }
       if (!error && g('barcode', 'الباركود') && !/^[\w-]{3,}$/.test(g('barcode', 'الباركود'))) error = 'باركود غير صالح';
+      { const w = n(g('wholesale_price', 'الجملة')); if (!error && w !== null && price !== null && w > price) error = 'سعر الجملة أعلى من سعر المفرد'; }
       out.push({ line: i + 2, name, sku, barcode: g('barcode', 'الباركود'), price: price ?? 0, compare: n(g('compare_at_price', 'قبل الخصم')), wholesale: n(g('wholesale_price', 'الجملة')), cost: n(g('cost', 'التكلفة')), min: n(g('min_stock', 'حد التنبيه')) ?? 0, category: g('category', 'القسم'), existing, error });
     }
     setRows(out);

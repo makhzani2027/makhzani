@@ -324,7 +324,7 @@ function PricingTab({ d, set, errors, tried, withCosts, readOnly }: TabProps) {
                     <td className="w-bar"><Input value={v.barcode} disabled={readOnly} dir="ltr" data-scan-target="keep" onChange={(ev) => upd(v.k, { barcode: ev.target.value })} placeholder="امسح أو اكتب" aria-label="الباركود" />{e?.barcode ? <div className="err">{e.barcode}</div> : null}</td>
                     <td className="w-money"><MoneyInput value={v.price} disabled={readOnly} onChange={(n) => upd(v.k, { price: n })} ariaLabel="السعر" />{e?.price ? <div className="err">{e.price}</div> : null}</td>
                     <td className="w-money"><MoneyInput value={v.compare_at_price} disabled={readOnly} onChange={(n) => upd(v.k, { compare_at_price: n })} ariaLabel="السعر قبل الخصم" /></td>
-                    <td className="w-money"><MoneyInput value={v.wholesale_price} disabled={readOnly} onChange={(n) => upd(v.k, { wholesale_price: n })} ariaLabel="سعر الجملة" /></td>
+                    <td className="w-money"><MoneyInput value={v.wholesale_price} disabled={readOnly} onChange={(n) => upd(v.k, { wholesale_price: n })} ariaLabel="سعر الجملة" />{e?.wholesale ? <div className="err">{e.wholesale}</div> : null}</td>
                     {withCosts ? (
                       <td className="w-money"><MoneyInput value={v.cost} disabled={readOnly} onChange={(n) => upd(v.k, { cost: n })} ariaLabel="التكلفة" />
                         {m !== null ? <div className="margin" style={{ color: m < 0 ? 'var(--danger)' : m < 0.1 ? 'var(--warning)' : 'var(--success)' }}>هامش {fmt.num(Math.round(m * 100))}٪</div> : null}</td>

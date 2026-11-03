@@ -143,7 +143,16 @@ export default function Pos() {
   };
   const resume = (h: Held) => {
     if (lines.length) { toast.error('أكمل الفاتورة الحالية أو علّقها أولاً.'); return; }
-    setLines(h.lines); setCustomer(h.customer); setDiscount(h.discount); setCurrency(h.currency); setTier(h.tier); setNote(h.note);
+    if (!catalog.data) { toast.info('انتظر تحميل المنتجات ثم استأنف.'); return; }
+    // الأسعار والكميات من الكتالوج الحالي (قد تتغير بين التعليق والاستئناف، أو يُستأنف في مخزن آخر):
+    // المعروض يطابق ما يحسبه الخادم، والمنتج المحذوف/الموقوف يُستبعد مع تنبيه
+    const fresh = new Map(items.map((i) => [i.variant_id, i]));
+    const kept = h.lines.filter((l) => fresh.has(l.item.variant_id)).map((l) => ({ ...l, item: fresh.get(l.item.variant_id)! }));
+    const dropped = h.lines.length - kept.length;
+    const repriced = h.lines.some((l) => { const f = fresh.get(l.item.variant_id); return !!f && l.price === null && (f.price !== l.item.price || f.wholesale_price !== l.item.wholesale_price); });
+    setLines(kept); setCustomer(h.customer); setDiscount(h.discount); setCurrency(h.currency); setTier(h.tier); setNote(h.note);
+    if (dropped) toast.error(`${fmt.num(dropped)} من المنتجات لم تعد متاحة للبيع وحُذفت من الفاتورة.`);
+    if (repriced) toast.info('تغيّرت أسعار بعض المنتجات منذ التعليق، والفاتورة الآن بالأسعار الحالية.');
     setHeld(held.filter((x) => x.id !== h.id));
     setShowHeld(false);
   };
