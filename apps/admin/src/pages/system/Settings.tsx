@@ -1,7 +1,9 @@
 /** الإعدادات: المتجر، العملة وسعر الصرف، الفروع، الفواتير والطباعة (معاينة حية + طباعة تجريبية)، المخزون ونقطة البيع، التطبيق */
 import { useEffect, useState } from 'react';
 import { isValidIraqiPhone, normalizeIraqiPhone, type AppConfigSettings, type Branch, type CurrencySettings, type Invoice, type InvoiceItem, type InventorySettings, type InvoiceSettings, type Payment, type StoreSettings } from '@raqeem/shared';
-import { Alert, Badge, Button, Card, DataTable, ErrorState, Field, Input, Loading, Modal, NumberInput, PageHeader, Segmented, Select, Switch, Tabs, Textarea, type Column } from '../../ui';
+import { Alert, Badge, Button, Card, DataTable, ErrorState, Field, Input, Loading, Modal, NumberInput, PageHeader, Segmented, Select, Switch, Tabs, Textarea, toast, type Column } from '../../ui';
+import { imgUrl, uploadImage } from '../../lib/media';
+import { errorMessage } from '../../lib/supabase';
 import { useAction, useLoad } from '../../lib/hooks';
 import { AppError } from '../../lib/supabase';
 import { useFmt, useSettings } from '../../lib/settings';
@@ -151,6 +153,7 @@ function InvoiceTab() {
   const { d, setD, save, error, reload } = useDraft('invoice');
   const s = d as InvoiceSettings | null;
   const [html, setHtml] = useState('');
+  const [up, setUp] = useState(false);
   useEffect(() => {
     if (!s) return;
     let alive = true;
@@ -162,6 +165,7 @@ function InvoiceTab() {
     <Shell error={error} reload={reload} ready={!!s}>
       {s ? (
         <div className="sx-split preview-aside">
+          <div className="sx-stack">
           <Card>
             <div className="stack">
               <Field label="عرض الطابعة الحرارية"><Segmented value={String(s.receipt_width) as '58' | '80'} onChange={(v) => setD({ ...s, receipt_width: Number(v) as 58 | 80 })} options={[{ value: '80', label: '٨٠ ملم' }, { value: '58', label: '٥٨ ملم' }]} /></Field>
@@ -177,6 +181,29 @@ function InvoiceTab() {
               <div className="sx-row"><Button variant="primary" loading={save.busy} onClick={() => void save.run()}>حفظ إعدادات الطباعة</Button><Button icon="printer" onClick={() => void test()}>طباعة تجريبية</Button></div>
             </div>
           </Card>
+          <Card title="مطبوعات A4: عروض الأسعار" icon="fileText">
+            <div className="stack">
+              <Field label="رأسية الورقة" hint="صورة عرضية بشعار المتجر والعلامات التي تتعامل معها (مثل ٢٠٠٠×٥٠٠ بكسل). بدونها تُطبع رأسية بتصميم رقيم باسم المتجر وهاتفه.">
+                <div className="stack-sm">
+                  {s.letterhead_key ? <img src={imgUrl(s.letterhead_key, 'md') ?? ''} alt="الرأسية الحالية" style={{ width: '100%', maxHeight: 160, objectFit: 'contain', borderRadius: 10, border: '1px solid var(--line)', background: '#fff' }} /> : null}
+                  <div className="sx-row">
+                    <label className="btn"><input type="file" accept="image/*" hidden onChange={async (e) => {
+                      const file = e.target.files?.[0]; e.target.value = '';
+                      if (!file) return;
+                      setUp(true);
+                      try { setD({ ...s, letterhead_key: await uploadImage(file, 'site', 'letterhead') }); toast.success('رُفعت الرأسية — اضغط «حفظ إعدادات الطباعة»'); } catch (err) { toast.error(errorMessage(err)); } finally { setUp(false); }
+                    }} />{up ? 'جارٍ الرفع…' : s.letterhead_key ? 'تغيير الرأسية' : 'رفع رأسية'}</label>
+                    {s.letterhead_key ? <Button variant="ghost" icon="trash" onClick={() => setD({ ...s, letterhead_key: null })}>إزالة</Button> : null}
+                  </div>
+                </div>
+              </Field>
+              <Field label="الشروط الافتراضية لعروض الأسعار" hint="تُملأ تلقائياً في كل عرض جديد ويمكن تعديلها داخل العرض.">
+                <Textarea rows={5} value={s.quote_terms ?? ''} onChange={(e) => setD({ ...s, quote_terms: e.target.value || null })} placeholder={'الأسعار تشمل التنصيب داخل المدينة.\nضمان الألواح ١٥ سنة، والانفيرتر ٤ سنوات (استبدال).'} />
+              </Field>
+              <div><Button variant="primary" loading={save.busy} onClick={() => void save.run()}>حفظ</Button></div>
+            </div>
+          </Card>
+          </div>
           <div><span className="section-title">معاينة حية</span><iframe title="معاينة الإيصال" className="receipt-frame" style={{ width: s.receipt_width === 58 ? 240 : 320, height: 720 }} srcDoc={html} /></div>
         </div>
       ) : null}

@@ -24,7 +24,7 @@
 - `post_stock_voucher(p)` ← `{kind, warehouse_id, customer_id?, reason, note?, items:[{variant_id, qty, unit_cost?, lot_code?, expiry_date?}]}` → `{voucher_id, number, kind}`
 
 ## عروض الأسعار والطلبات
-- `save_quotation(p)` ← `{id?, customer_id?|customer_name, warehouse_id, currency?, status?, valid_until?, note?, discount?, items:[{variant_id, qty, unit_price?, discount?, price_tier?}]}` → العرض + `items`
+- `save_quotation(p)` ← `{id?, customer_id?|customer_name, customer_phone?, title?, features?:[text], warehouse_id, currency?, status?, valid_until?, note?, discount?, items:[{variant_id, qty, unit_price?, discount?, price_tier?}]}` → العرض + `items` بترتيب الإدخال (`sort`). مفتاح غير مرسل من title/customer_phone/features يبقي القيمة المحفوظة؛ المميزات ≤ ٤٠ بنداً × ٣٠٠ حرف. `{id, status}` وحدها تغيّر الحالة فقط
 - `convert_quotation(id, payments)` → شكل `pos_checkout` + `quotation_id` (العرض الساري يثبّت أسعاره، والمنتهي بسعر اليوم)
 - `set_order_status(order_id, status, note)` → `{order_id, status, invoice_id, return_invoice_id}`
 - `set_request_status(id, status, reply, product_id)` → صف · `send_campaign(id)` → صف + `recipients`

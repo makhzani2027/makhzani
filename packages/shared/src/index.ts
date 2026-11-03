@@ -12,4 +12,5 @@ export * from './permissions';
 export * from './labels';
 export * from './media';
 export * from './site';
+export * from './words';
 // البيانات التجريبية تُستورد منفصلة: import { demoProducts } from '@raqeem/shared/demo'

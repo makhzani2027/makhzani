@@ -502,6 +502,12 @@ export interface Quotation {
   total: Money;
   valid_until: string | null; // YYYY-MM-DD
   note: string | null;
+  /** عنوان العرض: «منظومة طاقة شمسية ٥ ك.واط» */
+  title: string | null;
+  /** هاتف الزبون غير المسجّل */
+  customer_phone: string | null;
+  /** مميزات العرض: نقاط تُطبع بارزة (٤٠ بنداً كحد أقصى) */
+  features: string[];
   invoice_id: UUID | null; // بعد التحويل لفاتورة
   created_by: UUID | null;
   created_at: ISODate;
@@ -518,6 +524,8 @@ export interface QuotationItem {
   discount: Money;
   line_total: Money;
   price_tier: PriceTier;
+  /** ترتيب الإدخال */
+  sort?: number;
 }
 
 // ============================================================ الفواتير والمال
@@ -906,6 +914,10 @@ export interface InvoiceSettings {
   return_policy: string | null;
   show_qr: boolean; // رمز QR برقم الفاتورة
   label_size: { width_mm: number; height_mm: number }; // ملصق الباركود
+  /** رأسية مطبوعات A4 (فواتير وعروض أسعار): صورة عرضية بشعار المتجر والعلامات المعتمدة */
+  letterhead_key?: string | null;
+  /** الشروط الافتراضية لعروض الأسعار (تُملأ في كل عرض جديد ويمكن تعديلها) */
+  quote_terms?: string | null;
 }
 
 export interface AppConfigSettings {

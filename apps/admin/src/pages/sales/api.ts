@@ -38,6 +38,7 @@ import {
 } from './data/ledger';
 import { getSetting } from './data/app-settings';
 import { staffNames } from './data/lookups';
+import { fetchAll } from '../inventory/api';
 import type {
   CheckoutPayload, CheckoutResult, DateRange, InvoiceFull, InvoiceRow, OrderFull, OrderRow, PosItem, RecordPaymentPayload,
 } from './data/types';
@@ -183,28 +184,27 @@ export async function loadPosCatalog(warehouseId: string): Promise<PosItem[]> {
       })
       .filter((x) => !demoDb.products.find((p) => p.id === x.product_id)?.archived_at);
   }
+  // PostgREST يحد الصفوف بـ١٠٠٠: نقرأ على دفعات (متاجر الطاقة والإلكترونيات تتجاوز ذلك بسهولة)
+  type Row = { id: string; product_id: string; title: string; sku: string; barcode: string | null; price: number; wholesale_price: number | null; min_stock: number; image_key: string | null; products: { id: string; name: string; cover_key: string | null; category_id: string | null; brand_id: string | null; track_serials: boolean; unit: string; tags: string[] } };
   const [vs, lv] = await Promise.all([
-    sb().from('product_variants')
-      .select('id,product_id,title,sku,barcode,price,wholesale_price,min_stock,image_key,is_active,products!inner(id,name,cover_key,category_id,track_serials,unit,tags,archived_at)')
-      .eq('is_active', true).is('products.archived_at', null).limit(10000),
-    sb().from('stock_levels').select('variant_id,qty,reserved').eq('warehouse_id', warehouseId).limit(20000),
+    fetchAll<Row>((a, b) => sb().from('product_variants')
+      .select('id,product_id,title,sku,barcode,price,wholesale_price,min_stock,image_key,is_active,products!inner(id,name,cover_key,category_id,brand_id,track_serials,unit,tags,archived_at)')
+      .eq('is_active', true).is('products.archived_at', null).order('id').range(a, b)),
+    fetchAll<{ variant_id: string; qty: number; reserved: number }>((a, b) => sb().from('stock_levels').select('variant_id,qty,reserved').eq('warehouse_id', warehouseId).order('variant_id').range(a, b)),
   ]);
-  if (vs.error) throw vs.error;
-  if (lv.error) throw lv.error;
-  const stock = new Map((lv.data ?? []).map((s) => [s.variant_id as string, Number(s.qty) - Number(s.reserved)]));
-  type Row = { id: string; product_id: string; title: string; sku: string; barcode: string | null; price: number; wholesale_price: number | null; min_stock: number; image_key: string | null; products: { id: string; name: string; cover_key: string | null; category_id: string | null; track_serials: boolean; unit: string; tags: string[] } };
-  return ((vs.data ?? []) as unknown as Row[]).map((v) => toPosItem(v, v.products, stock.get(v.id) ?? 0));
+  const stock = new Map(lv.map((s) => [s.variant_id, Number(s.qty) - Number(s.reserved)]));
+  return vs.map((v) => toPosItem(v, v.products, stock.get(v.id) ?? 0));
 }
 
 function toPosItem(
   v: { id: string; product_id: string; title: string; sku: string; barcode: string | null; price: number; wholesale_price: number | null; min_stock: number; image_key: string | null },
-  p: { name: string; cover_key: string | null; category_id: string | null; track_serials: boolean; unit: string; tags?: string[] },
+  p: { name: string; cover_key: string | null; category_id: string | null; brand_id?: string | null; track_serials: boolean; unit: string; tags?: string[] },
   stock: number,
 ): PosItem {
   const vt = v.title === 'افتراضي' ? null : v.title;
   return {
     variant_id: v.id, product_id: v.product_id, name: p.name, variant_title: vt, sku: v.sku, barcode: v.barcode, price: Number(v.price),
-    wholesale_price: v.wholesale_price, min_stock: Number(v.min_stock), image_key: v.image_key ?? p.cover_key, category_id: p.category_id,
+    wholesale_price: v.wholesale_price, min_stock: Number(v.min_stock), image_key: v.image_key ?? p.cover_key, category_id: p.category_id, brand_id: p.brand_id ?? null,
     track_serials: p.track_serials, unit: p.unit, stock, search: `${p.name} ${vt ?? ''} ${(p.tags ?? []).join(' ')}`,
   };
 }
@@ -722,17 +722,19 @@ export function todayRange(): DateRange {
 
 // ================================================================== عروض الأسعار
 
-export interface QuotationRow extends Quotation { display_name: string; customer_phone: string | null; items_count: number }
+export interface QuotationRow extends Quotation { display_name: string; items_count: number }
 export interface QuotationFull { quotation: Quotation; items: QuotationItem[]; customer: Customer | null; invoice_number: string | null }
 
 /**
  * save_quotation(p jsonb) — إنشاء/تعديل:
- *   { id?, customer_id|null, customer_name|null, warehouse_id, currency, exchange_rate, valid_until|null, discount, note|null, status,
- *     items:[{ variant_id, qty, unit_price, discount, price_tier }] }  ← { id, number }
+ *   { id?, customer_id|null, customer_name|null, customer_phone|null, title|null, features[], warehouse_id, currency, exchange_rate,
+ *     valid_until|null, discount, note|null, status, items:[{ variant_id, qty, unit_price, discount, price_tier }] }  ← { id, number }
+ *   البنود تُحفظ بترتيب المصفوفة.
  *   تغيير الحالة فقط: { id, status } بلا items.
  */
 export interface QuotationPayload {
-  id?: string; customer_id: string | null; customer_name: string | null; warehouse_id: string; currency: CurrencyCode; exchange_rate: number;
+  id?: string; customer_id: string | null; customer_name: string | null; customer_phone: string | null; title: string | null; features: string[];
+  warehouse_id: string; currency: CurrencyCode; exchange_rate: number;
   valid_until: string | null; discount: number; note: string | null; status: QuotationStatus;
   items: { variant_id: string; qty: number; unit_price: number; discount: number; price_tier: PriceTier }[];
 }
@@ -747,19 +749,19 @@ export async function listQuotations(status: QuotationStatus | 'all', q: string)
       .filter((x) => status === 'all' || x.status === status)
       .map((x) => {
         const c = demoDb.customers.find((y) => y.id === x.customer_id);
-        return { ...x, display_name: quotationName(x, c), customer_phone: c?.phone ?? null, items_count: ledger.quotation_items.filter((i) => i.quotation_id === x.id).length };
+        return { ...x, display_name: quotationName(x, c), customer_phone: c?.phone ?? x.customer_phone, items_count: ledger.quotation_items.filter((i) => i.quotation_id === x.id).length };
       })
-      .filter((x) => !t || x.number.toLowerCase().includes(t.toLowerCase()) || x.display_name.includes(t))
+      .filter((x) => !t || x.number.toLowerCase().includes(t.toLowerCase()) || x.display_name.includes(t) || (x.title ?? '').includes(t))
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
   }
   let query = sb().from('quotations').select('*, customers(name,phone), quotation_items(id)').order('created_at', { ascending: false }).limit(300);
   if (status !== 'all') query = query.eq('status', status);
   const s = t.replace(/[%_,()]/g, '');
-  if (s) query = query.or(`number.ilike.%${s}%,customer_name.ilike.%${s}%`);
+  if (s) query = query.or(`number.ilike.%${s}%,customer_name.ilike.%${s}%,title.ilike.%${s}%`);
   const { data, error } = await query;
   if (error) throw error;
   type R = Quotation & { customers: { name: string; phone: string | null } | null; quotation_items: { id: string }[] };
-  return ((data ?? []) as R[]).map(({ customers, quotation_items, ...x }) => ({ ...x, display_name: customers?.name ?? x.customer_name ?? 'زبون', customer_phone: customers?.phone ?? null, items_count: quotation_items?.length ?? 0 }));
+  return ((data ?? []) as R[]).map(({ customers, quotation_items, ...x }) => ({ ...x, features: x.features ?? [], display_name: customers?.name ?? x.customer_name ?? 'زبون', customer_phone: customers?.phone ?? x.customer_phone ?? null, items_count: quotation_items?.length ?? 0 }));
 }
 
 export async function getQuotation(id: string): Promise<QuotationFull> {
@@ -768,16 +770,16 @@ export async function getQuotation(id: string): Promise<QuotationFull> {
     const quotation = ledger.quotations.find((x) => x.id === id);
     if (!quotation) throw new AppError('عرض السعر غير موجود.');
     return {
-      quotation, items: ledger.quotation_items.filter((i) => i.quotation_id === id), customer: demoDb.customers.find((c) => c.id === quotation.customer_id) ?? null,
+      quotation, items: ledger.quotation_items.filter((i) => i.quotation_id === id).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)), customer: demoDb.customers.find((c) => c.id === quotation.customer_id) ?? null,
       invoice_number: quotation.invoice_id ? ledger.invoices.find((i) => i.id === quotation.invoice_id)?.number ?? null : null,
     };
   }
   const { data, error } = await sb().from('quotations').select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   if (!data) throw new AppError('عرض السعر غير موجود.');
-  const quotation = data as Quotation;
+  const quotation = { ...(data as Quotation), features: (data as Quotation).features ?? [] };
   const [items, cust, inv] = await Promise.all([
-    sb().from('quotation_items').select('*').eq('quotation_id', id),
+    sb().from('quotation_items').select('*').eq('quotation_id', id).order('sort').order('name'),
     quotation.customer_id ? sb().from('customers').select('*').eq('id', quotation.customer_id).maybeSingle() : Promise.resolve({ data: null }),
     quotation.invoice_id ? sb().from('invoices').select('number').eq('id', quotation.invoice_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
@@ -795,16 +797,17 @@ export async function saveQuotation(p: QuotationPayload): Promise<{ id: string; 
   let q = p.id ? ledger.quotations.find((x) => x.id === p.id) : undefined;
   if (q && q.status === 'converted') throw new AppError('لا يمكن تعديل عرض حُوّل لفاتورة.');
   if (!q) {
-    q = { id: demoId(), number: nextDoc('quotation'), status: p.status, customer_id: null, customer_name: null, warehouse_id: p.warehouse_id, currency: p.currency, exchange_rate: p.exchange_rate, subtotal: 0, discount: 0, total: 0, valid_until: null, note: null, invoice_id: null, created_by: 'demo-owner', created_at: nowIso() };
+    q = { id: demoId(), number: nextDoc('quotation'), status: p.status, customer_id: null, customer_name: null, warehouse_id: p.warehouse_id, currency: p.currency, exchange_rate: p.exchange_rate, subtotal: 0, discount: 0, total: 0, valid_until: null, note: null, title: null, customer_phone: null, features: [], invoice_id: null, created_by: 'demo-owner', created_at: nowIso() };
     ledger.quotations.push(q);
   }
   const qid = q.id;
-  Object.assign(q, { status: p.status, customer_id: p.customer_id, customer_name: p.customer_id ? null : p.customer_name?.trim() ?? null, warehouse_id: p.warehouse_id, currency: p.currency, exchange_rate: p.exchange_rate, subtotal, discount, total: roundMoney(subtotal - discount, p.currency), valid_until: p.valid_until, note: p.note });
+  Object.assign(q, { status: p.status, customer_id: p.customer_id, customer_name: p.customer_id ? null : p.customer_name?.trim() ?? null, warehouse_id: p.warehouse_id, currency: p.currency, exchange_rate: p.exchange_rate, subtotal, discount, total: roundMoney(subtotal - discount, p.currency), valid_until: p.valid_until, note: p.note,
+    title: p.title?.trim() || null, customer_phone: p.customer_phone?.trim() || null, features: p.features.map((x) => x.trim()).filter(Boolean).slice(0, 40).map((x) => x.slice(0, 300)) });
   ledger.quotation_items = ledger.quotation_items.filter((i) => i.quotation_id !== qid);
-  for (const i of items) {
+  for (const [n, i] of items.entries()) {
     const v = demoDb.product_variants.find((x) => x.id === i.variant_id);
     const prod = v && demoDb.products.find((x) => x.id === v.product_id);
-    ledger.quotation_items.push({ id: demoId(), quotation_id: qid, variant_id: i.variant_id, name: prod?.name ?? 'منتج', variant_title: v && v.title !== 'افتراضي' ? v.title : null, qty: i.qty, unit_price: i.unit_price, discount: i.discount, line_total: i.line_total, price_tier: i.price_tier });
+    ledger.quotation_items.push({ id: demoId(), quotation_id: qid, variant_id: i.variant_id, name: prod?.name ?? 'منتج', variant_title: v && v.title !== 'افتراضي' ? v.title : null, qty: i.qty, unit_price: i.unit_price, discount: i.discount, line_total: i.line_total, price_tier: i.price_tier, sort: n + 1 });
   }
   demoAudit(p.id ? 'update' : 'insert', 'quotations', qid, { number: q.number, total: q.total });
   return { id: qid, number: q.number };
@@ -818,6 +821,44 @@ export async function setQuotationStatus(id: string, status: QuotationStatus): P
   if (!q) throw new AppError('عرض السعر غير موجود.');
   if (q.status === 'converted') throw new AppError('حُوّل هذا العرض لفاتورة ولا تتغير حالته.');
   q.status = status;
+}
+
+/** للطباعة: صورة كل بند وعلامته التجارية (الاسم والشعار) */
+export interface QuotationItemExtra { image_key: string | null; brand: { id: string; name: string; logo_key: string | null } | null }
+export async function quotationItemExtras(variantIds: string[]): Promise<Record<string, QuotationItemExtra>> {
+  const ids = [...new Set(variantIds)];
+  const out: Record<string, QuotationItemExtra> = {};
+  if (!ids.length) return out;
+  if (IS_DEMO) {
+    for (const id of ids) {
+      const v = demoDb.product_variants.find((x) => x.id === id);
+      const p = v && demoDb.products.find((x) => x.id === v.product_id);
+      const b = p?.brand_id ? demoDb.brands.find((x) => x.id === p.brand_id) : undefined;
+      out[id] = { image_key: v?.image_key ?? p?.cover_key ?? null, brand: b ? { id: b.id, name: b.name, logo_key: b.logo_key } : null };
+    }
+    return out;
+  }
+  type R = { id: string; image_key: string | null; products: { cover_key: string | null; brands: { id: string; name: string; logo_key: string | null } | null } | null };
+  for (let i = 0; i < ids.length; i += 150) {
+    const { data, error } = await sb().from('product_variants').select('id,image_key,products(cover_key,brands(id,name,logo_key))').in('id', ids.slice(i, i + 150));
+    if (error) throw error;
+    for (const r of (data ?? []) as unknown as R[]) out[r.id] = { image_key: r.image_key ?? r.products?.cover_key ?? null, brand: r.products?.brands ?? null };
+  }
+  return out;
+}
+
+/** اقتراحات المميزات: الأكثر تكراراً في آخر العروض (الضمانات والتجهيز تتكرر عادة) */
+export async function recentQuotationFeatures(limit = 24): Promise<string[]> {
+  let rows: { features: string[] | null }[];
+  if (IS_DEMO) rows = ledger.quotations;
+  else {
+    const { data, error } = await sb().from('quotations').select('features').order('created_at', { ascending: false }).limit(80);
+    if (error) throw error;
+    rows = (data ?? []) as { features: string[] | null }[];
+  }
+  const count = new Map<string, number>();
+  for (const r of rows) for (const f of r.features ?? []) { const k = f.trim(); if (k) count.set(k, (count.get(k) ?? 0) + 1); }
+  return [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([k]) => k);
 }
 
 /** convert_quotation(id, payments jsonb) ← فاتورة بيع بأسعار العرض نفسها (نفس منطق pos_checkout) */

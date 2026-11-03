@@ -553,7 +553,7 @@ function seedExtras() {
       const base = tier === 'wholesale' ? v.wholesale_price ?? Math.round((v.price * 0.88) / 500) * 500 : v.price;
       const unit = currency === 'USD' ? Math.round((base / rate) * 100) / 100 : base;
       return { id: demoId(), quotation_id: id, variant_id: v.id, name: p.name, variant_title: v.title === 'افتراضي' ? null : v.title, qty, unit_price: unit, discount: 0, line_total: roundMoney(unit * qty, currency), price_tier: tier };
-    });
+    }).map((it, n) => ({ ...it, sort: n + 1 }));
     const subtotal = items.reduce((s, i) => s + i.line_total, 0);
     const created = startOfBaghdadDay(now, -q.daysAgo).getTime() + 11 * 3600_000;
     const valid = new Date(created + 7 * 86_400_000);
@@ -561,6 +561,8 @@ function seedExtras() {
       id, number: nextDoc('quotation'), status: q.status, customer_id: q.customer !== null ? cust[q.customer]?.id ?? null : null, customer_name: q.name ?? null,
       warehouse_id: demoDb.warehouses[0].id, currency, exchange_rate: currency === 'USD' ? rate : 1, subtotal, discount: 0, total: subtotal,
       valid_until: valid.toISOString().slice(0, 10), note: q.status === 'sent' ? 'الأسعار تشمل التوصيل داخل بغداد' : null, invoice_id: null, created_by: 'staff-1', created_at: iso(Math.min(created, now)),
+      title: q.status === 'sent' ? 'تجهيز مكتب بالشواحن والكابلات' : null, customer_phone: null,
+      features: q.status === 'sent' ? ['شحن سريع لكل الأجهزة من شاحن واحد', 'ضمان سنة على الشواحن (استبدال)', 'توصيل وتركيب مجاني داخل بغداد'] : [],
     });
     ledger.quotation_items.push(...items);
   }

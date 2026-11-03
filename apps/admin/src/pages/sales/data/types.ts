@@ -81,6 +81,7 @@ export interface PosItem {
   min_stock: number;
   image_key: string | null;
   category_id: string | null;
+  brand_id: string | null;
   track_serials: boolean;
   unit: string;
   /** المتاح في المخزن المختار (qty − reserved) */
