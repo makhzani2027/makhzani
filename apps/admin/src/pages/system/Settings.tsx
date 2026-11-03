@@ -1,7 +1,7 @@
 /** الإعدادات: المتجر، العملة وسعر الصرف، الفروع، الفواتير والطباعة (معاينة حية + طباعة تجريبية)، المخزون ونقطة البيع، التطبيق */
 import { useEffect, useState } from 'react';
 import { isValidIraqiPhone, normalizeIraqiPhone, type AppConfigSettings, type Branch, type CurrencySettings, type Invoice, type InvoiceItem, type InventorySettings, type InvoiceSettings, type Payment, type StoreSettings } from '@raqeem/shared';
-import { Alert, Badge, Button, Card, DataTable, ErrorState, Field, Input, Loading, Modal, NumberInput, PageHeader, Segmented, Select, Switch, Tabs, Textarea, toast, type Column } from '../../ui';
+import { Alert, Badge, Button, Card, Checkbox, DataTable, ErrorState, Field, Input, Loading, Modal, NumberInput, PageHeader, Segmented, Select, Switch, Tabs, Textarea, toast, type Column } from '../../ui';
 import { imgUrl, uploadImage } from '../../lib/media';
 import { errorMessage } from '../../lib/supabase';
 import { useAction, useLoad } from '../../lib/hooks';
@@ -12,6 +12,7 @@ import { getSetting, saveSetting, type PosSettings, type SettingsMap } from '../
 import { listWarehouses } from '../sales/data/lookups';
 import { useMoney } from '../sales/components/common';
 import { listBranches, saveBranch } from './api';
+import { listBrands } from '../catalog/api';
 import '../sales/sales.css';
 
 type Tab = 'store' | 'currency' | 'branches' | 'invoice' | 'inventory' | 'app';
@@ -154,6 +155,7 @@ function InvoiceTab() {
   const s = d as InvoiceSettings | null;
   const [html, setHtml] = useState('');
   const [up, setUp] = useState(false);
+  const brands = useLoad(listBrands, []);
   useEffect(() => {
     if (!s) return;
     let alive = true;
@@ -196,6 +198,32 @@ function InvoiceTab() {
                     {s.letterhead_key ? <Button variant="ghost" icon="trash" onClick={() => setD({ ...s, letterhead_key: null })}>إزالة</Button> : null}
                   </div>
                 </div>
+              </Field>
+              <Field label="الشركات أعلى ورقة العرض" hint="تظهر شعاراتها في شريط أبيض تحت الرأسية، بترتيبها في الكتالوج ← الشركات. أضف شعار كل شركة من صفحة الشركات لتظهر صورته؛ بدون شعار يُطبع اسمها.">
+                {brands.error ? <Alert tone="danger">{brands.error}</Alert> : !brands.data ? <span className="dim small">جارٍ التحميل…</span> : !brands.data.length ? <span className="dim small">لا توجد شركات بعد. أضفها من الكتالوج ← الشركات.</span> : (
+                  <div className="stack-sm">
+                    <Segmented
+                      value={s.quote_brand_ids == null ? 'all' : s.quote_brand_ids.length ? 'pick' : 'none'}
+                      onChange={(v) => setD({ ...s, quote_brand_ids: v === 'all' ? null : v === 'none' ? [] : (s.quote_brand_ids?.length ? s.quote_brand_ids : brands.data!.map((b) => b.id)) })}
+                      options={[{ value: 'all', label: 'كل الشركات' }, { value: 'pick', label: 'شركات أختارها' }, { value: 'none', label: 'بلا شريط' }]} />
+                    {s.quote_brand_ids?.length ? (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(170px,1fr))', gap: 8 }}>
+                        {brands.data.map((b) => {
+                          const on = s.quote_brand_ids!.includes(b.id);
+                          const logo = imgUrl(b.logo_key, 'sm');
+                          return (
+                            <Checkbox key={b.id} checked={on}
+                              onChange={(v) => {
+                                const next = v ? brands.data!.map((x) => x.id).filter((id) => id === b.id || s.quote_brand_ids!.includes(id)) : s.quote_brand_ids!.filter((id) => id !== b.id);
+                                setD({ ...s, quote_brand_ids: next.length ? next : [] });
+                              }}
+                              label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>{logo ? <img src={logo} alt="" style={{ height: 22, maxWidth: 70, objectFit: 'contain' }} /> : null}{b.name}</span>} />
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
               </Field>
               <Field label="الشروط الافتراضية لعروض الأسعار" hint="تُملأ تلقائياً في كل عرض جديد ويمكن تعديلها داخل العرض.">
                 <Textarea rows={5} value={s.quote_terms ?? ''} onChange={(e) => setD({ ...s, quote_terms: e.target.value || null })} placeholder={'الأسعار تشمل التنصيب داخل المدينة.\nضمان الألواح ١٥ سنة، والانفيرتر ٤ سنوات (استبدال).'} />

@@ -17,6 +17,8 @@ export interface QuotationPrintInput {
   invoice?: Pick<InvoiceSettings, 'letterhead_key'> | null;
   extras?: Record<string, QuotationItemExtra>;
   author?: string | null;
+  /** شريط الشركات أعلى الورقة (من الإعدادات) — يحلّ محل شريط «علامات في هذا العرض» أسفلها */
+  headerBrands?: { id: string; name: string; logo_key: string | null }[];
 }
 
 const ICON_CHECK = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.2 4.2L19 7"/></svg>';
@@ -41,12 +43,18 @@ export function buildQuotationA4(o: QuotationPrintInput): PrintDoc {
     o.store.whatsapp && o.store.whatsapp !== o.store.phone ? `<span>${ICON_PHONE}${code(formatPhoneSafe(o.store.whatsapp))}</span>` : '',
     o.store.address ? `<span>${ICON_PIN}${escapeHtml(o.store.address)}</span>` : '',
   ].filter(Boolean).join('');
+  const logoOf = (b: { name: string; logo_key: string | null }) => {
+    const logo = imgUrl(b.logo_key, 'sm');
+    return logo ? `<img src="${escapeHtml(logo)}" alt="${escapeHtml(b.name)}">` : `<b>${escapeHtml(b.name)}</b>`;
+  };
+  const top = o.headerBrands ?? [];
+  const strip = top.length ? `<div class="hb">${top.map(logoOf).join('')}</div>` : '';
   const head = letterhead
-    ? `<header class="lh"><img src="${escapeHtml(letterhead)}" alt=""></header>`
-    : `<header class="band">
+    ? `<header class="lh${strip ? ' wb' : ''}"><img src="${escapeHtml(letterhead)}" alt="">${strip}</header>`
+    : `<header class="hd${strip ? ' wb' : ''}"><div class="band">
   <div class="who">${markSvg('15mm', '#fff', BRAND.brick)}<div><div class="nm">${escapeHtml(o.store.name)}</div>${o.store.legal_name ? `<div class="lg">${escapeHtml(o.store.legal_name)}</div>` : ''}</div></div>
   <div class="ct">${contacts}</div>
-</header>`;
+</div>${strip}</header>`;
 
   // ---------------------------------------------------------------- العنوان والبيانات
   const meta = (k: string, v: string) => `<div class="m"><span>${k}</span><b>${v}</b></div>`;
@@ -105,10 +113,7 @@ ${words ? `<div class="words"><span>المبلغ كتابةً</span>${escapeHtml
   // ---------------------------------------------------------------- العلامات المعتمدة
   const brands = new Map<string, NonNullable<QuotationItemExtra['brand']>>();
   for (const it of o.items) { const b = extras[it.variant_id]?.brand; if (b) brands.set(b.id, b); }
-  const brandBlock = brands.size ? `<section class="brands"><span>علامات تجارية في هذا العرض</span><div>${[...brands.values()].map((b) => {
-    const logo = imgUrl(b.logo_key, 'sm');
-    return logo ? `<img src="${escapeHtml(logo)}" alt="${escapeHtml(b.name)}">` : `<b>${escapeHtml(b.name)}</b>`;
-  }).join('')}</div></section>` : '';
+  const brandBlock = brands.size && !top.length ? `<section class="brands"><span>علامات تجارية في هذا العرض</span><div>${[...brands.values()].map(logoOf).join('')}</div></section>` : '';
 
   // ---------------------------------------------------------------- الختم والتوقيع
   const sign = `<div class="end"><section class="sign">
@@ -129,7 +134,16 @@ const CSS = `
 /* الرأسية */
 .lh{margin:0 0 5mm}
 .lh img{display:block;width:100%;max-height:48mm;object-fit:contain;border-radius:3mm}
-.band{display:flex;justify-content:space-between;align-items:center;gap:8mm;background:${BRAND.ink};color:#fff;border-radius:4mm;padding:4mm 6mm;margin-bottom:5mm;position:relative;overflow:hidden}
+.hd{margin-bottom:5mm}
+.band{display:flex;justify-content:space-between;align-items:center;gap:8mm;background:${BRAND.ink};color:#fff;border-radius:4mm;padding:4mm 6mm;position:relative;overflow:hidden}
+.hd.wb{border:1px solid ${BRAND.line};border-radius:4mm;overflow:hidden}
+.hd.wb .band{border-radius:0}
+.lh.wb{border:1px solid ${BRAND.line};border-radius:4mm;overflow:hidden}
+.lh.wb>img{border-radius:0}
+/* شريط الشركات تحت الرأسية */
+.hb{display:flex;flex-wrap:wrap;justify-content:space-around;align-items:center;gap:3mm 7mm;padding:2.6mm 6mm;background:#fff}
+.hb img{height:9mm;max-width:38mm;object-fit:contain}
+.hb b{font-family:'Sans',system-ui,sans-serif;font-weight:900;font-size:15px;letter-spacing:.6px;direction:ltr;color:${BRAND.ink}}
 .band::after{content:'';position:absolute;inset-inline-start:0;top:0;bottom:0;width:3mm;background:${BRAND.brick}}
 .band .who{display:flex;align-items:center;gap:4mm}
 .band .nm{font-family:'Display',serif;font-weight:900;font-size:27px;line-height:1.35;padding-bottom:.15em}

@@ -918,6 +918,8 @@ export interface InvoiceSettings {
   letterhead_key?: string | null;
   /** الشروط الافتراضية لعروض الأسعار (تُملأ في كل عرض جديد ويمكن تعديلها) */
   quote_terms?: string | null;
+  /** الشركات (العلامات) المعروضة أعلى ورقة العرض تحت الرأسية: غير محدد = كل الشركات، [] = بلا شريط */
+  quote_brand_ids?: string[] | null;
 }
 
 export interface AppConfigSettings {

@@ -32,6 +32,7 @@ import type { PayLine, PosItem } from './data/types';
 import { CustomerPicker, useMoney, useRate } from './components/common';
 import { PaymentModal } from './components/PaymentModal';
 import { printInvoice } from './printing';
+import { clearDraft, draftKey, readDraft, writeDraft, type QuoteDraft } from './quoteDraft';
 import './sales.css';
 import './quote.css';
 
@@ -49,11 +50,15 @@ export default function QuotationForm() {
   const isNew = !id || id === 'new';
   const existing = useLoad(() => (isNew ? Promise.resolve(null) : getQuotation(id!)), [id]);
   if (existing.error) return <ErrorState message={existing.error} onRetry={existing.reload} />;
+  const [gen, setGen] = useState(0);
   if (!isNew && !existing.data) return <Loading />;
-  return <Builder key={id ?? 'new'} full={existing.data ?? null} reload={existing.reload} />;
+  return <Builder key={`${id ?? 'new'}:${gen}`} full={existing.data ?? null} reload={existing.reload} onDiscard={() => setGen((g) => g + 1)} />;
 }
 
-function Builder({ full, reload }: { full: QuotationFull | null; reload: () => Promise<void> }) {
+/** بصمة العرض المحفوظ: لو تغيّر على الخادم بعد كتابة المسودة تُهمَل المسودة */
+const baseOf = (full: QuotationFull | null) => (full ? JSON.stringify([full.quotation.status, full.quotation.total, full.quotation.valid_until, full.quotation.title, full.quotation.note, full.quotation.features, full.items.map((i) => [i.variant_id, i.qty, i.unit_price, i.discount])]) : 'new');
+
+function Builder({ full, reload, onDiscard }: { full: QuotationFull | null; reload: () => Promise<void>; onDiscard: () => void }) {
   const nav = useNavigate();
   const fmt = useFmt();
   const m = useMoney();
@@ -64,31 +69,46 @@ function Builder({ full, reload }: { full: QuotationFull | null; reload: () => P
   const meta = useCatalogMeta();
   const q0 = full?.quotation;
   const locked = q0?.status === 'converted' || q0?.status === 'cancelled';
+  const dKey = draftKey(profile?.id, q0?.id);
+  const [d0] = useState<QuoteDraft | null>(() => (locked ? null : readDraft(dKey, baseOf(full))));
 
   // ---------------------------------------------------------------- الحالة
-  const [step, setStep] = useState<Step>(q0 ? 'review' : 'info');
-  const [customer, setCustomer] = useState<Pick<CustomerHit, 'id' | 'name' | 'phone' | 'credit_limit' | 'balance'> | null>(full?.customer ? { ...full.customer, balance: 0 } : null);
-  const [freeName, setFreeName] = useState(q0?.customer_name ?? '');
-  const [freePhone, setFreePhone] = useState(q0?.customer_phone ?? '');
-  const [title, setTitle] = useState(q0?.title ?? '');
-  const [whId, setWhId] = useState(q0?.warehouse_id ?? '');
-  const [currency, setCurrency] = useState<CurrencyCode>(q0?.currency ?? 'IQD');
-  const [tier, setTier] = useState<PriceTier>(full?.items[0]?.price_tier ?? 'retail');
-  const [valid, setValid] = useState(q0 ? q0.valid_until ?? '' : isoDay(startOfBaghdadDay(Date.now(), 7)));
-  const [discount, setDiscount] = useState(q0?.discount ?? 0);
-  const [note, setNote] = useState(q0?.note ?? '');
-  const [features, setFeatures] = useState<string[]>(q0?.features ?? []);
-  const [lines, setLines] = useState<Line[]>(full?.items.map((i) => ({
+  const [step, setStep] = useState<Step>(d0?.step ?? (q0 ? 'review' : 'info'));
+  const [customer, setCustomer] = useState<Pick<CustomerHit, 'id' | 'name' | 'phone' | 'credit_limit' | 'balance'> | null>(d0 ? (d0.customer as CustomerHit | null) : full?.customer ? { ...full.customer, balance: 0 } : null);
+  const [freeName, setFreeName] = useState(d0?.freeName ?? q0?.customer_name ?? '');
+  const [freePhone, setFreePhone] = useState(d0?.freePhone ?? q0?.customer_phone ?? '');
+  const [title, setTitle] = useState(d0?.title ?? q0?.title ?? '');
+  const [whId, setWhId] = useState(d0?.whId ?? q0?.warehouse_id ?? '');
+  const [currency, setCurrency] = useState<CurrencyCode>(d0?.currency ?? q0?.currency ?? 'IQD');
+  const [tier, setTier] = useState<PriceTier>(d0?.tier ?? full?.items[0]?.price_tier ?? 'retail');
+  const [valid, setValid] = useState(d0 ? d0.valid : q0 ? q0.valid_until ?? '' : isoDay(startOfBaghdadDay(Date.now(), 7)));
+  const [discount, setDiscount] = useState(d0?.discount ?? q0?.discount ?? 0);
+  const [note, setNote] = useState(d0?.note ?? q0?.note ?? '');
+  const [features, setFeatures] = useState<string[]>(d0?.features ?? q0?.features ?? []);
+  const [lines, setLines] = useState<Line[]>(d0?.lines ?? full?.items.map((i) => ({
     variant_id: i.variant_id, name: i.name, variant_title: i.variant_title, image_key: null, qty: i.qty, unit_price: i.unit_price, discount: i.discount, price_tier: i.price_tier,
   })) ?? []);
   const [picking, setPicking] = useState(false);
   const [paying, setPaying] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  const [dirty, setDirty] = useState(!!d0);
   const touch = <T,>(fn: (v: T) => void) => (v: T) => { fn(v); setDirty(true); };
+
+  // المسودة: كل تعديل غير محفوظ يُكتب في المتصفح، فالخروج لقسم آخر والعودة لا يضيّع العرض
+  const base = useMemo(() => baseOf(full), [full]);
+  useEffect(() => {
+    if (locked) return;
+    if (!dirty) { clearDraft(dKey); return; }
+    writeDraft(dKey, { v: 1, at: Date.now(), base, step, customer, freeName, freePhone, title, whId, currency, tier, valid, discount, note, features, lines });
+  }, [dirty, locked, dKey, base, step, customer, freeName, freePhone, title, whId, currency, tier, valid, discount, note, features, lines]);
+  const discardDraft = async () => {
+    if (!(await askConfirm({ title: 'تجاهل المسودة؟', body: q0 ? 'تُحذف تعديلاتك غير المحفوظة ويعود العرض كما هو محفوظ.' : 'يُحذف العرض غير المحفوظ وتبدأ عرضاً فارغاً.', danger: true, confirm: 'تجاهل المسودة' }))) return;
+    clearDraft(dKey);
+    onDiscard();
+  };
 
   // الشروط الافتراضية للعرض الجديد من إعدادات الطباعة (ما لم يكتب الموظف شيئاً بعد)
   useEffect(() => {
-    if (q0) return;
+    if (q0 || d0) return;
     let alive = true;
     void getSetting('invoice').then((s) => { if (alive && s.quote_terms) setNote((n) => n || s.quote_terms!); }).catch(() => undefined);
     return () => { alive = false; };
@@ -163,15 +183,21 @@ function Builder({ full, reload }: { full: QuotationFull | null; reload: () => P
   const saveAndStay = async (status: QuotationStatus) => {
     if (infoError || itemsError) { toast.error(infoError ?? itemsError!); return null; }
     const res = await save.run(status);
-    if (res) { setDirty(false); if (!q0) nav(`/quotations/${res.id}`, { replace: true }); else await reload(); }
+    if (res) { clearDraft(dKey); setDirty(false); if (!q0) nav(`/quotations/${res.id}`, { replace: true }); else await reload(); }
     return res;
   };
   const extras = useLoad(() => quotationItemExtras(lines.map((l) => l.variant_id)), [lines.map((l) => l.variant_id).join(',')]);
+  // شريط الشركات أعلى الورقة: ما اختاره صاحب المتجر في الإعدادات، وإلا كل الشركات بترتيبها
+  const headerBrands = useMemo(() => {
+    const ids = invoiceCfg?.quote_brand_ids;
+    const all = meta.brands.map((b) => ({ id: b.id, name: b.name, logo_key: b.logo_key }));
+    return ids == null ? all : ids.map((id) => all.find((b) => b.id === id)).filter((b): b is (typeof all)[number] => !!b);
+  }, [meta.brands, invoiceCfg?.quote_brand_ids]);
   const author = profile?.full_name?.replace(/\s*\(.*\)\s*$/, '') ?? null;
   const printSaved = async (id: string) => {
     const f = await getQuotation(id);
     const ex = await quotationItemExtras(f.items.map((i) => i.variant_id));
-    await printDoc(buildQuotationA4({ quotation: f.quotation, items: f.items, customer: f.customer, store, invoice: invoiceCfg, extras: ex, author }));
+    await printDoc(buildQuotationA4({ quotation: f.quotation, items: f.items, customer: f.customer, store, invoice: invoiceCfg, extras: ex, author, headerBrands }));
   };
   const saveAndPrint = async () => {
     if (locked && q0) { await printSaved(q0.id); return; }
@@ -179,7 +205,7 @@ function Builder({ full, reload }: { full: QuotationFull | null; reload: () => P
     if (res) await printSaved(res.id);
   };
   const convert = useAction(async (payments: PayLine[]) => convertQuotation(q0!.id, payments), { success: 'جُهّز العرض وأُنشئت فاتورة البيع' });
-  const cancel = useAction(async () => { await setQuotationStatus(q0!.id, 'cancelled'); await reload(); }, { success: 'أُلغي العرض' });
+  const cancel = useAction(async () => { await setQuotationStatus(q0!.id, 'cancelled'); clearDraft(dKey); await reload(); }, { success: 'أُلغي العرض' });
   const accept = useAction(async () => { await setQuotationStatus(q0!.id, 'accepted'); await reload(); }, { success: 'سُجّل قبول الزبون' });
 
   // المعاينة: نفس قالب الطباعة من الحالة الحالية (قبل الحفظ يظهر الرقم «مسودة»)
@@ -195,8 +221,8 @@ function Builder({ full, reload }: { full: QuotationFull | null; reload: () => P
     qty: l.qty, unit_price: l.unit_price, discount: l.discount, line_total: lineTotal(l), price_tier: l.price_tier, sort: n + 1,
   }));
   const previewDoc = useMemo(() => (step === 'review'
-    ? previewSrcDoc(buildQuotationA4({ quotation: previewQuotation, items: previewItems, customer: customer ? { name: customer.name, phone: customer.phone } : null, store, invoice: invoiceCfg, extras: extras.data ?? {}, author }))
-    : ''), [step, JSON.stringify(previewQuotation), JSON.stringify(previewItems), extras.data, invoiceCfg, store, author, customer]);
+    ? previewSrcDoc(buildQuotationA4({ quotation: previewQuotation, items: previewItems, customer: customer ? { name: customer.name, phone: customer.phone } : null, store, invoice: invoiceCfg, extras: extras.data ?? {}, author, headerBrands }))
+    : ''), [step, JSON.stringify(previewQuotation), JSON.stringify(previewItems), extras.data, invoiceCfg, store, author, customer, headerBrands]);
 
   const waText = [
     `${title.trim() || 'عرض سعر'}${q0 ? ` — ${q0.number}` : ''}`, `من ${store.name}`, '',
@@ -215,6 +241,14 @@ function Builder({ full, reload }: { full: QuotationFull | null; reload: () => P
         description={q0 ? <><Badge tone={QUOTATION_STATUS[q0.status].tone}>{QUOTATION_STATUS[q0.status].label}</Badge> · {fmt.date(q0.created_at)}{dirty ? <> · <span className="sx-neg">تعديلات غير محفوظة</span></> : null}</> : 'جهّز عرضاً متكاملاً للزبون خطوة بخطوة، ثم اطبعه أو أرسله واتساب.'}
         actions={q0 && !locked ? <Button icon="xCircle" variant="ghost" loading={cancel.busy} onClick={async () => { if (await askConfirm({ title: 'إلغاء العرض؟', body: 'يبقى في السجل بحالة «ملغى» ولا يُحوَّل لفاتورة.', danger: true, confirm: 'إلغاء العرض' })) void cancel.run(); }}>إلغاء العرض</Button> : null} />
       {q0?.status === 'converted' && q0.invoice_id ? <Alert tone="success">حُوّل لفاتورة <Link className="ltr" to={`/invoices/${q0.invoice_id}`}>{full?.invoice_number ?? 'عرض'}</Link>.</Alert> : null}
+      {d0 && dirty ? (
+        <Alert tone="info">
+          <span className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span className="grow">استُرجعت مسودتك غير المحفوظة (آخر تعديل {fmt.date(d0.at, true)}). احفظ العرض حتى يدخل سجل العروض.</span>
+            <Button size="sm" variant="ghost" icon="trash" onClick={() => void discardDraft()}>تجاهل المسودة</Button>
+          </span>
+        </Alert>
+      ) : null}
       {expired ? <Alert tone="warning">انتهت صلاحية العرض. حدّث تاريخ «ساري حتى» قبل إرساله، وعند التحويل تُحتسب أسعار اليوم.</Alert> : null}
 
       {!locked ? (
@@ -323,7 +357,7 @@ function Builder({ full, reload }: { full: QuotationFull | null; reload: () => P
       {step === 'review' || locked ? (
         <div className="qb-review">
           <div className="qb-paper">
-            {extras.loading && !extras.data ? <Skeleton h={600} r={12} /> : <A4Preview srcDoc={previewDoc || (locked ? previewSrcDoc(buildQuotationA4({ quotation: previewQuotation, items: previewItems, customer: customer ? { name: customer.name, phone: customer.phone } : null, store, invoice: invoiceCfg, extras: extras.data ?? {}, author })) : '')} />}
+            {extras.loading && !extras.data ? <Skeleton h={600} r={12} /> : <A4Preview srcDoc={previewDoc || (locked ? previewSrcDoc(buildQuotationA4({ quotation: previewQuotation, items: previewItems, customer: customer ? { name: customer.name, phone: customer.phone } : null, store, invoice: invoiceCfg, extras: extras.data ?? {}, author, headerBrands })) : '')} />}
           </div>
           <div className="sx-stack qb-side">
             <Card title="الإجمالي" icon="receipt">
