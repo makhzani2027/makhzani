@@ -180,7 +180,8 @@ export async function loadPosCatalog(warehouseId: string): Promise<PosItem[]> {
       .map((v) => {
         const p = demoDb.products.find((x) => x.id === v.product_id)!;
         const lvl = demoDb.stock_levels.find((s) => s.variant_id === v.id && s.warehouse_id === warehouseId);
-        return toPosItem(v, p, lvl ? lvl.qty - lvl.reserved : 0);
+        const all = demoDb.stock_levels.filter((s) => s.variant_id === v.id && demoDb.warehouses.some((w) => w.id === s.warehouse_id && w.is_sellable && w.is_active)).reduce((t, s) => t + s.qty - s.reserved, 0);
+        return toPosItem(v, p, lvl ? lvl.qty - lvl.reserved : 0, all);
       })
       .filter((x) => !demoDb.products.find((p) => p.id === x.product_id)?.archived_at);
   }
@@ -190,22 +191,48 @@ export async function loadPosCatalog(warehouseId: string): Promise<PosItem[]> {
     fetchAll<Row>((a, b) => sb().from('product_variants')
       .select('id,product_id,title,sku,barcode,price,wholesale_price,min_stock,image_key,is_active,products!inner(id,name,cover_key,category_id,brand_id,track_serials,unit,tags,archived_at)')
       .eq('is_active', true).is('products.archived_at', null).order('id').range(a, b)),
-    fetchAll<{ variant_id: string; qty: number; reserved: number }>((a, b) => sb().from('stock_levels').select('variant_id,qty,reserved').eq('warehouse_id', warehouseId).order('variant_id').range(a, b)),
+    sellableStock(),
   ]);
-  const stock = new Map(lv.map((s) => [s.variant_id, Number(s.qty) - Number(s.reserved)]));
-  return vs.map((v) => toPosItem(v, v.products, stock.get(v.id) ?? 0));
+  // المتاح عبر دالة الخادم sellable_stock: تعمل لمن يبيع أو يكتب العروض حتى بلا صلاحية «عرض المخزون»
+  const here = new Map<string, number>();
+  const all = new Map<string, number>();
+  for (const s of lv) {
+    all.set(s.variant_id, (all.get(s.variant_id) ?? 0) + s.available);
+    if (s.warehouse_id === warehouseId) here.set(s.variant_id, s.available);
+  }
+  return vs.map((v) => toPosItem(v, v.products, here.get(v.id) ?? 0, all.get(v.id) ?? 0));
+}
+
+export interface SellableStockRow { variant_id: string; warehouse_id: string; available: number }
+/** المتاح للبيع (الكمية − المحجوز) لكل نسخة في كل مخزن فعّال قابل للبيع */
+export async function sellableStock(): Promise<SellableStockRow[]> {
+  if (IS_DEMO) {
+    return demoDb.stock_levels
+      .filter((s) => s.qty - s.reserved !== 0 && demoDb.warehouses.some((w) => w.id === s.warehouse_id && w.is_active && w.is_sellable))
+      .map((s) => ({ variant_id: s.variant_id, warehouse_id: s.warehouse_id, available: s.qty - s.reserved }));
+  }
+  const rows = await fetchAll<SellableStockRow>((a, b) => sb().rpc('sellable_stock').range(a, b));
+  return rows.map((r) => ({ ...r, available: Number(r.available) }));
+}
+
+/** مجموع المتاح في كل مخزن قابل للبيع */
+export async function sellableUnitsByWarehouse(): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  for (const r of await sellableStock()) out[r.warehouse_id] = (out[r.warehouse_id] ?? 0) + r.available;
+  return out;
 }
 
 function toPosItem(
   v: { id: string; product_id: string; title: string; sku: string; barcode: string | null; price: number; wholesale_price: number | null; min_stock: number; image_key: string | null },
   p: { name: string; cover_key: string | null; category_id: string | null; brand_id?: string | null; track_serials: boolean; unit: string; tags?: string[] },
   stock: number,
+  stockAll: number,
 ): PosItem {
   const vt = v.title === 'افتراضي' ? null : v.title;
   return {
     variant_id: v.id, product_id: v.product_id, name: p.name, variant_title: vt, sku: v.sku, barcode: v.barcode, price: Number(v.price),
     wholesale_price: v.wholesale_price, min_stock: Number(v.min_stock), image_key: v.image_key ?? p.cover_key, category_id: p.category_id, brand_id: p.brand_id ?? null,
-    track_serials: p.track_serials, unit: p.unit, stock, search: `${p.name} ${vt ?? ''} ${(p.tags ?? []).join(' ')}`,
+    track_serials: p.track_serials, unit: p.unit, stock, stock_all: Math.max(stockAll, stock), search: `${p.name} ${vt ?? ''} ${(p.tags ?? []).join(' ')}`,
   };
 }
 

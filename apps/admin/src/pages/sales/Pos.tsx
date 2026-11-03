@@ -16,6 +16,7 @@ import { listCategories, listWarehouses, type CustomerHit } from './data/lookups
 import { useSetting } from './data/app-settings';
 import type { CheckoutResult, PayLine, PosItem } from './data/types';
 import { CustomerPicker, useMoney, useRate } from './components/common';
+import { WarehouseHint } from './components/WarehouseHint';
 import { PaymentModal } from './components/PaymentModal';
 import { printInvoice } from './printing';
 import './sales.css';
@@ -101,7 +102,7 @@ export default function Pos() {
     const have = inCart.get(it.variant_id) ?? 0;
     if (!invCfg.allow_negative_stock && have + qty > it.stock) {
       beep('error');
-      toast.error(it.stock <= 0 ? `«${it.name}» غير متوفر في ${wh?.name ?? 'المخزن'}.` : `المتوفر من «${it.name}» ${it.stock} فقط.`);
+      toast.error(it.stock <= 0 ? (it.stock_all > 0 ? `«${it.name}» غير متوفر في ${wh?.name ?? 'هذا المخزن'}، لكنه متوفر في مخزن آخر (${fmt.qty(it.stock_all)}). غيّر المخزن من الأعلى.` : `«${it.name}» نفد من كل المخازن.`) : `المتوفر من «${it.name}» ${it.stock} فقط.`);
       return;
     }
     beep('ok');
@@ -225,6 +226,7 @@ export default function Pos() {
             {held.length ? <Button size="sm" icon="clock" onClick={() => setShowHeld(true)}>المعلّقة ({fmt.num(held.length)})</Button> : null}
           </span>
         </div>
+        <WarehouseHint warehouses={sellable} current={wh?.id} disabled={lines.length > 0} onSwitch={(id) => setWhId(id)} />
         {posCfg.require_cash_session && !session.loading && !session.data ? <Alert tone="warning">البيع يحتاج جلسة صندوق مفتوحة. اضغط «فتح جلسة الصندوق».</Alert> : null}
         <div className="pos-grid">
           {catalog.loading && !catalog.data ? Array.from({ length: 12 }, (_, i) => <Skeleton key={i} h={170} r={16} />) : null}
@@ -238,7 +240,7 @@ export default function Pos() {
                 <Thumb imageKey={it.image_key} size="lg" />
                 {n ? <span className="incart">{fmt.qty(n)}</span> : null}
                 <span className="nm">{it.name}{it.variant_title ? ` — ${it.variant_title}` : ''}</span>
-                <span className="sx-between"><span className="pr">{m(price, currency)}</span><small className={it.stock <= 0 ? 'sx-neg' : it.stock <= it.min_stock ? 'sx-muted' : 'sx-muted'}>{it.stock <= 0 ? 'نفد' : `${fmt.qty(it.stock)} ${it.unit}`}</small></span>
+                <span className="sx-between"><span className="pr">{m(price, currency)}</span><small className={it.stock <= 0 ? 'sx-neg' : it.stock <= it.min_stock ? 'sx-muted' : 'sx-muted'}>{it.stock <= 0 ? (it.stock_all > 0 ? 'في مخزن آخر' : 'نفد') : `${fmt.qty(it.stock)} ${it.unit}`}</small></span>
               </button>
             );
           })}

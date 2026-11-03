@@ -31,6 +31,7 @@ import type { CustomerHit } from './data/lookups';
 import type { PayLine, PosItem } from './data/types';
 import { CustomerPicker, useMoney, useRate } from './components/common';
 import { PaymentModal } from './components/PaymentModal';
+import { WarehouseHint } from './components/WarehouseHint';
 import { printInvoice } from './printing';
 import { clearDraft, draftKey, readDraft, writeDraft, type QuoteDraft } from './quoteDraft';
 import './sales.css';
@@ -114,7 +115,9 @@ function Builder({ full, reload, onDiscard }: { full: QuotationFull | null; relo
     return () => { alive = false; };
   }, [q0]);
 
-  const wh = whId || meta.warehouses.find((w) => w.is_default)?.id || meta.warehouses[0]?.id || '';
+  const invCfg = useSetting('inventory');
+  const sellableWh = meta.warehouses.filter((w) => w.is_active && w.is_sellable);
+  const wh = whId || sellableWh.find((w) => w.id === invCfg.default_warehouse_id)?.id || sellableWh.find((w) => w.is_default)?.id || sellableWh[0]?.id || meta.warehouses[0]?.id || '';
   useEffect(() => { if (!whId && wh) setWhId(wh); }, [wh, whId]);
   const whName = meta.warehouses.find((w) => w.id === wh)?.name ?? '';
   const catalog = useLoad(() => (wh ? loadPosCatalog(wh) : Promise.resolve([] as PosItem[])), [wh]);
@@ -281,7 +284,7 @@ function Builder({ full, reload, onDiscard }: { full: QuotationFull | null; relo
             <div className="stack">
               <Field label="عنوان العرض" hint="يظهر كبيراً في رأس الورقة. مثال: منظومة طاقة شمسية ٥ ك.واط"><Input value={title} maxLength={160} onChange={(e) => { setTitle(e.target.value); setDirty(true); }} placeholder="منظومة طاقة شمسية متكاملة" /></Field>
               <div className="form-grid">
-                <Field label="المخزن" required hint="الأسعار والكميات المتوفرة منه"><Select value={wh} onChange={(e) => { setWhId(e.target.value); setDirty(true); }} options={meta.warehouses.map((w) => ({ value: w.id, label: w.name }))} /></Field>
+                <Field label="المخزن" required hint="الأسعار والكميات المتوفرة منه"><Select value={wh} onChange={(e) => { setWhId(e.target.value); setDirty(true); }} options={(sellableWh.length ? sellableWh : meta.warehouses).map((w) => ({ value: w.id, label: w.name }))} /></Field>
                 <Field label="ساري حتى"><Input type="date" value={valid} onChange={(e) => { setValid(e.target.value); setDirty(true); }} /></Field>
               </div>
               <div className="form-grid">
@@ -294,6 +297,7 @@ function Builder({ full, reload, onDiscard }: { full: QuotationFull | null; relo
         </div>
       ) : null}
 
+      {step === 'items' && !locked ? <WarehouseHint warehouses={sellableWh} current={wh} onSwitch={(id) => { setWhId(id); setDirty(true); }} /> : null}
       {step === 'items' && !locked ? (
         <div className="qb-items">
           <ProductBrowser
@@ -462,7 +466,7 @@ function ProductBrowser({ catalog, loading, error, onRetry, categories, brands, 
                   <span className="qb-brand">{brands.find((b) => b.id === it.brand_id)?.name ?? ' '}</span>
                   <b className="qb-name">{it.name}</b>
                   {it.variant_title ? <span className="qb-var">{it.variant_title}</span> : null}
-                  <span className="qb-foot"><b>{m(priceOf(it), currency)}</b><span className={it.stock > 0 ? 'qb-stock' : 'qb-stock out'}>{it.stock > 0 ? `متوفر ${fmt.qty(it.stock)}` : 'غير متوفر'}</span></span>
+                  <span className="qb-foot"><b>{m(priceOf(it), currency)}</b><span className={it.stock > 0 ? 'qb-stock' : 'qb-stock out'}>{it.stock > 0 ? `متوفر ${fmt.qty(it.stock)}` : it.stock_all > 0 ? 'في مخزن آخر' : 'غير متوفر'}</span></span>
                 </button>
               );
             })}
@@ -498,7 +502,7 @@ function AddItemModal({ it, brand, unit0, qty0, exists, currency, canPrice, onCl
             <b style={{ fontSize: 17 }}>{it.name}</b>
             {it.variant_title ? <div className="small dim">{it.variant_title}</div> : null}
             <div className="small dim ltr" style={{ textAlign: 'right' }}>{it.sku}</div>
-            <div className={it.stock > 0 ? 'qb-stock' : 'qb-stock out'} style={{ marginTop: 4, display: 'inline-block' }}>{it.stock > 0 ? `متوفر في المخزن: ${fmt.qty(it.stock)}` : 'غير متوفر حالياً في هذا المخزن'}</div>
+            <div className={it.stock > 0 ? 'qb-stock' : 'qb-stock out'} style={{ marginTop: 4, display: 'inline-block' }}>{it.stock > 0 ? `متوفر في المخزن: ${fmt.qty(it.stock)}` : it.stock_all > 0 ? `غير متوفر في هذا المخزن، ومتوفر في مخزن آخر (${fmt.qty(it.stock_all)}). غيّر المخزن من خطوة «البيانات».` : 'غير متوفر حالياً في أي مخزن'}</div>
           </div>
         </div>
         <div className="form-grid">

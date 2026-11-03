@@ -44,3 +44,8 @@
 ## ملاحظات
 - `store_home` يحذف الأقسام الفارغة. الربح `null` بلا `costs.view`. أرصدة الزبائن/الموردين تخضع لـ RLS (بلا `finance.view` تظهر صفراً).
 - `checkout.online_enabled=false` في البيانات الأولية حتى يُضبط Wayl. إعداد `app` عام (التطبيق يقرأ `min_version`)، و`currency` للموظفين فقط.
+
+## sellable_stock() → setof (variant_id, warehouse_id, available)
+المتاح للبيع (الكمية − المحجوز) لكل نسخة في المخازن الفعّالة القابلة للبيع، بلا تكاليف ولا حركات.
+يُسمح لمن يملك `pos.sell` أو `quotations.manage` أو `inventory.view` (نقطة البيع ومنشئ العروض تقرأ منها
+بدل `stock_levels` المحجوب بـ RLS عمّن لا يملك «عرض المخزون»). migration ٢٥.

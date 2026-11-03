@@ -86,6 +86,8 @@ export interface PosItem {
   unit: string;
   /** المتاح في المخزن المختار (qty − reserved) */
   stock: number;
+  /** المتاح في كل المخازن القابلة للبيع (لتمييز «نفد هنا» عن «نفد تماماً») */
+  stock_all: number;
   /** نص البحث المجمّع (الاسم + النسخة + الوسوم) */
   search: string;
 }
