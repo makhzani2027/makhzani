@@ -1,7 +1,14 @@
-# فحص سلامة المخزون (قراءة فقط، لا يغيّر شيئاً): Actions ← Stock Health ← Run workflow.
+# تقارير سلامة البيانات (قراءة فقط، لا تغيّر شيئاً): Actions ← Stock Health ← Run workflow.
 name: Stock Health
 on:
   workflow_dispatch:
+    inputs:
+      report:
+        description: 'التقرير: stock_health أو data_health'
+        required: true
+        default: 'data_health'
+        type: choice
+        options: [data_health, stock_health]
 
 permissions:
   contents: read
@@ -17,6 +24,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Inspect
         run: |
-          jq -n --arg q "$(cat supabase/maintenance/stock_health.sql)" '{query: $q}' | curl -sS --fail-with-body -X POST \
+          jq -n --arg q "$(cat supabase/maintenance/${{ inputs.report }}.sql)" '{query: $q}' | curl -sS --fail-with-body -X POST \
             "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
-            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data @- | jq '.[0].health'
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data @- | jq '.[0] | to_entries[0].value'
