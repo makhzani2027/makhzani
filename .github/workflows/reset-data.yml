@@ -1,0 +1,78 @@
+# تصفير العمليات لبداية فعلية — يدوي فقط: Actions ← Reset Data ← Run workflow، واكتب RESET في خانة التأكيد.
+# يأخذ أولاً نسخة احتياطية مشفّرة كاملة (artifact لمدة ٩٠ يوماً، تُسترجع كما في backup.yml)،
+# ولا يحذف شيئاً إن فشلت النسخة. ما يُحذف وما يبقى: supabase/maintenance/reset_operations.sql
+name: Reset Data
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'اكتب RESET للتأكيد (لا رجعة فيه بعد النسخة الاحتياطية)'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reset-data
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Confirm
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          [ "$CONFIRM" = "RESET" ] || { echo "::error::لم يُكتب RESET — لم يُحذف شيء."; exit 1; }
+          missing=""
+          for k in SUPABASE_ACCESS_TOKEN PROJECT_REF SUPABASE_DB_PASSWORD BACKUP_PASSPHRASE; do [ -n "${!k}" ] || missing="$missing $k"; done
+          [ -z "$missing" ] || { echo "::error::أسرار غير مضافة:$missing"; exit 1; }
+
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+
+      - name: Backup before reset
+        run: |
+          supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+          d="$RUNNER_TEMP/dump"; mkdir -p "$d" out
+          supabase db dump --linked --password "$SUPABASE_DB_PASSWORD" --role-only -f "$d/roles.sql"
+          supabase db dump --linked --password "$SUPABASE_DB_PASSWORD" -f "$d/schema.sql"
+          supabase db dump --linked --password "$SUPABASE_DB_PASSWORD" --data-only --use-copy -f "$d/data.sql"
+          [ -s "$d/schema.sql" ] && [ -s "$d/data.sql" ] || { echo "::error::النسخة فارغة — لم يُحذف شيء."; exit 1; }
+          tar -czf "$RUNNER_TEMP/b.tar.gz" -C "$d" .
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -pass env:BACKUP_PASSPHRASE -in "$RUNNER_TEMP/b.tar.gz" -out out/raqeem-before-reset.tar.gz.enc
+          rm -rf "$d" "$RUNNER_TEMP/b.tar.gz"
+          ls -lh out
+          echo "STAMP=$(date -u +%Y-%m-%d-%H%M)" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: raqeem-before-reset-${{ env.STAMP }}
+          path: out/raqeem-before-reset.tar.gz.enc
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Reset operations
+        run: |
+          q() { jq -n --arg q "$1" '{query: $q}' | curl -sS --fail-with-body -X POST \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data @-; }
+          counts="select jsonb_build_object('products',(select count(*) from public.products),'customers',(select count(*) from public.customers),'invoices',(select count(*) from public.invoices),'orders',(select count(*) from public.orders),'quotations',(select count(*) from public.quotations),'stock_movements',(select count(*) from public.stock_movements),'stock_total',(select coalesce(sum(qty),0) from public.stock_levels)) as c"
+          echo "قبل: $(q "$counts")"
+          q "$(cat supabase/maintenance/reset_operations.sql)" > "$RUNNER_TEMP/r.json"
+          echo "النتيجة: $(cat "$RUNNER_TEMP/r.json")"
+          after=$(q "$counts"); echo "بعد: $after"
+          echo "$after" | jq -e '.[0].c.invoices == 0 and .[0].c.orders == 0 and .[0].c.stock_movements == 0' >/dev/null \
+            || { echo "::error::التصفير لم يكتمل — راجع السجل."; exit 1; }
+          echo "✓ صُفّرت العمليات. المنتجات والزبائن باقون."
