@@ -45,7 +45,8 @@ jobs:
       - uses: supabase/setup-cli@v1
         if: steps.check.outputs.ok == 'true'
         with:
-          version: latest
+          # 3.0.0 غيّر سلوك db push (القاعدة المحلية افتراضياً) — نثبّت آخر نسخة تعمل
+          version: 2.122.0
 
       - name: Link project
         if: steps.check.outputs.ok == 'true'
