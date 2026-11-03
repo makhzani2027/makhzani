@@ -1,0 +1,52 @@
+# استرجاع كميات المخزن من نسخة «قبل التصفير» — يدوي: Actions ← Restore Stock ← Run workflow.
+# يعيد الكميات كحركة «رصيد افتتاحي» (والدفعات والأرقام التسلسلية غير المباعة)، ولا يمس الأسعار والتكاليف.
+# يتوقف وحده إن وُجدت حركات مخزون بعد التصفير (حتى لا تتضاعف الكميات). المنطق: scripts/restore_stock.py
+name: Restore Stock
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'رقم تشغيل Reset Data الذي أخذ النسخة'
+        required: true
+        default: '41669181464'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: reset-data
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: bk
+      - name: Decrypt backup
+        run: |
+          f=$(find bk -name '*.enc' | head -1); [ -n "$f" ] || { echo "::error::لا نسخة في هذا التشغيل"; exit 1; }
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:BACKUP_PASSPHRASE -in "$f" -out "$RUNNER_TEMP/b.tar.gz"
+          mkdir -p "$RUNNER_TEMP/d" && tar -xzf "$RUNNER_TEMP/b.tar.gz" -C "$RUNNER_TEMP/d"
+          python3 scripts/restore_stock.py "$RUNNER_TEMP/d/data.sql" > "$RUNNER_TEMP/restore.sql"
+          rm -rf "$RUNNER_TEMP/d" "$RUNNER_TEMP/b.tar.gz"
+      - name: Restore quantities
+        run: |
+          q() { jq -n --arg q "$1" '{query: $q}' | curl -sS --fail-with-body -X POST \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data @-; }
+          q "$(cat "$RUNNER_TEMP/restore.sql")"; echo
+          q "select coalesce(sum(qty),0) as stock_total, count(*) filter (where qty>0) as rows from public.stock_levels"; echo
+          echo "========== المنتجات: السعر والكمية =========="
+          q "select p.name || case when v.title <> 'افتراضي' then ' — ' || v.title else '' end as product, v.price, coalesce(sum(s.qty),0) as qty, string_agg(w.name || ': ' || s.qty, '، ' order by w.name) filter (where s.qty <> 0) as by_warehouse from public.product_variants v join public.products p on p.id = v.product_id left join public.stock_levels s on s.variant_id = v.id left join public.warehouses w on w.id = s.warehouse_id where p.archived_at is null group by p.name, v.title, v.price order by p.name, v.title" \
+            | jq -r '.[] | "\(.product) | السعر \(.price) | الكمية \(.qty) | \(.by_warehouse // "")"'
