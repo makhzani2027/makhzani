@@ -1,0 +1,20 @@
+# فحص قراءة فقط: هل تقبل واجهة Supabase ترويسة x-store من المتصفح (CORS) لروابط المتاجر
+name: Probe CORS
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - run: |
+          for path in rest/v1/products rest/v1/rpc/store_search functions/v1/login; do
+            echo "== $path"
+            curl -sS -o /dev/null -D - -X OPTIONS "https://$PROJECT_REF.supabase.co/$path" \
+              -H "Origin: https://raqeem-iq.web.app" -H "Access-Control-Request-Method: POST" \
+              -H "Access-Control-Request-Headers: apikey,authorization,content-type,x-store,x-client-info" | grep -i "^HTTP\|access-control" || true
+          done
