@@ -35,6 +35,11 @@ jobs:
           [ -n "$SUPABASE_ACCESS_TOKEN" ] || missing="$missing SUPABASE_ACCESS_TOKEN"
           [ -n "$PROJECT_REF" ] || missing="$missing SUPABASE_PROJECT_REF"
           [ -n "$SUPABASE_DB_PASSWORD" ] || missing="$missing SUPABASE_DB_PASSWORD"
+          # مفتاح الإيقاف: ملف supabase/HOLD يمنع النشر التلقائي (حتى تنجح التجربة الجافة على البيانات الحقيقية)
+          if [ -f supabase/HOLD ]; then
+            echo "::notice::النشر متوقف مؤقتاً (supabase/HOLD): $(cat supabase/HOLD)"
+            echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           if [ -n "$missing" ]; then
             echo "::notice::أسرار غير مضافة بعد:$missing — تخطّي النشر. راجع system/08-setup-guide.md §٥."
             echo "ok=false" >> "$GITHUB_OUTPUT"

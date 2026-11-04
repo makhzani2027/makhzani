@@ -21,7 +21,7 @@ select test.login('cust_a');
 set role authenticated;
 select test.ok((select count(*) from public.app_settings where key = 'site') = 1, 'زبون: يقرأ site');
 update public.app_settings set value = '{"faq": []}' where key = 'site';
-select test.throws($$insert into public.app_settings (key, value, is_public) values ('site', '{}', true) on conflict (key) do update set value = excluded.value$$,
+select test.throws($$insert into public.app_settings (key, value, is_public) values ('site', '{}', true) on conflict (store_id, key) do update set value = excluded.value$$,
   'row-level security', 'زبون: لا يكتب site (upsert)');
 select test.throws($$insert into public.app_settings (key, value, is_public) values ('site2', '{}', true)$$, 'row-level security', 'زبون: لا ينشئ مفتاحاً');
 select test.throws($$insert into storage.objects (bucket_id, name) values ('media', 'site/payments/x-sm.webp')$$, 'row-level security', 'زبون: لا يرفع شعار دفع');
@@ -41,7 +41,7 @@ set role authenticated;
 select test.ok(public.has_perm('settings.manage'), 'المالك: يملك settings.manage');
 insert into public.app_settings (key, value, is_public)
 values ('site', jsonb_set((select value from public.app_settings where key = 'site'), '{faq}', '[{"q": "سؤال اختبار؟", "a": "جواب."}]'), true)
-on conflict (key) do update set value = excluded.value, is_public = excluded.is_public;
+on conflict (store_id, key) do update set value = excluded.value, is_public = excluded.is_public;
 insert into storage.objects (bucket_id, name) values ('media', 'site/payments/test-sm.webp');
 select test.ok(true, 'settings.manage: يرفع شعار دفع في media/site/');
 reset role;
@@ -52,6 +52,6 @@ select test.eq((select value #>> '{faq,0,q}' from public.app_settings where key 
 reset role;
 
 -- إعادة التشغيل لا تمسح تعديل المالك (on conflict do nothing)
-insert into public.app_settings (key, value, is_public) values ('site', '{}', true) on conflict (key) do nothing;
+insert into public.app_settings (key, value, is_public) values ('site', '{}', true) on conflict (store_id, key) do nothing;
 select test.eq((select value #>> '{faq,0,q}' from public.app_settings where key = 'site'), 'سؤال اختبار؟', 'site: البذرة لا تكتب فوق التعديل');
 delete from storage.objects where name = 'site/payments/test-sm.webp';

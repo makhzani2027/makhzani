@@ -15,7 +15,7 @@ insert into public.staff_roles (name, description, permissions, is_system) value
     'inventory.adjust', 'inventory.transfer', 'purchases.manage', 'costs.view'], true),
   ('مسؤول طلبات', 'طلبات التطبيق وطلبات التوفير', array['dashboard.view', 'orders.view', 'orders.manage', 'requests.manage',
     'products.view', 'inventory.view', 'customers.view', 'invoices.view'], true)
-on conflict (name) do nothing;
+on conflict (store_id, name) do nothing;
 
 -- الفرع الافتراضي
 insert into public.branches (name, is_default)
@@ -42,7 +42,7 @@ select 'زبون نقدي', true where not exists (select 1 from public.customer
 insert into public.doc_counters (kind, last_value)
 select k, 0 from unnest(array['sale', 'sale_return', 'purchase', 'purchase_return', 'order', 'receipt', 'voucher', 'request',
   'transfer', 'stocktake', 'quotation', 'stock_voucher', 'account_transfer']) k
-on conflict (kind) do nothing;
+on conflict (store_id, kind) do nothing;
 
 -- مناطق التوصيل: ١٩ محافظة، بغداد فقط مفعّلة بأجرة ٥٠٠٠
 insert into public.delivery_zones (governorate, fee, eta_text, is_active, sort)
@@ -50,7 +50,7 @@ select g.key, case when g.key = 'baghdad' then 5000 else 8000 end,
   case when g.key = 'baghdad' then 'خلال ٢٤ ساعة' else '٢–٣ أيام' end, g.key = 'baghdad', g.n
 from unnest(array['baghdad', 'basra', 'nineveh', 'erbil', 'sulaymaniyah', 'duhok', 'kirkuk', 'anbar', 'babil', 'karbala', 'najaf',
   'wasit', 'maysan', 'dhi_qar', 'muthanna', 'qadisiyah', 'salahuddin', 'diyala', 'halabja']) with ordinality g(key, n)
-on conflict (governorate) do nothing;
+on conflict (store_id, governorate) do nothing;
 
 -- الإعدادات (types.ts: StoreSettings، CheckoutSettings، InventorySettings، InvoiceSettings، AppConfigSettings، CurrencySettings)
 insert into public.app_settings (key, value, is_public) values
@@ -70,7 +70,7 @@ insert into public.app_settings (key, value, is_public) values
   ('currency', jsonb_build_object('base', 'IQD', 'usd_enabled', true, 'usd_rate', 1310, 'usd_rate_updated_at', null), false),
   -- نقطة البيع: طباعة تلقائية، اشتراط جلسة صندوق، ومتى يُعدّ الطلب الجديد متأخراً
   ('pos', jsonb_build_object('auto_print', true, 'require_cash_session', false, 'late_order_minutes', 30), false)
-on conflict (key) do nothing;
+on conflict (store_id, key) do nothing;
 
 -- أقسام الرئيسية الأربعة
 insert into public.home_sections (title, kind, max_items, sort)

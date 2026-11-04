@@ -84,8 +84,13 @@ export async function saveSetting<K extends SettingKey>(key: K, value: SettingsM
     if (key === 'store') Object.assign(demoStore, value);
     if (key === 'checkout') Object.assign(demoCheckout, value);
   } else {
-    const { error } = await sb().from('app_settings').upsert({ key, value, is_public: PUBLIC[key] }, { onConflict: 'key' });
+    // تحديث ثم إدراج (لا upsert): المفتاح فريد داخل كل متجر، ومتجر الصف يُملأ في الخادم
+    const { data, error } = await sb().from('app_settings').update({ value, is_public: PUBLIC[key] }).eq('key', key).select('key');
     if (error) throw error;
+    if (!data?.length) {
+      const ins = await sb().from('app_settings').insert({ key, value, is_public: PUBLIC[key] });
+      if (ins.error) throw ins.error;
+    }
   }
   cache.set(key, value);
   subs.forEach((f) => f());

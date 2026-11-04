@@ -149,7 +149,7 @@ insert into public.app_settings (key, value, is_public) values ('site', $site$
   }
 }
 $site$::jsonb, true)
-on conflict (key) do nothing;
+on conflict do nothing;
 
 -- الموقع يقرأ هذا المفتاح بمفتاح anon: يبقى عاماً حتى لو حُفظ بغير ذلك
 update public.app_settings set is_public = true where key = 'site' and not is_public;
