@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>متجر على رقيم</title>
+  <meta name="description" content="منتجات المتجر وأسعارها وتوفرها، واطلب مباشرة عبر واتساب." />
+  <meta name="robots" content="noindex" />
+<!--@include head-->
+</head>
+<body class="sf-body">
+  <header class="sf-hdr">
+    <div class="wrap sf-hdr-in">
+      <div class="sf-brand">
+        <img data-sf-logo alt="" hidden />
+        <span class="sf-initial" data-sf-initial aria-hidden="true"></span>
+        <div><b data-sf-name>متجر</b><small data-sf-meta></small></div>
+      </div>
+      <a class="btn btn-accent sf-wa" data-sf-wa hidden target="_blank" rel="noopener"><svg class="i" data-icon="chat" aria-hidden="true"></svg><span>واتساب</span></a>
+    </div>
+  </header>
+  <main id="main" class="wrap sf" data-storefront>
+    <div class="sf-state" data-sf-state>
+      <p>جارٍ تحميل المتجر…</p>
+    </div>
+    <div data-sf-body hidden>
+      <div class="sf-tools">
+        <input type="search" class="sf-search" data-sf-q placeholder="ابحث عن منتج…" aria-label="بحث" />
+        <div class="sf-cats" data-sf-cats role="tablist" aria-label="الأقسام"></div>
+      </div>
+      <p class="sf-count" data-sf-count></p>
+      <div class="sf-grid" data-sf-grid></div>
+      <div class="sf-more"><button type="button" class="btn btn-ghost" data-sf-more hidden>عرض المزيد</button></div>
+    </div>
+  </main>
+  <dialog class="sf-dlg" data-sf-dlg aria-label="تفاصيل المنتج">
+    <button type="button" class="sf-x" data-sf-close aria-label="إغلاق">×</button>
+    <div class="sf-dlg-in">
+      <figure class="sf-dlg-img"><img data-sf-dimg alt="" hidden /></figure>
+      <div class="sf-dlg-copy">
+        <p class="sf-crumb" data-sf-dcrumb></p>
+        <h2 data-sf-dname></h2>
+        <p class="sf-price" data-sf-dprice></p>
+        <p class="sf-stock" data-sf-dstock></p>
+        <label class="sf-variant" data-sf-dvar-wrap hidden>الخيار <select data-sf-dvar></select></label>
+        <p class="sf-desc" data-sf-ddesc></p>
+        <a class="btn btn-accent btn-lg" data-sf-order target="_blank" rel="noopener"><svg class="i" data-icon="chat" aria-hidden="true"></svg><span><b>اطلب عبر واتساب</b><small>يصلك رد المتجر مباشرة</small></span></a>
+      </div>
+    </div>
+  </dialog>
+  <footer class="sf-foot wrap">متجر على منصة <a href="/">رقيم</a> · لوحة متجرك وبيعك ومخزونك في مكان واحد</footer>
+</body>
+</html>

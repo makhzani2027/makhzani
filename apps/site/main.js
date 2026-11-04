@@ -415,6 +415,139 @@
     }
   }
 
+  // ------------------------------------------------------------ متجر على رقيم /s/<رابط المتجر>
+  // كل الطلبات بترويسة x-store فتعيد قاعدة البيانات بيانات هذا المتجر وحده (العزل في الخادم).
+  // الطلب عبر واتساب المتجر. كل نص من قاعدة البيانات يُكتب بـ textContent فقط.
+  const sf = document.querySelector('[data-storefront]');
+  if (sf) {
+    const one = (q) => document.querySelector(q);
+    let slug = '';
+    try { slug = decodeURIComponent(location.pathname.replace(/^\/s\/?/, '').split('/')[0] || new URLSearchParams(location.search).get('store') || '').trim().toLowerCase(); } catch (e) { slug = ''; }
+    const state = one('[data-sf-state]');
+    const fail = (title, text) => {
+      state.textContent = '';
+      const h = document.createElement('h1'); h.textContent = title;
+      const t = document.createElement('p'); t.textContent = text;
+      state.append(h, t);
+      state.hidden = false;
+      one('[data-sf-body]').hidden = true;
+    };
+    const money = (n) => `${ar(Math.round(Number(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','))} د.ع`.replace(/,/g, '٬');
+    const waDigits = (p) => String(p || '').replace(/[^\d]/g, '').replace(/^0(?=7\d{9}$)/, '964');
+    const headers = () => ({ apikey: sb.anonKey, Authorization: `Bearer ${sb.anonKey}`, 'x-store': slug, 'Content-Type': 'application/json' });
+    const get = (path) => fetch(`${sb.url}/rest/v1/${path}`, { headers: headers() }).then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
+    const rpc = (fn, body) => fetch(`${sb.url}/rest/v1/rpc/${fn}`, { method: 'POST', headers: headers(), body: JSON.stringify(body || {}) })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
+    if (!slug || !/^[a-z0-9-]{3,40}$/.test(slug)) fail('رابط غير صحيح', 'تأكد من رابط المتجر الذي وصلك.');
+    else if (!hasSb) fail('المتجر غير متاح الآن', 'حاول بعد قليل.');
+    else {
+      let store = null; let phone = ''; let cat = ''; let q = ''; let off = 0; const LIM = 24; let seq = 0;
+      const grid = one('[data-sf-grid]');
+      const dlg = one('[data-sf-dlg]');
+      const openProduct = (key) => {
+        rpc('store_product', { slug_or_id: key }).then((d) => {
+          const p = d && d.product;
+          if (!p) return;
+          const vs = (d.variants || []).filter((v) => v.price != null);
+          one('[data-sf-dname]').textContent = p.name;
+          one('[data-sf-dcrumb]').textContent = [d.brand && d.brand.name, d.category && d.category.name].filter(Boolean).join(' · ');
+          one('[data-sf-ddesc]').textContent = (p.description || '').trim();
+          const sel = one('[data-sf-dvar]');
+          sel.textContent = '';
+          vs.forEach((v, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = v.title && v.title !== 'افتراضي' ? v.title : p.name; sel.append(o); });
+          one('[data-sf-dvar-wrap]').hidden = vs.length < 2;
+          const show = () => {
+            const v = vs[Number(sel.value) || 0];
+            const price = one('[data-sf-dprice]');
+            price.textContent = v ? money(v.price) : '';
+            if (v && Number(v.compare_at_price) > Number(v.price)) { const was = document.createElement('s'); was.textContent = money(v.compare_at_price); price.append(was); }
+            const qty = v ? Number(v.available_qty || 0) : 0;
+            const st = one('[data-sf-dstock]');
+            st.textContent = qty > 0 ? (qty <= 3 ? `متوفر · بقي ${ar(qty)} فقط` : 'متوفر') : 'غير متوفر حالياً — اسأل المتجر عن موعد توفره';
+            st.classList.toggle('out', qty <= 0);
+            const label = v && v.title && v.title !== 'افتراضي' ? `${p.name} (${v.title})` : p.name;
+            const text = `مرحباً ${store.name}، أريد طلب: ${label}${v ? ` — السعر ${money(v.price)}` : ''}\n${location.origin}/s/${slug}`;
+            const order = one('[data-sf-order]');
+            order.hidden = !phone;
+            if (phone) order.href = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+            const key2 = (v && v.image_key) || p.cover_key || (d.images && d.images[0] && d.images[0].key);
+            const img = one('[data-sf-dimg]');
+            const src = mediaSrc(key2, 'lg');
+            img.hidden = !src;
+            img.closest('figure').hidden = !src;
+            if (src) { img.alt = p.name; img.src = src; }
+          };
+          sel.onchange = show;
+          show();
+          if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
+        }).catch(() => {});
+      };
+      const card = (p) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'sf-card';
+        const ph = document.createElement('div'); ph.className = 'sf-ph';
+        const src = mediaSrc(p.cover_key, 'md');
+        if (src) { const im = document.createElement('img'); im.loading = 'lazy'; im.alt = p.name; im.src = src; ph.append(im); } else { const sp = document.createElement('span'); sp.textContent = (p.name || '؟').slice(0, 1); ph.append(sp); }
+        const bd = document.createElement('div'); bd.className = 'sf-bd';
+        if (p.brand_name) { const br = document.createElement('span'); br.className = 'sf-br'; br.textContent = p.brand_name; bd.append(br); }
+        const nm = document.createElement('span'); nm.className = 'sf-nm'; nm.textContent = p.name; bd.append(nm);
+        const pr = document.createElement('span'); pr.className = 'sf-pr';
+        const pb = document.createElement('b'); pb.textContent = (Number(p.price_max) > Number(p.price_min) ? 'من ' : '') + money(p.price_min); pr.append(pb);
+        if (p.compare_at_price) { const was = document.createElement('s'); was.textContent = money(p.compare_at_price); pr.append(was); }
+        bd.append(pr);
+        const st = document.createElement('span'); st.className = `sf-st${p.in_stock ? '' : ' out'}`; st.textContent = p.in_stock ? 'متوفر' : 'غير متوفر حالياً'; bd.append(st);
+        b.append(ph, bd);
+        b.addEventListener('click', () => openProduct(p.slug || p.id));
+        return b;
+      };
+      const countText = (n) => (n === 1 ? 'منتج واحد' : n === 2 ? 'منتجان' : n <= 10 ? `${ar(n)} منتجات` : `${ar(n)} منتجاً`);
+      const load = (reset) => {
+        const my = ++seq;
+        if (reset) { off = 0; grid.textContent = ''; }
+        rpc('store_search', { q: q || null, category: cat || null, lim: LIM, off, sort: q ? 'relevance' : 'newest' }).then((r) => {
+          if (my !== seq) return;
+          const items = (r && r.items) || [];
+          items.forEach((p) => grid.append(card(p)));
+          off += items.length;
+          const total = Number(r && r.total) || 0;
+          one('[data-sf-count]').textContent = total ? countText(total) : (q || cat ? 'لا نتائج — جرّب كلمة أخرى أو قسماً آخر.' : 'لم يضف المتجر منتجات بعد.');
+          one('[data-sf-more]').hidden = off >= total;
+        }).catch(() => { if (my === seq) one('[data-sf-count]').textContent = 'تعذّر تحميل المنتجات، أعد المحاولة.'; });
+      };
+      one('[data-sf-close]').addEventListener('click', () => dlg.close());
+      dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+      one('[data-sf-more]').addEventListener('click', () => load(false));
+      let tq = 0;
+      one('[data-sf-q]').addEventListener('input', (e) => { clearTimeout(tq); tq = setTimeout(() => { q = e.target.value.trim(); load(true); }, 300); });
+
+      Promise.all([rpc('current_store').catch(() => null), get('app_settings?key=eq.store&select=value').catch(() => [])]).then(([st, rows]) => {
+        if (!st || st.slug !== slug) { fail('المتجر غير موجود', 'هذا الرابط غير مفعّل أو المتجر متوقف حالياً.'); return; }
+        store = st;
+        const cfgStore = (rows && rows[0] && rows[0].value) || {};
+        phone = waDigits(cfgStore.whatsapp || cfgStore.phone || st.phone);
+        document.title = `${st.name} — متجر على رقيم`;
+        one('[data-sf-name]').textContent = st.name;
+        one('[data-sf-meta]').textContent = [cfgStore.city || cfgStore.address, cfgStore.hours].filter(Boolean).join(' · ');
+        const logo = mediaSrc(st.logo_key || cfgStore.logo_key, 'sm');
+        if (logo) { const im = one('[data-sf-logo]'); im.src = logo; im.alt = st.name; im.hidden = false; } else one('[data-sf-initial]').textContent = st.name.slice(0, 1);
+        if (phone) { const wa = one('[data-sf-wa]'); wa.href = `https://wa.me/${phone}`; wa.hidden = false; }
+        state.hidden = true;
+        one('[data-sf-body]').hidden = false;
+        get('categories?select=id,name,parent_id&is_visible=eq.true&parent_id=is.null&order=sort.asc').then((cats) => {
+          const box = one('[data-sf-cats]');
+          const btn = (id, name) => {
+            const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'tab'); b.textContent = name;
+            b.setAttribute('aria-selected', String(cat === id));
+            b.addEventListener('click', () => { cat = id; $$('button', box).forEach((x) => x.setAttribute('aria-selected', String(x === b))); load(true); });
+            return b;
+          };
+          if (Array.isArray(cats) && cats.length) { box.append(btn('', 'الكل')); cats.forEach((c) => box.append(btn(c.id, c.name))); }
+        }).catch(() => {});
+        load(true);
+      });
+    }
+  }
+
   // ------------------------------------------------------------ فهرس الصفحات القانونية: القسم الحالي
   const toc = $$('.toc nav a');
   if (toc.length) {
