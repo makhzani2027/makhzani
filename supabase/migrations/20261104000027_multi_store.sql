@@ -295,6 +295,8 @@ create or replace function private.sync_fn_owners() returns int
 language plpgsql set search_path = '' as $$
 declare r record; n int := 0;
 begin
+  -- تغيير المالك يحتاج صلاحية CREATE للمالك الجديد على المخطط (مؤقتاً فقط)
+  execute 'grant create on schema public, private to raqeem_fn';
   for r in
     select p.oid::regprocedure as sig
     from pg_proc p join pg_namespace s on s.oid = p.pronamespace
@@ -307,6 +309,7 @@ begin
     execute format('alter function %s owner to raqeem_fn', r.sig);
     n := n + 1;
   end loop;
+  execute 'revoke create on schema public, private from raqeem_fn';
   return n;
 end $$;
 revoke all on function private.sync_fn_owners() from public;
