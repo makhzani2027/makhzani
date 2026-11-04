@@ -29,7 +29,7 @@ jobs:
           jq -n --arg q "$(cat "$RUNNER_TEMP/dry.sql")" '{query: $q}' | curl -sS -X POST \
             "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data @- > "$RUNNER_TEMP/r.json" || true
-          res=$(grep -o 'DRYRUN_RESULT {.*}' "$RUNNER_TEMP/r.json" | head -1 | sed 's/^DRYRUN_RESULT //; s/\\"/"/g' || true)
+          res=$(jq -r '.message // empty' "$RUNNER_TEMP/r.json" 2>/dev/null | sed -n 's/.*DRYRUN_RESULT \(.*\)$/\1/p' | head -1 || true)
           if [ -z "$res" ]; then echo "::error::لم تكتمل التجربة:"; cat "$RUNNER_TEMP/r.json"; exit 1; fi
           echo "$res" | jq . || echo "$res"
           echo "$res" | jq -e '.ok == true' >/dev/null || { echo "::error::يوجد اختلاف قبل/بعد — راجع diff أعلاه"; exit 1; }
