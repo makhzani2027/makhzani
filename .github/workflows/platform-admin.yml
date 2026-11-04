@@ -1,0 +1,39 @@
+# تعيين حساب «صاحب رقيم» (مدير المنصة): يوافق على المتاجر ويتحكم بها. يدوي: Actions ← Platform Admin ← Run workflow.
+# الحساب يُنشأ أولاً من Supabase ← Authentication ← Users ← Add user (بريد + كلمة سر + Auto Confirm).
+# يجعل هذا البريد وحده مدير المنصة (ويُزال الدور عن أي حساب آخر). لا يغيّر أي متجر أو بيانات.
+name: Platform Admin
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: 'بريد حساب صاحب رقيم'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  set:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      EMAIL: ${{ inputs.email }}
+    steps:
+      - name: Set platform admin
+        run: |
+          email=$(printf '%s' "$EMAIL" | tr '[:upper:]' '[:lower:]' | xargs)
+          printf '%s' "$email" | grep -Eq '^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$' || { echo "::error::بريد غير صالح"; exit 1; }
+          sql="do \$\$ declare uid uuid; begin
+            select id into uid from auth.users where lower(email) = '$email';
+            if uid is null then raise exception 'لا يوجد حساب بهذا البريد. أنشئه أولاً من Supabase ← Authentication ← Users ← Add user.'; end if;
+            insert into public.profiles (id, email, kind, store_id) values (uid, '$email', 'customer', '00000000-0000-4000-a000-000000000001') on conflict (id) do nothing;
+            update public.profiles set is_platform_admin = (id = uid) where is_platform_admin or id = uid;
+            update public.profiles set status = 'active' where id = uid and status <> 'active';
+          end \$\$;
+          select jsonb_agg(jsonb_build_object('name', coalesce(full_name, email), 'email', email, 'kind', kind, 'store', (select slug from public.stores s where s.id = p.store_id))) as platform_admins
+          from public.profiles p where is_platform_admin;"
+          jq -n --arg q "$sql" '{query: $q}' | curl -sS --fail-with-body -X POST \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data @- | jq .

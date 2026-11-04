@@ -65,7 +65,7 @@ export const salesRoutes: AppRoute[] = [
   { path: '/reviews', label: 'التقييمات', icon: 'star', group: 'store', perm: 'products.write', element: Reviews, order: 5 },
   { path: '/staff', label: 'المستخدمون', icon: 'idCard', group: 'system', perm: 'staff.manage', element: Staff, order: 1 },
   { path: '/settings', label: 'الإعدادات', icon: 'settings', group: 'system', perm: 'settings.manage', element: Settings, order: 2 },
-  { path: '/site', label: 'الموقع التعريفي', icon: 'globe', group: 'system', perm: 'settings.manage', platform: true, element: SiteContent, order: 3 },
+  { path: '/site', label: 'الموقع التعريفي', icon: 'globe', group: 'system', perm: 'settings.manage', mainStore: true, element: SiteContent, order: 3 },
   { path: '/platform', label: 'متاجر المنصة', icon: 'store', group: 'system', platform: true, element: Platform, order: 0 },
   { path: '/audit', label: 'سجل العمليات', icon: 'history', group: 'system', perm: 'audit.view', element: Audit, order: 4 },
 ];

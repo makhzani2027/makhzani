@@ -21,7 +21,8 @@ export default function App() {
   if (!auth.ready) return <Loading />;
   if (!IS_DEMO && (!auth.session || auth.mfaPending)) return <Login denied={false} />;
   // حساب مسجّل بلا لوحة: طلب متجر (جديد/بانتظار الموافقة/مرفوض)، متجر موقوف، أو موظف موقوف
-  if (!IS_DEMO && !auth.isStaff) return <StoreGate />;
+  // مدير المنصة (صاحب رقيم) بلا متجر يديره: يدخل اللوحة بصفحات المنصة فقط
+  if (!IS_DEMO && !auth.isStaff && !auth.isPlatformAdmin) return <StoreGate />;
   return (
     <SettingsProvider enabled>
       <CountsProvider enabled canOrders={auth.can('orders.view')}>
@@ -77,7 +78,7 @@ function Shell() {
   }, [location.pathname]);
 
   // الصفحات المسموحة لهذا الموظف فقط
-  const allowed = useMemo(() => routes.filter((r) => (!r.perm || auth.can(r.perm)) && (!r.platform || IS_DEMO || auth.isPlatformAdmin || (!auth.store && r.path === '/site'))), [auth]);
+  const allowed = useMemo(() => routes.filter((r) => (!r.perm || auth.can(r.perm)) && (!r.platform || IS_DEMO || auth.isPlatformAdmin) && (!r.mainStore || IS_DEMO || !auth.store || auth.store.id === MAIN_STORE)), [auth]);
   const navItems = useMemo(
     () => NAV_GROUPS.map((g) => ({ ...g, items: allowed.filter((r) => r.group === g.key && r.nav !== false).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)) })).filter((g) => g.items.length),
     [allowed],
@@ -139,8 +140,8 @@ function Shell() {
           <div className="side-foot">
             <Avatar name={auth.profile?.full_name} imageKey={auth.profile?.avatar_key} />
             <div className="who">
-              <b className="truncate">{auth.profile?.full_name ?? 'موظف'}</b>
-              <span>{auth.isOwner ? 'صاحب المتجر' : auth.role?.name ?? 'موظف'}</span>
+              <b className="truncate">{auth.profile?.full_name ?? (auth.isPlatformAdmin ? 'صاحب رقيم' : 'موظف')}</b>
+              <span>{auth.isPlatformAdmin && !auth.isStaff ? 'مدير منصة رقيم' : auth.isOwner ? 'صاحب المتجر' : auth.role?.name ?? 'موظف'}</span>
             </div>
           </div>
         </nav>
