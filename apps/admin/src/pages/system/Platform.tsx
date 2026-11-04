@@ -67,7 +67,7 @@ export default function Platform() {
             <Card key={r.id}>
               <div className="row" style={{ gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 {r.logo_key ? <img src={imgUrl(r.logo_key, 'sm') ?? ''} alt="" style={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 12, background: '#fff', border: '1px solid var(--line)' }} />
-                  : <div style={{ width: 56, height: 56, borderRadius: 12, background: 'var(--soft)', display: 'grid', placeItems: 'center', fontWeight: 900, fontSize: 22 }}>{r.name.slice(0, 1)}</div>}
+                  : <div style={{ width: 56, height: 56, borderRadius: 12, background: 'var(--accent-soft)', color: 'var(--accent-soft-ink)', display: 'grid', placeItems: 'center', fontWeight: 900, fontSize: 22 }}>{r.name.slice(0, 1)}</div>}
                 <div className="grow" style={{ minWidth: 220 }}>
                   <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <b style={{ fontSize: 17 }}>{r.name}</b>

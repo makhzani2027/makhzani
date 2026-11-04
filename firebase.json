@@ -7,6 +7,21 @@
         "source": "/p",
         "destination": "/",
         "type": 302
+      },
+      {
+        "source": "/login",
+        "destination": "/dashboard/",
+        "type": 302
+      },
+      {
+        "source": "/join",
+        "destination": "/dashboard/?signup",
+        "type": 302
+      },
+      {
+        "source": "/admin",
+        "destination": "/dashboard/platform",
+        "type": 302
       }
     ],
     "rewrites": [

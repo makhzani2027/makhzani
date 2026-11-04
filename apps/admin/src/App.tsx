@@ -156,6 +156,7 @@ function Shell() {
               <span className="kbd only-desktop">Ctrl K</span>
             </button>
             <span className="grow" />
+            {auth.isPlatformAdmin && auth.isStaff && current?.path !== '/platform' ? <Button icon="store" onClick={() => navigate('/platform')}><span className="only-desktop">إدارة رقيم</span></Button> : null}
             {auth.can('pos.sell') && current?.path !== '/pos' ? <Button variant="primary" icon="pos" onClick={() => navigate('/pos')}><span className="only-desktop">بيع جديد</span></Button> : null}
             <Menu
               trigger={(open) => <IconButton icon={theme === 'dark' ? 'moon' : theme === 'light' ? 'sun' : 'eye'} label="المظهر" onClick={open} />}

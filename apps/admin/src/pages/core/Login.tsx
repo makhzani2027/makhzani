@@ -25,6 +25,7 @@ export default function Login({ denied }: { denied: boolean }) {
     void supabase.rpc('current_store').then(({ error: e }) => { if (alive) setMultiStore(!e); });
     return () => { alive = false; };
   }, []);
+  const platformLink = typeof location !== 'undefined' && /\/platform\/?$/.test(location.pathname);
   const [signup, setSignup] = useState(() => typeof location !== 'undefined' && /[?&]signup\b/.test(location.search));
 
   // جلسة بكلمة السر فقط لحساب مفعّل فيه التحقق بخطوتين (بعد الدخول أو عند إعادة فتح اللوحة): نطلب الرمز
@@ -81,9 +82,17 @@ export default function Login({ denied }: { denied: boolean }) {
         {signup && multiStore && !factorId ? <StoreSignupForm onBack={() => setSignup(false)} /> : (
         <form onSubmit={submit} className="col" style={{ gap: 16, width: 'min(380px, 100%)' }}>
           <div className="only-mobile" style={{ marginBottom: 8 }}><Mark size={56} /></div>
+          {!factorId && multiStore ? (
+            <div className="seg-tabs" role="tablist" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, padding: 4, borderRadius: 14, background: 'var(--sunken)' }}>
+              <button type="button" role="tab" aria-selected="true" className="btn" style={{ background: 'var(--card)', boxShadow: 'var(--shadow-float)' }}>تسجيل الدخول</button>
+              <button type="button" role="tab" aria-selected="false" className="btn ghost" onClick={() => { setError(null); setSignup(true); }}>اشترك وأنشئ متجرك</button>
+            </div>
+          ) : null}
           <div>
-            <h2 style={{ fontSize: 28 }}>{factorId ? 'رمز التحقق' : 'تسجيل الدخول'}</h2>
-            <p className="dim">{factorId ? 'افتح تطبيق المصادقة واكتب الرمز المكوّن من ٦ أرقام.' : 'لوحة إدارة المتجر والمخزون — لأصحاب المتاجر وموظفيهم.'}</p>
+            <h2 style={{ fontSize: 28 }}>{factorId ? 'رمز التحقق' : platformLink ? 'دخول إدارة رقيم' : 'تسجيل الدخول'}</h2>
+            <p className="dim">{factorId ? 'افتح تطبيق المصادقة واكتب الرمز المكوّن من ٦ أرقام.'
+              : platformLink ? 'لوحة صاحب رقيم: طلبات المتاجر الجديدة والمتاجر المشتركة.'
+              : 'حساب واحد لكل شيء: صاحب رقيم، أصحاب المتاجر المشتركة، وموظفوهم. بعد الدخول تفتح لك لوحتك تلقائياً.'}</p>
           </div>
           {denied ? (
             <Alert tone="warning">هذا الحساب ليس حساب موظف فعّال. اطلب من صاحب المتجر إضافتك أو تفعيلك.

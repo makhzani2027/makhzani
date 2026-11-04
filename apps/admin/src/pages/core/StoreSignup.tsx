@@ -114,6 +114,10 @@ export function StoreSignupForm({ onBack }: { onBack: () => void }) {
   }
   return (
     <form onSubmit={submit} className="col" style={{ gap: 14, width: 'min(440px, 100%)' }}>
+      <div role="tablist" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, padding: 4, borderRadius: 14, background: 'var(--sunken)' }}>
+        <button type="button" role="tab" aria-selected="false" className="btn ghost" onClick={onBack}>تسجيل الدخول</button>
+        <button type="button" role="tab" aria-selected="true" className="btn" style={{ background: 'var(--card)', boxShadow: 'var(--shadow-float)' }}>اشترك وأنشئ متجرك</button>
+      </div>
       <div>
         <h2 style={{ fontSize: 28 }}>أنشئ متجرك على رقيم</h2>
         <p className="dim">لوحة كاملة لمتجرك: البيع والمخزون وعروض الأسعار والفواتير، منفصلة تماماً عن أي متجر آخر. يُفعَّل المتجر بعد مراجعة الطلب.</p>
