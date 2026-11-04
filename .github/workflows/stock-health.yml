@@ -8,7 +8,7 @@ on:
         required: true
         default: 'data_health'
         type: choice
-        options: [data_health, stock_health]
+        options: [data_health, stock_health, probe_roles]
 
 permissions:
   contents: read
