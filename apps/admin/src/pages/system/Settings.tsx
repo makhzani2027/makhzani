@@ -47,6 +47,7 @@ function StoreTab() {
   const { reload: reloadCtx } = useSettings();
   const { d, setD, error, reload } = useDraft('store');
   const s = d as StoreSettings | null;
+  const [logoBusy, setLogoBusy] = useState(false);
   // الهاتف وواتساب بصيغة واحدة +9647… كما في «الموقع التعريفي» (روابط wa.me و tel والموقع تعتمدها)
   const save = useAction(async () => {
     if (!s) return;
@@ -61,6 +62,18 @@ function StoreTab() {
       {s ? (
         <Card>
           <div className="form-grid">
+            <Field label="شعار المتجر" hint="يظهر في الفواتير والإيصالات وعروض الأسعار ورابط المتجر. صورة مربعة واضحة.">
+              <div className="sx-row" style={{ alignItems: 'center', gap: 10 }}>
+                {s.logo_key ? <img src={imgUrl(s.logo_key, 'sm') ?? ''} alt="الشعار" style={{ width: 52, height: 52, objectFit: 'contain', borderRadius: 10, border: '1px solid var(--line)', background: '#fff' }} /> : null}
+                <label className="btn"><input type="file" accept="image/*" hidden onChange={async (e) => {
+                  const file = e.target.files?.[0]; e.target.value = '';
+                  if (!file) return;
+                  setLogoBusy(true);
+                  try { setD({ ...s, logo_key: await uploadImage(file, 'site', 'logo') }); toast.success('رُفع الشعار — اضغط «حفظ»'); } catch (err) { toast.error(errorMessage(err)); } finally { setLogoBusy(false); }
+                }} />{logoBusy ? 'جارٍ الرفع…' : s.logo_key ? 'تغيير الشعار' : 'رفع الشعار'}</label>
+                {s.logo_key ? <Button variant="ghost" icon="trash" onClick={() => setD({ ...s, logo_key: null })}>إزالة</Button> : null}
+              </div>
+            </Field>
             <Field label="اسم المتجر" required><Input value={s.name} onChange={(e) => setD({ ...s, name: e.target.value })} /></Field>
             <Field label="الاسم القانوني"><Input value={s.legal_name ?? ''} onChange={(e) => setD({ ...s, legal_name: e.target.value || null })} /></Field>
             <Field label="الهاتف"><Input dir="ltr" value={s.phone ?? ''} onChange={(e) => setD({ ...s, phone: e.target.value || null })} /></Field>

@@ -5,6 +5,7 @@
  */
 import { formatDate, formatMoney, formatPhone, formatNumber, formatQty, formatTime, type StoreSettings } from '@raqeem/shared';
 import { escapeHtml, type PaperSize } from '../lib/print';
+import { imgUrl } from '../lib/media';
 
 export { escapeHtml };
 
@@ -119,6 +120,16 @@ tr:nth-child(even) td{background:#F6F7F5}
 h3.sec{font-size:13px;margin:6mm 0 2mm;color:${BRAND.ink}}
 `;
 
+/** شعار المتجر في المطبوعات: صورة الشعار إن وُجدت، وإلا شعار رقيم للمتجر الأصلي أو الحرف الأول لاسم المتجر */
+export function storeMark(store: StoreSettings, size: string, ink = '#000', hole = '#fff'): string {
+  const url = imgUrl(store.logo_key ?? null, 'md');
+  if (url) return `<img src="${escapeHtml(url)}" alt="" style="width:${size};height:${size};object-fit:contain;display:inline-block">`;
+  if (store.logo_key === null) {
+    return `<span style="display:inline-grid;place-items:center;width:${size};height:${size};border-radius:22%;background:${ink};color:${hole};font-weight:900;font-size:calc(${size} * .55);line-height:1">${escapeHtml((store.name || '').trim().slice(0, 1))}</span>`;
+  }
+  return markSvg(size, ink, hole);
+}
+
 export function a4Header(store: StoreSettings, right: { kind: string; number?: string | null; meta: string[] }): string {
   // كل جزء يُهرَّب هنا (لا نفحص المحتوى بحثاً عن وسوم: العنوان نص يكتبه المستخدم)
   const meta = [
@@ -127,7 +138,7 @@ export function a4Header(store: StoreSettings, right: { kind: string; number?: s
     store.email ? escapeHtml(store.email) : null,
   ].filter(Boolean);
   return `<div class="head">
-  <div class="brand">${markSvg('16mm', BRAND.ink, BRAND.brick)}<div><div class="nm">${escapeHtml(store.name)}</div>${store.legal_name ? `<div class="meta">${escapeHtml(store.legal_name)}</div>` : ''}<div class="meta">${meta.join(' · ')}</div></div></div>
+  <div class="brand">${storeMark(store, '16mm', BRAND.ink, BRAND.brick)}<div><div class="nm">${escapeHtml(store.name)}</div>${store.legal_name ? `<div class="meta">${escapeHtml(store.legal_name)}</div>` : ''}<div class="meta">${meta.join(' · ')}</div></div></div>
   <div class="doc"><div class="kind">${escapeHtml(right.kind)}</div>${right.number ? `<div class="no">${code(right.number)}</div>` : ''}${right.meta.map((m) => `<div class="meta">${m}</div>`).join('')}</div>
 </div>`;
 }

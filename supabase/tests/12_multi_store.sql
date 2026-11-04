@@ -100,6 +100,9 @@ begin
     'items', jsonb_build_array(jsonb_build_object('variant_id', (select id from public.product_variants limit 1), 'qty', 2)),
     'payments', jsonb_build_array(jsonb_build_object('method', 'cash', 'amount', 2400000))));
   perform test.eq(r ->> 'number', 'S-000001', 'متجر ٢: ترقيم الفواتير يبدأ من ١');
+  update public.app_settings set value = value || '{"name": "مركز الحلول للطاقة", "logo_key": "site/logo/abc"}' where key = 'store';
+  perform test.eq((public.current_store() ->> 'name'), 'مركز الحلول للطاقة', 'متجر ٢: تعديل الاسم من الإعدادات يصل لجدول المتاجر');
+  perform test.eq((public.current_store() ->> 'logo_key'), 'site/logo/abc', 'متجر ٢: الشعار من الإعدادات');
   perform test.eq((select coalesce(sum(qty), 0) from public.stock_levels), 5::numeric, 'متجر ٢: البيع ينقص مخزونه');
 end $$;
 -- لا يلمس بيانات المتجر ١ ولو عرف المعرّفات
@@ -133,7 +136,7 @@ begin
   perform set_config('request.headers', '{"x-store": "alhulool"}', false);
   perform test.eq((select count(*) from public.products), 1::bigint, 'زائر برابط المتجر ٢: منتجاته فقط');
   perform test.eq((select name from public.products limit 1), 'انفيرتر سوفار', 'زائر برابط المتجر ٢: المنتج الصحيح');
-  perform test.eq((public.current_store() ->> 'name'), 'مركز الحلول الكهربائية', 'زائر برابط المتجر ٢: اسم المتجر');
+  perform test.eq((public.current_store() ->> 'name'), 'مركز الحلول للطاقة', 'زائر برابط المتجر ٢: اسم المتجر');
   perform set_config('request.headers', '{"x-store": "not-a-store"}', false);
   perform test.eq((select count(*) from public.products), 0::bigint, 'زائر برابط غير موجود: لا بيانات');
   perform set_config('request.headers', '', false);

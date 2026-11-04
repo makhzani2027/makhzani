@@ -909,6 +909,8 @@ export interface StoreSettings {
   socials: { instagram?: string; facebook?: string; tiktok?: string; telegram?: string };
   currency: 'IQD' | 'USD';
   digits: 'arab' | 'latn'; // شكل الأرقام في الواجهات
+  /** شعار المتجر في المطبوعات والرابط. غياب المفتاح (المتجر ١) = شعار رقيم؛ null = الحرف الأول من الاسم */
+  logo_key?: string | null;
 }
 
 export interface CheckoutSettings {

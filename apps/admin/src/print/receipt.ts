@@ -3,7 +3,7 @@
  */
 import { INVOICE_KIND, PAYMENT_METHOD, type Invoice, type InvoiceItem, type InvoiceSettings, type Payment, type StoreSettings } from '@raqeem/shared';
 import { qrSvg } from '../ui/codes';
-import { code, escapeHtml, formatPhoneSafe, markSvg, printFmt, thermalCss, type PrintDoc } from './common';
+import { code, escapeHtml, formatPhoneSafe, printFmt, storeMark, thermalCss, type PrintDoc } from './common';
 
 export interface ReceiptData {
   invoice: Invoice;
@@ -45,7 +45,7 @@ export async function buildReceipt(d: ReceiptData, store: StoreSettings, setting
   const showCustomer = d.customer && !d.customer.is_cash_customer;
 
   const html = `<div class="t">
-${settings.show_logo ? `<div class="mark">${markSvg(width === 80 ? '13mm' : '10mm')}</div>` : ''}
+${settings.show_logo ? `<div class="mark">${storeMark(store, width === 80 ? '13mm' : '10mm')}</div>` : ''}
 <div class="store">${escapeHtml(store.name)}</div>
 ${store.address ? `<div class="sub">${escapeHtml(store.address)}</div>` : ''}
 ${store.phone ? `<div class="sub">هاتف: ${code(formatPhoneSafe(store.phone))}</div>` : ''}

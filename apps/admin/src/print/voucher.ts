@@ -1,6 +1,6 @@
 /** سند قبض (RC) أو صرف (PV) حراري — يُعطى للزبون عند تسديد دفعة من دينه */
 import { PAYMENT_METHOD, type Payment, type StoreSettings } from '@raqeem/shared';
-import { code, escapeHtml, formatPhoneSafe, markSvg, printFmt, thermalCss, type PrintDoc } from './common';
+import { code, escapeHtml, formatPhoneSafe, printFmt, storeMark, thermalCss, type PrintDoc } from './common';
 
 export function buildVoucher(o: { payment: Payment; partyName: string | null; partyPhone?: string | null; invoiceNumber?: string | null; balanceAfter?: number | null; cashier?: string | null; store: StoreSettings; width?: 58 | 80 }): PrintDoc {
   const width = o.width ?? 80;
@@ -8,7 +8,7 @@ export function buildVoucher(o: { payment: Payment; partyName: string | null; pa
   const f = printFmt({ ...o.store, currency: p.currency });
   const kv = (k: string, v: string) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`;
   const html = `<div class="t">
-<div class="mark">${markSvg(width === 80 ? '11mm' : '9mm')}</div>
+<div class="mark">${storeMark(o.store, width === 80 ? '11mm' : '9mm')}</div>
 <div class="store">${escapeHtml(o.store.name)}</div>
 ${o.store.phone ? `<div class="sub">هاتف: ${code(formatPhoneSafe(o.store.phone))}</div>` : ''}
 <hr class="rule">

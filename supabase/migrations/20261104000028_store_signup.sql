@@ -227,6 +227,25 @@ revoke all on function private.seed_store(uuid) from public;
 revoke all on function private.is_platform_admin() from public;
 grant execute on function private.is_platform_admin() to raqeem_fn;
 
+-- ---------------------------------------------------------------- اسم المتجر وشعاره من إعداداته
+-- صاحب المتجر يعدّل الاسم والهاتف والشعار من «الإعدادات ← المتجر»؛ تُنسخ لجدول المتاجر (الشريط الجانبي ورابط المتجر)
+create or replace function private.sync_store_profile() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if new.key = 'store' then
+    update public.stores s set
+      name = coalesce(nullif(btrim(new.value ->> 'name'), ''), s.name),
+      phone = coalesce(nullif(new.value ->> 'whatsapp', ''), nullif(new.value ->> 'phone', ''), s.phone),
+      logo_key = case when new.value ? 'logo_key' then nullif(new.value ->> 'logo_key', '') else s.logo_key end
+    where s.id = new.store_id;
+  end if;
+  return new;
+end $$;
+drop trigger if exists zz_sync_store_profile on public.app_settings;
+create trigger zz_sync_store_profile after insert or update of value on public.app_settings
+  for each row execute function private.sync_store_profile();
+revoke all on function private.sync_store_profile() from public;
+
 -- ---------------------------------------------------------------- الصور
 -- شعار المتجر عند التسجيل: media/stores/<uid>/… لأي مستخدم مسجّل في مجلده
 -- وتعديل/حذف صور media: فقط صور رفعها موظف من نفس المتجر (لا يمس متجر صور متجر آخر)

@@ -3,7 +3,7 @@
  */
 import { FULFILLMENT, ORDER_PAYMENT_METHOD, governorateName, type Order, type OrderItem, type StoreSettings } from '@raqeem/shared';
 import { qrSvg } from '../ui/codes';
-import { code, escapeHtml, formatPhoneSafe, markSvg, printFmt, thermalCss, type PrintDoc } from './common';
+import { code, escapeHtml, formatPhoneSafe, printFmt, storeMark, thermalCss, type PrintDoc } from './common';
 
 export async function buildDeliverySlip(order: Order, items: OrderItem[], customerName: string, store: StoreSettings, width: 58 | 80 = 80): Promise<PrintDoc> {
   const f = printFmt(store);
@@ -14,7 +14,7 @@ export async function buildDeliverySlip(order: Order, items: OrderItem[], custom
   const place = a ? [governorateName(a.governorate), a.city, a.area, a.street].filter(Boolean).map((x) => escapeHtml(x)).join(' — ') : '';
 
   const html = `<div class="t">
-<div class="mark">${markSvg(width === 80 ? '10mm' : '8mm')}</div>
+<div class="mark">${storeMark(store, width === 80 ? '10mm' : '8mm')}</div>
 <div class="sub" style="font-weight:700">${escapeHtml(store.name)}${store.phone ? ` · ${code(formatPhoneSafe(store.phone))}` : ''}</div>
 <hr class="rule solid">
 <div class="c big">${code(order.number)}</div>

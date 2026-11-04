@@ -7,7 +7,7 @@
 import { amountInWords, countOf, nouns, type InvoiceSettings, type Quotation, type QuotationItem, type StoreSettings } from '@raqeem/shared';
 import { imgUrl } from '../lib/media';
 import type { QuotationItemExtra } from '../pages/sales/api';
-import { BRAND, code, escapeHtml, formatPhoneSafe, markSvg, printFmt, type PrintDoc } from './common';
+import { BRAND, code, escapeHtml, formatPhoneSafe, markSvg, printFmt, storeMark, type PrintDoc } from './common';
 
 export interface QuotationPrintInput {
   quotation: Quotation;
@@ -52,7 +52,7 @@ export function buildQuotationA4(o: QuotationPrintInput): PrintDoc {
   const head = letterhead
     ? `<header class="lh${strip ? ' wb' : ''}"><img src="${escapeHtml(letterhead)}" alt="">${strip}</header>`
     : `<header class="hd${strip ? ' wb' : ''}"><div class="band">
-  <div class="who">${markSvg('15mm', '#fff', BRAND.brick)}<div><div class="nm">${escapeHtml(o.store.name)}</div>${o.store.legal_name ? `<div class="lg">${escapeHtml(o.store.legal_name)}</div>` : ''}</div></div>
+  <div class="who">${storeMark(o.store, '15mm', '#fff', BRAND.brick)}<div><div class="nm">${escapeHtml(o.store.name)}</div>${o.store.legal_name ? `<div class="lg">${escapeHtml(o.store.legal_name)}</div>` : ''}</div></div>
   <div class="ct">${contacts}</div>
 </div>${strip}</header>`;
 
