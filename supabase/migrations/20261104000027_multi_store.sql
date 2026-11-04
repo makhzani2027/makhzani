@@ -130,9 +130,11 @@ end $$;
 
 -- منع نقل صف من متجر لآخر
 create or replace function private.keep_store() returns trigger
-language plpgsql set search_path = '' as $$
+language plpgsql security definer set search_path = '' as $$
 begin
-  if new.store_id is distinct from old.store_id and coalesce(current_setting('raqeem.store_admin', true), '') <> 'on' then
+  -- سياق الخادم (current_store_id = null) أو دوال إدارة المتاجر فقط
+  if new.store_id is distinct from old.store_id and coalesce(current_setting('raqeem.store_admin', true), '') <> 'on'
+     and public.current_store_id() is not null then
     raise exception using message = 'لا يمكن نقل البيانات بين المتاجر.', errcode = '42501';
   end if;
   return new;
@@ -302,7 +304,7 @@ begin
     from pg_proc p join pg_namespace s on s.oid = p.pronamespace
     where s.nspname in ('public', 'private') and p.prosecdef and p.prokind = 'f'
       and pg_get_userbyid(p.proowner) <> 'raqeem_fn'
-      and p.proname not in ('current_store', 'current_store_id', 'store1', 'fill_store', 'has_perm', 'is_staff', 'staff_ok', 'aal_ok', 'require_perm',
+      and p.proname not in ('current_store', 'current_store_id', 'store1', 'fill_store', 'keep_store', 'has_perm', 'is_staff', 'staff_ok', 'aal_ok', 'require_perm',
         'make_owner', 'handle_new_user', 'handle_user_email', 'delete_my_account', 'push_hook', 'send_campaign', 'sync_fn_owners',
         'request_store', 'login_email', 'approve_store', 'reject_store', 'set_store_status', 'platform_stores', 'seed_store', 'is_platform_admin', 'my_store', 'protect_profile', 'pol')
   loop

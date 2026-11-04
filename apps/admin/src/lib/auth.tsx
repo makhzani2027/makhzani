@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { ALL_PERMISSIONS, can as canPerm, type Permission, type Profile, type StaffRole } from '@raqeem/shared';
+import { ALL_PERMISSIONS, can as canPerm, type Permission, type Profile, type StaffRole, type Store } from '@raqeem/shared';
 import { IS_DEMO } from './env';
 import { supabase, errorMessage } from './supabase';
 
@@ -9,6 +9,10 @@ interface AuthState {
   session: Session | null;
   profile: Profile | null;
   role: StaffRole | null;
+  /** متجر الحساب وحالته (pending/active/…) — تعدد المتاجر */
+  store: (Store & { is_owner?: boolean; is_platform_admin?: boolean }) | null;
+  /** مدير المنصة: يوافق على المتاجر الجديدة */
+  isPlatformAdmin: boolean;
   /** موظف فعّال: يدخل اللوحة */
   isStaff: boolean;
   isOwner: boolean;
@@ -16,7 +20,8 @@ interface AuthState {
   mfaPending: boolean;
   permissions: string[];
   can: (p: Permission) => boolean;
-  signIn: (email: string, password: string) => Promise<string | null>;
+  /** دخول بالبريد أو برقم الهاتف + كلمة السر */
+  signIn: (identifier: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   reload: () => Promise<void>;
 }
@@ -34,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(IS_DEMO ? DEMO_PROFILE : null);
   const [role, setRole] = useState<StaffRole | null>(null);
+  const [store, setStore] = useState<AuthState['store']>(null);
   const [mfaPending, setMfaPending] = useState(false);
   const seq = useRef(0);
 
@@ -43,12 +49,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const my = ++seq.current;
     let p: Profile | null = null;
     let r: StaffRole | null = null;
+    let st: AuthState['store'] = null;
     let pending = false;
     if (supabase && s) {
       const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       pending = !!aal && aal.nextLevel === 'aal2' && aal.currentLevel !== 'aal2';
       const { data } = await supabase.from('profiles').select('*').eq('id', s.user.id).maybeSingle();
       p = (data as Profile | null) ?? null;
+      // قاعدة بيانات قبل تعدد المتاجر: my_store غير موجودة ← المتجر الوحيد فعّال
+      const { data: ms, error: mse } = await supabase.rpc('my_store');
+      st = mse ? null : ((ms as AuthState['store']) ?? null);
       if (p?.role_id) {
         const { data: rd } = await supabase.from('staff_roles').select('*').eq('id', p.role_id).maybeSingle();
         r = (rd as StaffRole | null) ?? null;
@@ -58,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(s);
     setProfile(p);
     setRole(r);
+    setStore(st);
     setMfaPending(pending);
   }, []);
 
@@ -81,7 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadProfile]);
 
   const value = useMemo<AuthState>(() => {
-    const isStaff = !!profile && profile.kind === 'staff' && profile.status === 'active';
+    const storeActive = !store || store.status === 'active';
+    const isStaff = !!profile && profile.kind === 'staff' && profile.status === 'active' && storeActive;
     const isOwner = isStaff && !!profile?.is_owner;
     const permissions = isOwner ? [...ALL_PERMISSIONS] : isStaff ? role?.permissions ?? [] : [];
     return {
@@ -89,15 +101,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       profile,
       role,
+      store,
+      isPlatformAdmin: !!profile?.is_platform_admin && profile.status === 'active',
       isStaff,
       isOwner,
       mfaPending,
       permissions,
       can: (p) => canPerm({ is_owner: isOwner, permissions }, p),
-      signIn: async (email, password) => {
+      signIn: async (identifier, password) => {
         if (!supabase) return null;
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-        return error ? errorMessage(error) : null;
+        const id = identifier.trim();
+        if (id.includes('@')) {
+          const { error } = await supabase.auth.signInWithPassword({ email: id, password });
+          return error ? errorMessage(error) : null;
+        }
+        // رقم الهاتف: دالة الخادم تحوّله لبريد الحساب وتدخل بكلمة السر (بلا SMS)
+        const { data, error } = await supabase.functions.invoke('login', { body: { identifier: id, password } });
+        if (error || !data?.access_token) return await fnError(error, 'رقم الهاتف أو كلمة السر غير صحيحة.');
+        const { error: e2 } = await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token });
+        return e2 ? errorMessage(e2) : null;
       },
       signOut: async () => {
         if (supabase) await supabase.auth.signOut();
@@ -108,9 +130,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await loadProfile(data.session);
       },
     };
-  }, [ready, session, profile, role, mfaPending, loadProfile]);
+  }, [ready, session, profile, role, store, mfaPending, loadProfile]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+/** رسالة خطأ دالة الخادم بالعربية (FunctionsHttpError يحمل الرد في context) */
+async function fnError(error: unknown, fallback: string): Promise<string> {
+  try {
+    const res = (error as { context?: Response } | null)?.context;
+    if (res && typeof res.json === 'function') {
+      const body = await res.json();
+      if (body?.error) return String(body.error);
+    }
+  } catch { /* */ }
+  return fallback;
 }
 
 export function useAuth(): AuthState {

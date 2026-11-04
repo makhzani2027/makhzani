@@ -13,7 +13,7 @@ begin
   perform test.ok((select is_platform_admin from public.profiles where id = test.id('owner')), 'متجر ١: المالك مدير المنصة');
   perform test.eq((select count(*) from pg_proc p join pg_namespace s on s.oid = p.pronamespace
     where s.nspname in ('public', 'private') and p.prosecdef and pg_get_userbyid(p.proowner) not in ('raqeem_fn')
-      and p.proname not in ('current_store', 'current_store_id', 'store1', 'fill_store', 'has_perm', 'is_staff', 'staff_ok', 'aal_ok',
+      and p.proname not in ('current_store', 'current_store_id', 'store1', 'fill_store', 'keep_store', 'has_perm', 'is_staff', 'staff_ok', 'aal_ok',
         'require_perm', 'make_owner', 'handle_new_user', 'handle_user_email', 'delete_my_account', 'push_hook', 'send_campaign',
         'sync_fn_owners', 'request_store', 'login_email', 'approve_store', 'reject_store', 'set_store_status', 'platform_stores',
         'seed_store', 'is_platform_admin', 'my_store', 'protect_profile', 'pol')), 0::bigint,
@@ -36,7 +36,7 @@ declare s jsonb;
 begin
   s := public.request_store('{"name": "مركز الحلول الكهربائية", "slug": "alhulool", "phone": "+964 771 111 2222", "governorate": "nineveh"}');
   perform test.eq(s ->> 'status', 'pending', 'تسجيل متجر: الطلب بانتظار الموافقة');
-  perform test.eq(s ->> 'phone', '07711112222', 'تسجيل متجر: الهاتف بصيغة موحدة');
+  perform test.eq(s ->> 'phone', '+9647711112222', 'تسجيل متجر: الهاتف بصيغة موحدة');
   perform test.ok(not public.has_perm('products.write') and not public.is_staff(), 'تسجيل متجر: لا صلاحيات قبل الموافقة');
   perform test.eq((select count(*) from public.products), 0::bigint, 'تسجيل متجر: لا يرى منتجات المتجر ١');
   perform test.eq((select count(*) from public.customers), 0::bigint, 'تسجيل متجر: لا يرى زبائن المتجر ١');

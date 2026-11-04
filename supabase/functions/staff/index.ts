@@ -17,18 +17,23 @@ Deno.serve(handler(async (req) => {
   await requirePerm(caller, 'staff.manage');
   const b = await readJson<Body>(req);
   const db = admin();
+  // تعدد المتاجر: كل العمليات داخل متجر المستدعي فقط
+  const { data: me } = await db.from('profiles').select('store_id, stores(slug)').eq('id', caller.id).maybeSingle();
+  const storeId = me?.store_id as string | undefined;
+  const storeSlug = (me?.stores as { slug?: string } | null)?.slug ?? null;
+  if (!storeId) throw new HttpError(403, 'الحساب غير مرتبط بمتجر.');
 
   const target = async () => {
     if (!b.user_id) throw new HttpError(400, 'اختر الموظف.');
     if (b.user_id === caller.id) throw new HttpError(400, 'لا يمكنك تنفيذ هذا على حسابك.');
-    const { data: p } = await db.from('profiles').select('id, kind, is_owner').eq('id', b.user_id).maybeSingle();
-    if (!p || p.kind !== 'staff') throw new HttpError(404, 'الموظف غير موجود.');
+    const { data: p } = await db.from('profiles').select('id, kind, is_owner, store_id').eq('id', b.user_id).maybeSingle();
+    if (!p || p.kind !== 'staff' || p.store_id !== storeId) throw new HttpError(404, 'الموظف غير موجود.');
     if (p.is_owner) throw new HttpError(403, 'لا يمكن تعديل حساب المالك.');
     return p;
   };
   const checkRole = async () => {
     if (!b.role_id) throw new HttpError(400, 'اختر الدور.');
-    const { data: r } = await db.from('staff_roles').select('id').eq('id', b.role_id).maybeSingle();
+    const { data: r } = await db.from('staff_roles').select('id').eq('id', b.role_id).eq('store_id', storeId).maybeSingle();
     if (!r) throw new HttpError(400, 'الدور غير موجود.');
   };
 
@@ -39,12 +44,12 @@ Deno.serve(handler(async (req) => {
       if (!b.full_name?.trim()) throw new HttpError(400, 'أدخل اسم الموظف.');
       await checkRole();
       const password = b.password && b.password.length >= 8 ? b.password : tempPassword();
-      const { data, error } = await db.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: b.full_name.trim() } });
+      const { data, error } = await db.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: b.full_name.trim(), store: storeSlug } });
       if (error || !data.user) {
         throw new HttpError(400, /already|exists|registered/i.test(error?.message ?? '') ? 'هذا البريد مسجّل مسبقاً.' : 'تعذّر إنشاء الحساب.');
       }
       // ملف المستخدم أُنشئ بالمشغّل كزبون — نرقّيه موظفاً
-      const { error: e2 } = await db.from('profiles').update({ kind: 'staff', role_id: b.role_id, status: 'active', onboarded: true,
+      const { error: e2 } = await db.from('profiles').update({ kind: 'staff', role_id: b.role_id, status: 'active', onboarded: true, store_id: storeId,
         full_name: b.full_name.trim(), phone: b.phone?.trim() || null }).eq('id', data.user.id);
       if (e2) {
         await db.auth.admin.deleteUser(data.user.id);

@@ -9,13 +9,19 @@ import { useHotkey, useStored } from './lib/hooks';
 import { useThemePref } from './lib/theme';
 import { Avatar, Button, ErrorState, Icon, IconButton, Loading, Mark, Menu } from './ui';
 import Login from './pages/core/Login';
+import { StoreGate } from './pages/core/StoreSignup';
+import { imgUrl } from './lib/media';
+
+const MAIN_STORE = '00000000-0000-4000-a000-000000000001';
 import CommandPalette from './pages/core/CommandPalette';
 import NotFound, { NoAccess } from './pages/core/NotFound';
 
 export default function App() {
   const auth = useAuth();
   if (!auth.ready) return <Loading />;
-  if (!IS_DEMO && (!auth.session || !auth.isStaff || auth.mfaPending)) return <Login denied={!!auth.session && !auth.isStaff} />;
+  if (!IS_DEMO && (!auth.session || auth.mfaPending)) return <Login denied={false} />;
+  // حساب مسجّل بلا لوحة: طلب متجر (جديد/بانتظار الموافقة/مرفوض)، متجر موقوف، أو موظف موقوف
+  if (!IS_DEMO && !auth.isStaff) return <StoreGate />;
   return (
     <SettingsProvider enabled>
       <CountsProvider enabled canOrders={auth.can('orders.view')}>
@@ -71,7 +77,7 @@ function Shell() {
   }, [location.pathname]);
 
   // الصفحات المسموحة لهذا الموظف فقط
-  const allowed = useMemo(() => routes.filter((r) => !r.perm || auth.can(r.perm)), [auth]);
+  const allowed = useMemo(() => routes.filter((r) => (!r.perm || auth.can(r.perm)) && (!r.platform || IS_DEMO || auth.isPlatformAdmin || (!auth.store && r.path === '/site'))), [auth]);
   const navItems = useMemo(
     () => NAV_GROUPS.map((g) => ({ ...g, items: allowed.filter((r) => r.group === g.key && r.nav !== false).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)) })).filter((g) => g.items.length),
     [allowed],
@@ -91,8 +97,17 @@ function Shell() {
         {menuOpen ? <div className="scrim only-mobile" onClick={() => setMenuOpen(false)} role="presentation" /> : null}
         <nav className={`side ${menuOpen ? 'open' : ''}`} aria-label="القائمة الرئيسية">
           <div className="side-brand">
-            <Mark size={34} ink="var(--side-ink)" hole="#E8622A" />
-            <b>رَقيم</b>
+            {auth.store && auth.store.id !== MAIN_STORE ? (
+              <>
+                {auth.store.logo_key ? <img src={imgUrl(auth.store.logo_key, 'sm') ?? ''} alt="" style={{ width: 34, height: 34, objectFit: 'contain', borderRadius: 8, background: '#fff' }} /> : <Mark size={34} ink="var(--side-ink)" hole="#E8622A" />}
+                <b className="truncate" title={auth.store.name}>{auth.store.name}</b>
+              </>
+            ) : (
+              <>
+                <Mark size={34} ink="var(--side-ink)" hole="#E8622A" />
+                <b>رَقيم</b>
+              </>
+            )}
             <span className="tag">الإدارة</span>
           </div>
           {navItems.map((g) => {

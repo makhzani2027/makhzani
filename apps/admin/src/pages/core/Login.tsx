@@ -2,11 +2,12 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Alert, Button, Field, Input, Mark } from '../../ui';
 import { useAuth } from '../../lib/auth';
 import { supabase, errorMessage } from '../../lib/supabase';
+import { StoreSignupForm } from './StoreSignup';
 import './login.css';
 
 /**
- * دخول الموظفين: بريد + كلمة سر (+ رمز التحقق بخطوتين إن فعّله الموظف).
- * الحسابات يُنشئها صاحب المتجر من «الموظفون» — لا تسجيل ذاتي.
+ * دخول اللوحة: بريد أو رقم هاتف + كلمة سر (+ رمز التحقق بخطوتين إن فُعّل).
+ * حسابات الموظفين يُنشئها صاحب المتجر من «الموظفون»، وصاحب متجر جديد يسجّل من «أنشئ متجرك».
  */
 export default function Login({ denied }: { denied: boolean }) {
   const { signIn, signOut, reload, mfaPending } = useAuth();
@@ -16,6 +17,15 @@ export default function Login({ denied }: { denied: boolean }) {
   const [factorId, setFactorId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // «أنشئ متجرك» يظهر فقط إن كانت قاعدة البيانات تدعم تعدد المتاجر
+  const [multiStore, setMultiStore] = useState(false);
+  useEffect(() => {
+    if (!supabase) return;
+    let alive = true;
+    void supabase.rpc('current_store').then(({ error: e }) => { if (alive) setMultiStore(!e); });
+    return () => { alive = false; };
+  }, []);
+  const [signup, setSignup] = useState(() => typeof location !== 'undefined' && /[?&]signup\b/.test(location.search));
 
   // جلسة بكلمة السر فقط لحساب مفعّل فيه التحقق بخطوتين (بعد الدخول أو عند إعادة فتح اللوحة): نطلب الرمز
   useEffect(() => {
@@ -68,11 +78,12 @@ export default function Login({ denied }: { denied: boolean }) {
         <span className="login-foot">قبل خمسة آلاف عام، في أوروك، سُجّل أول مخزون في التاريخ على لوح من طين.</span>
       </aside>
       <main className="login-form">
+        {signup && multiStore && !factorId ? <StoreSignupForm onBack={() => setSignup(false)} /> : (
         <form onSubmit={submit} className="col" style={{ gap: 16, width: 'min(380px, 100%)' }}>
           <div className="only-mobile" style={{ marginBottom: 8 }}><Mark size={56} /></div>
           <div>
             <h2 style={{ fontSize: 28 }}>{factorId ? 'رمز التحقق' : 'تسجيل الدخول'}</h2>
-            <p className="dim">{factorId ? 'افتح تطبيق المصادقة واكتب الرمز المكوّن من ٦ أرقام.' : 'لوحة إدارة المتجر والمخزون — للموظفين فقط.'}</p>
+            <p className="dim">{factorId ? 'افتح تطبيق المصادقة واكتب الرمز المكوّن من ٦ أرقام.' : 'لوحة إدارة المتجر والمخزون — لأصحاب المتاجر وموظفيهم.'}</p>
           </div>
           {denied ? (
             <Alert tone="warning">هذا الحساب ليس حساب موظف فعّال. اطلب من صاحب المتجر إضافتك أو تفعيلك.
@@ -86,8 +97,8 @@ export default function Login({ denied }: { denied: boolean }) {
             </Field>
           ) : (
             <>
-              <Field label="البريد الإلكتروني">
-                <Input type="email" autoComplete="username" dir="ltr" required value={email} onChange={(e) => setEmail(e.target.value)} icon="mail" />
+              <Field label="البريد الإلكتروني أو رقم الهاتف">
+                <Input autoComplete="username" dir="ltr" required value={email} onChange={(e) => setEmail(e.target.value)} icon="user" placeholder="name@mail.com أو 07XXXXXXXXX" />
               </Field>
               <Field label="كلمة السر">
                 <Input type="password" autoComplete="current-password" dir="ltr" required value={password} onChange={(e) => setPassword(e.target.value)} icon="lock" />
@@ -97,7 +108,14 @@ export default function Login({ denied }: { denied: boolean }) {
           <Button type="submit" variant="primary" size="lg" block loading={busy}>{factorId ? 'تحقق' : 'دخول'}</Button>
           {factorId ? <Button variant="ghost" block onClick={() => { setFactorId(null); setCode(''); setError(null); void signOut(); }}>الخروج واستعمال حساب آخر</Button> : null}
           <p className="small faint">نسيت كلمة السر؟ اطلب من صاحب المتجر إعادة تعيينها من صفحة الموظفين.</p>
+          {!factorId && multiStore ? (
+            <div className="card" style={{ padding: 14, textAlign: 'center' }}>
+              <b>صاحب متجر وتريد لوحة لمتجرك؟</b>
+              <div style={{ marginTop: 8 }}><Button variant="default" block onClick={() => { setError(null); setSignup(true); }}>أنشئ متجرك على رقيم</Button></div>
+            </div>
+          ) : null}
         </form>
+        )}
       </main>
     </div>
   );

@@ -31,4 +31,6 @@ export interface AppRoute {
   full?: boolean;
   /** ترتيب داخل القسم */
   order?: number;
+  /** لمدير المنصة فقط (إدارة المتاجر والموقع التعريفي لرقيم) */
+  platform?: boolean;
 }

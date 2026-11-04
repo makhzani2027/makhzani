@@ -107,3 +107,7 @@ verify_jwt = true
 
 [functions.media]
 verify_jwt = true
+
+# دخول بالبريد أو الهاتف + كلمة السر (قبل وجود جلسة)
+[functions.login]
+verify_jwt = false

@@ -45,17 +45,6 @@ language sql immutable set search_path = '' as $$
   select trim(both '-' from regexp_replace(regexp_replace(lower(coalesce(t, '')), '[^a-z0-9]+', '-', 'g'), '-{2,}', '-', 'g'))
 $$;
 
--- رقم هاتف عراقي بصيغة واحدة 07XXXXXXXXX (يقبل +964 و 964 و 7XXXXXXXXX)
-create or replace function private.norm_phone(t text) returns text
-language plpgsql immutable set search_path = '' as $$
-declare d text := regexp_replace(coalesce(t, ''), '[^0-9]', '', 'g');
-begin
-  if d like '00964%' then d := substr(d, 6);
-  elsif d like '964%' then d := substr(d, 4); end if;
-  if d like '0%' then d := substr(d, 2); end if;
-  if d ~ '^7[0-9]{9}$' then return '0' || d; end if;
-  return null;
-end $$;
 
 -- ---------------------------------------------------------------- طلب متجر جديد
 create or replace function public.request_store(p jsonb) returns jsonb
@@ -65,7 +54,7 @@ declare
   me public.profiles;
   nm text := btrim(coalesce(p ->> 'name', ''));
   sl text := private.clean_slug(coalesce(nullif(btrim(p ->> 'slug'), ''), p ->> 'name'));
-  ph text := private.norm_phone(p ->> 'phone');
+  ph text := private.normalize_iq_phone(p ->> 'phone');
   v_name text := nullif(btrim(p ->> 'full_name'), '');
   s public.stores;
 begin
@@ -214,7 +203,7 @@ end $$;
 -- ---------------------------------------------------------------- الدخول برقم الهاتف (لدالة الخادم فقط)
 create or replace function public.login_email(phone text) returns text
 language sql stable security definer set search_path = '' as $$
-  select p.email from public.profiles p where p.phone = private.norm_phone(login_email.phone) and p.email is not null limit 1
+  select p.email from public.profiles p where p.phone = private.normalize_iq_phone(login_email.phone) and p.email is not null limit 1
 $$;
 
 -- حالة متجري (للوحة: بانتظار الموافقة / مرفوض / موقوف)
@@ -237,5 +226,28 @@ grant execute on function public.login_email(text) to service_role;
 revoke all on function private.seed_store(uuid) from public;
 revoke all on function private.is_platform_admin() from public;
 grant execute on function private.is_platform_admin() to raqeem_fn;
+
+-- ---------------------------------------------------------------- الصور
+-- شعار المتجر عند التسجيل: media/stores/<uid>/… لأي مستخدم مسجّل في مجلده
+-- وتعديل/حذف صور media: فقط صور رفعها موظف من نفس المتجر (لا يمس متجر صور متجر آخر)
+drop policy if exists media_insert on storage.objects;
+create policy media_insert on storage.objects for insert to authenticated with check (
+  bucket_id = 'media' and (
+    ((storage.foldername(name))[1] in ('products', 'categories', 'brands', 'banners', 'campaigns')
+      and ((select public.has_perm('products.write')) or (select public.has_perm('store.manage'))))
+    or ((storage.foldername(name))[1] = 'site' and (select public.has_perm('settings.manage')))
+    or ((storage.foldername(name))[1] = 'stores' and (storage.foldername(name))[2] = (select auth.uid())::text)));
+drop policy if exists media_update on storage.objects;
+create policy media_update on storage.objects for update to authenticated using (
+  bucket_id = 'media'
+  and (owner is null or exists (select 1 from public.profiles p where p.id = owner and p.store_id = (select public.current_store_id())))
+  and ((select public.has_perm('products.write')) or (select public.has_perm('store.manage'))
+    or ((storage.foldername(name))[1] = 'site' and (select public.has_perm('settings.manage')))));
+drop policy if exists media_delete on storage.objects;
+create policy media_delete on storage.objects for delete to authenticated using (
+  bucket_id = 'media'
+  and (owner is null or exists (select 1 from public.profiles p where p.id = owner and p.store_id = (select public.current_store_id())))
+  and ((select public.has_perm('products.write')) or (select public.has_perm('store.manage'))
+    or ((storage.foldername(name))[1] = 'site' and (select public.has_perm('settings.manage')))));
 
 select private.sync_fn_owners();

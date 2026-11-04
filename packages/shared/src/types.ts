@@ -155,6 +155,27 @@ export interface Profile {
   last_seen_at: ISODate | null;
   created_at: ISODate;
   updated_at: ISODate;
+  /** متجر الحساب (تعدد المتاجر) */
+  store_id?: UUID;
+  /** مدير المنصة: يوافق على المتاجر الجديدة */
+  is_platform_admin?: boolean;
+}
+
+export type StoreStatus = 'pending' | 'active' | 'suspended' | 'rejected';
+/** متجر على المنصة (المتجر ١ = المتجر الأصلي) */
+export interface Store {
+  id: UUID;
+  slug: string;
+  name: string;
+  logo_key: string | null;
+  phone: string | null;
+  email: string | null;
+  governorate: string | null;
+  status: StoreStatus;
+  owner_id: UUID | null;
+  note?: string | null;
+  created_at: ISODate;
+  approved_at: ISODate | null;
 }
 
 export interface StaffRole {
