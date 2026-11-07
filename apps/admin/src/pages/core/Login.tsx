@@ -78,9 +78,15 @@ export default function Login({ denied }: { denied: boolean }) {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { setError('اكتب البريد الإلكتروني للحساب (ليس رقم الهاتف).'); return; }
     if (!supabase) return;
     setBusy(true);
-    const { error: err } = await supabase.auth.resetPasswordForEmail(em, { redirectTo: `${location.origin}${location.pathname}` });
+    // دالة الخادم ترسل الرابط لحساب صاحب رقيم فقط، وترفض أي بريد آخر
+    const { error: err } = await supabase.functions.invoke('recover', { body: { email: em } });
     setBusy(false);
-    if (err) { setError(/rate|seconds|limit/i.test(err.message) ? 'طلبت رابطاً قبل قليل. انتظر دقيقة ثم أعد المحاولة.' : errorMessage(err)); return; }
+    if (err) {
+      let msg = 'تعذّر إرسال الرابط، حاول بعد قليل.';
+      try { const j = await (err as { context?: Response }).context?.json(); if (j?.error) msg = j.error; } catch { /* الرسالة الافتراضية */ }
+      setError(msg);
+      return;
+    }
     setSent(em);
   };
 
@@ -100,7 +106,7 @@ export default function Login({ denied }: { denied: boolean }) {
             <div className="only-mobile" style={{ marginBottom: 8 }}><Mark size={56} /></div>
             <div>
               <h2 style={{ fontSize: 28 }}>نسيت كلمة السر</h2>
-              <p className="dim">اكتب بريد حسابك، وسنرسل لك رابطاً تضع منه كلمة سر جديدة.</p>
+              <p className="dim">لحساب صاحب رقيم فقط: اكتب بريدك وسنرسل لك رابطاً تضع منه كلمة سر جديدة. أصحاب المتاجر وموظفوهم: يعيد صاحب المتجر تعيين كلمة السر.</p>
             </div>
             {error ? <Alert tone="danger">{error}</Alert> : null}
             {sent ? (
