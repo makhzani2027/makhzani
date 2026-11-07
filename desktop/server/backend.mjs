@@ -10,6 +10,8 @@ import net from 'node:net';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import EmbeddedPostgres from 'embedded-postgres';
 import { checkPassword, hashPassword, randomSecret, signJwt } from './jwt.mjs';
 
 const require = createRequire(import.meta.url);
@@ -178,7 +180,6 @@ export class Backend {
 
   // ---------------------------------------------------------------- قاعدة البيانات
   async startDb(a, { init }) {
-    const EmbeddedPostgres = require('embedded-postgres').default ?? require('embedded-postgres');
     const port = await freePort(0);
     const pg = new EmbeddedPostgres({
       databaseDir: path.join(this.accountDir(a.id), 'pg'),
@@ -340,7 +341,7 @@ export class Backend {
 /** مجلد برامج Postgres المضمّنة (initdb و pg_ctl و postgres) */
 function pgBinDir() {
   const plat = { win32: 'windows-x64', linux: 'linux-x64', darwin: process.arch === 'arm64' ? 'darwin-arm64' : 'darwin-x64' }[process.platform];
-  for (let d = path.dirname(require.resolve('embedded-postgres')); d !== path.dirname(d); d = path.dirname(d)) {
+  for (let d = path.dirname(fileURLToPath(import.meta.resolve('embedded-postgres'))); d !== path.dirname(d); d = path.dirname(d)) {
     if (path.basename(d) === 'node_modules') return path.join(d, '@embedded-postgres', plat, 'native', 'bin');
   }
   return '';
