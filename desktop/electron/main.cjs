@@ -48,7 +48,8 @@ async function start() {
         const r = await dialog.showOpenDialog(win, { title: 'اختر مكان حفظ بيانات رقيم', properties: ['openDirectory', 'createDirectory'] });
         return r.canceled ? null : r.filePaths[0];
       },
-      saveRoot: (root) => { const c = readCfg(); c.root = root; writeCfg(c); },
+      saveRoot: (root) => { const c = readCfg(); c.root = root; c.root_chosen = true; writeCfg(c); },
+      rootChosen: () => !!process.env.RAQEEM_ROOT || !!readCfg().root_chosen,
       openPath: (p) => { void shell.openPath(p); },
     },
   });

@@ -125,7 +125,9 @@ export function createGateway(backend, o) {
         return res.end(`window.__RAQEEM_LOCAL__=${JSON.stringify({ anonKey: backend.anonKey(), version: o.version ?? '1.0.0' })};`);
       }
       if (p === '/local/state') {
-        return send(res, 200, { root: backend.root, accounts: backend.listAccounts(), open: backend.cur ? { id: backend.cur.account.id, name: backend.cur.account.name } : null });
+        // root_chosen: أول تشغيل للبرنامج يسأل أين تُحفظ البيانات (خارج البرنامج — الخادم وحده — يُعدّ محدداً)
+        const rootChosen = o.desktop?.rootChosen ? !!o.desktop.rootChosen() : true;
+        return send(res, 200, { root: backend.root, root_chosen: rootChosen, accounts: backend.listAccounts(), open: backend.cur ? { id: backend.cur.account.id, name: backend.cur.account.name } : null });
       }
       if (p.startsWith('/local/logo/')) {
         const id = p.slice('/local/logo/'.length);
@@ -165,7 +167,14 @@ export function createGateway(backend, o) {
       }
       if (req.method === 'POST' && p === '/local/choose-root') {
         const dir = await o.desktop?.chooseFolder?.();
-        if (dir) backend.setRoot(path.join(dir, path.basename(dir).toLowerCase() === 'raqeem' ? '' : 'Raqeem'));
+        if (dir) {
+          backend.setRoot(path.join(dir, path.basename(dir).toLowerCase() === 'raqeem' ? '' : 'Raqeem'));
+          o.desktop?.saveRoot?.(backend.root);
+        }
+        return send(res, 200, { root: backend.root, chosen: !!dir });
+      }
+      if (req.method === 'POST' && p === '/local/confirm-root') {
+        backend.setRoot(backend.root);
         o.desktop?.saveRoot?.(backend.root);
         return send(res, 200, { root: backend.root });
       }

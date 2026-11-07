@@ -40,8 +40,23 @@ try {
   await page.goto(BASE, { waitUntil: 'networkidle' });
   if (phase === 'first') {
     // ---------------------------------------------------------------- إنشاء الحساب من الواجهة
+    // ملف بيانات المتجر (كما يصدّره «برنامج الحاسوب» أونلاين): الاسم والشعار وقسم وعلامة ومنتج بكمية
+    const storeFile = {
+      format: 'raqeem-store/1', exported_at: new Date().toISOString(),
+      store: { name: 'مركز الحلول', logo: { data: fs.readFileSync('resources/icon.png').toString('base64'), type: 'image/png' } },
+      categories: [{ key: 'c1', parent: null, name: 'طاقة شمسية', description: null, icon: null, sort: 1, is_visible: true }],
+      brands: [{ key: 'b1', name: 'جينكو', sort: 1 }],
+      products: [{ name: 'لوح شمسي جينكو ٥٨٠', description: null, category: 'c1', brand: 'b1', unit: 'قطعة', tags: [], specs: [], warranty: null, option_names: [],
+        is_published: true, is_featured: false,
+        variants: [{ title: 'افتراضي', options: {}, sku: 'JK-580', barcode: null, price: 145000, compare_at_price: null, wholesale_price: null, min_stock: 0, is_active: true, sort: 0, cost: 120000, qty: 25 }] }],
+    };
+    fs.writeFileSync(`${SHOTS}/store.raqeem.json`, JSON.stringify(storeFile));
+    await page.locator('input[type=file][accept*="json"]').setInputFiles(`${SHOTS}/store.raqeem.json`);
+    await page.waitForTimeout(300);
+    ok((await page.getByPlaceholder('مركز الحلول الكهربائية').inputValue()) === 'مركز الحلول', 'ملف المتجر يملأ الاسم');
+    ok(await page.locator('form img').count() === 1, 'ملف المتجر يملأ الشعار');
     await page.getByPlaceholder('مركز الحلول الكهربائية').fill('مركز الحلول الكهربائية');
-    await page.locator('input[type=file]').setInputFiles(path.resolve('resources/icon.png'));
+    await page.locator('input[type=file][accept^="image"]').setInputFiles(path.resolve('resources/icon.png'));
     await page.locator('input[type=password]').nth(0).fill('سر1234');
     await page.locator('input[type=password]').nth(1).fill('سر1234');
     await page.screenshot({ path: `${SHOTS}/01-create.png` });
@@ -56,6 +71,9 @@ try {
     ok(sideText.includes('البيانات والنسخ الاحتياطي'), 'صفحة النسخ الاحتياطي ظاهرة');
     const t = await token();
     ok(!!t, 'جلسة محفوظة');
+    const imported = await rest(t, 'product_variants?select=sku,price,available_qty,products(name,categories(name),brands(name))&sku=eq.JK-580');
+    ok(imported.length === 1 && Number(imported[0].price) === 145000 && Number(imported[0].available_qty) === 25
+      && imported[0].products?.categories?.name === 'طاقة شمسية' && imported[0].products?.brands?.name === 'جينكو', `ملف المتجر نقل المنتج والقسم والعلامة والكمية ${JSON.stringify(imported[0] ?? null)}`);
 
     // ---------------------------------------------------------------- منتج ومخزون
     const wh = (await rest(t, 'warehouses?select=id,name&is_default=eq.true'))[0];
@@ -87,7 +105,7 @@ try {
     const b = await post('/local/backup', {}, t);
     ok(fs.existsSync(path.join(b.file, 'pg', 'PG_VERSION')) && fs.existsSync(path.join(b.file, 'account.json')), `نسخة احتياطية ${b.file}`);
     // البرنامج يكمل بعد النسخة (القاعدة أُعيد تشغيلها)
-    ok((await rest(t, 'products?select=id')).length === 1, 'البيانات متاحة بعد النسخة');
+    ok((await rest(t, 'products?select=id')).length === 2, 'البيانات متاحة بعد النسخة');
 
     // ---------------------------------------------------------------- حساب ثانٍ على نفس الحاسوب: معزول
     const acc2 = await post('/local/create', { name: 'شركة ثانية', password: 'pass2' });
@@ -119,7 +137,7 @@ try {
     await page.waitForTimeout(1200);
     const t = await token();
     const prods = await rest(t, 'products?select=name');
-    ok(prods.length === 1 && prods[0].name.includes('كراون'), 'المنتج باقٍ بعد إعادة التشغيل');
+    ok(prods.length === 2 && prods.some((x) => x.name.includes('كراون')), 'المنتجات باقية بعد إعادة التشغيل');
     const inv = await rest(t, 'invoices?select=number');
     ok(inv.some((x) => x.number === 'S-000001'), 'الفاتورة باقية بعد إعادة التشغيل');
     await page.getByRole('link', { name: 'البيانات والنسخ الاحتياطي' }).first().click();

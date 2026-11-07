@@ -7,10 +7,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Alert, Button, Field, Input, Loading, Mark } from '../../ui';
 import { supabase } from '../../lib/supabase';
+import { importStoreFile, readStoreFile, type StoreFile } from '../../lib/storeFile';
 import './login.css';
 
 interface Account { id: string; name: string; logo: boolean; created_at: string; last_opened_at: string | null }
-interface LocalState { root: string; accounts: Account[]; open: { id: string; name: string } | null }
+interface LocalState { root: string; root_chosen?: boolean; accounts: Account[]; open: { id: string; name: string } | null }
 
 async function api<T>(path: string, body?: unknown): Promise<T> {
   const r = await fetch(path, body === undefined ? undefined : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -35,6 +36,8 @@ export default function LocalAccounts() {
   const [pw1, setPw1] = useState('');
   const [pw2, setPw2] = useState('');
   const [logo, setLogo] = useState<File | null>(null);
+  const [storeFile, setStoreFile] = useState<StoreFile | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,9 +70,33 @@ export default function LocalAccounts() {
     try {
       const r = await api<{ id: string; name: string }>('/local/create', { name: name.trim(), password: pw1, logo: logo ? await fileToB64(logo) : null });
       const s = await api<{ access_token: string; refresh_token: string }>('/local/open', { id: r.id, password: pw1 });
+      if (storeFile) {
+        setProgress('جارٍ نقل المنتجات…');
+        const res = await importStoreFile(storeFile, s.access_token, (d, t) => setProgress(`جارٍ نقل المنتجات: ${d} من ${t}`));
+        if (res.failed.length) console.warn('منتجات لم تُنقل', res.failed);
+        setProgress(null);
+      }
       const { error: err } = await supabase.auth.setSession({ access_token: s.access_token, refresh_token: s.refresh_token });
       if (err) throw err;
-    } catch (ex) { setError((ex as Error).message); } finally { setBusy(false); }
+    } catch (ex) { setError((ex as Error).message); setProgress(null); } finally { setBusy(false); }
+  };
+
+  const pickStoreFile = async (f: File | undefined) => {
+    if (!f) return;
+    setError(null);
+    try {
+      const j = await readStoreFile(f);
+      setStoreFile(j);
+      setName(j.store.name || name);
+      if (j.store.logo?.data) {
+        const bin = Uint8Array.from(atob(j.store.logo.data), (c) => c.charCodeAt(0));
+        setLogo(new File([bin], 'logo', { type: j.store.logo.type || 'image/png' }));
+      }
+    } catch (ex) { setError((ex as Error).message); }
+  };
+
+  const confirmRoot = async () => {
+    try { await api('/local/confirm-root', {}); await load(); } catch (ex) { setError((ex as Error).message); }
   };
 
   const chooseRoot = async () => {
@@ -93,12 +120,29 @@ export default function LocalAccounts() {
           <div className="only-mobile"><Mark size={56} /></div>
           {error ? <Alert tone="danger">{error}</Alert> : null}
 
-          {mode === 'create' ? (
+          {!st.root_chosen && !st.accounts.length ? (
+            <div className="col" style={{ gap: 14 }}>
+              <div>
+                <h2 style={{ fontSize: 28 }}>أين تُحفظ بياناتك؟</h2>
+                <p className="dim">كل منتجاتك وفواتيرك ونسخك الاحتياطية تُحفظ في هذا المجلد على حاسوبك. اختر قرصاً غير قرص النظام (مثل D) ليبقى آمناً إن أُعيد تثبيت ويندوز.</p>
+              </div>
+              <div className="card" style={{ padding: 14 }}><span className="small dim">المكان المقترح</span><div className="ltr" style={{ fontWeight: 800, fontSize: 18, textAlign: 'start' }}>{st.root}</div></div>
+              <Button variant="primary" size="lg" block onClick={() => void confirmRoot()}>الحفظ هنا</Button>
+              <Button block icon="edit" onClick={() => void chooseRoot()}>اختيار مكان آخر…</Button>
+            </div>
+          ) : mode === 'create' ? (
             <form onSubmit={create} className="col" style={{ gap: 14 }}>
               <div>
                 <h2 style={{ fontSize: 28 }}>حساب شركة جديد</h2>
                 <p className="dim">كل حساب منفصل تماماً: منتجاته وفواتيره وصوره في مجلده الخاص على هذا الحاسوب.</p>
               </div>
+              <Field label="ملف بيانات متجري" hint="اختياري: الملف الذي نزل مع البرنامج من لوحة التحكم أونلاين — يملأ الاسم والشعار وينقل المنتجات والأسعار والكميات">
+                <div className="row" style={{ gap: 12, alignItems: 'center' }}>
+                  <label className="btn"><input type="file" accept=".json,application/json" hidden onChange={(e) => { void pickStoreFile(e.target.files?.[0]); e.target.value = ''; }} />{storeFile ? 'تغيير الملف' : 'اختيار الملف'}</label>
+                  {storeFile ? <span className="small"><b>{storeFile.products.length}</b> منتج · <b>{storeFile.categories.length}</b> قسم</span> : null}
+                  {storeFile ? <button type="button" className="link-btn small" onClick={() => setStoreFile(null)}>إلغاء</button> : null}
+                </div>
+              </Field>
               <Field label="اسم الشركة" required><Input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder="مركز الحلول الكهربائية" autoFocus /></Field>
               <Field label="الشعار" hint="يظهر في الفواتير وعروض الأسعار (اختياري)">
                 <div className="row" style={{ gap: 12, alignItems: 'center' }}>
@@ -111,7 +155,7 @@ export default function LocalAccounts() {
                 <Field label="تأكيدها" required><Input type="password" dir="ltr" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" /></Field>
               </div>
               <Alert tone="info">احفظ كلمة السر جيداً: لا يمكن استرجاعها، وهي تحمي بيانات شركتك على هذا الحاسوب.</Alert>
-              <Button type="submit" variant="primary" size="lg" block loading={busy}>{busy ? 'جارٍ تجهيز قاعدة البيانات…' : 'إنشاء الحساب'}</Button>
+              <Button type="submit" variant="primary" size="lg" block loading={busy}>{busy ? progress ?? 'جارٍ تجهيز قاعدة البيانات…' : 'إنشاء الحساب'}</Button>
               {st.accounts.length ? <Button variant="ghost" block onClick={() => { setMode('list'); setError(null); }}>رجوع لقائمة الحسابات</Button> : null}
             </form>
           ) : pick ? (
