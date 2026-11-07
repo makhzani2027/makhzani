@@ -35,4 +35,8 @@ export interface AppRoute {
   platform?: boolean;
   /** للمتجر الأصلي فقط (محتوى موقع رقيم التعريفي يُقرأ من إعداداته) */
   mainStore?: boolean;
+  /** يحتاج الإنترنت (تطبيق الزبائن، الإشعارات، الموظفون، المنصة): يُخفى في نسخة الحاسوب */
+  online?: boolean;
+  /** نسخة الحاسوب فقط */
+  localOnly?: boolean;
 }

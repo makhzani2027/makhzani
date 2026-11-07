@@ -1,0 +1,68 @@
+{
+  "name": "raqeem-desktop",
+  "private": true,
+  "version": "1.0.0",
+  "description": "رقيم لسطح المكتب — يعمل بلا إنترنت، وبياناتك على حاسوبك",
+  "author": "Raqeem",
+  "main": "electron/main.cjs",
+  "type": "commonjs",
+  "scripts": {
+    "prepare-resources": "node scripts/prepare.mjs",
+    "serve": "node server/cli.mjs",
+    "test": "node --test server/*.test.mjs",
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis --x64 --publish never"
+  },
+  "dependencies": {
+    "embedded-postgres": "17.11.0-beta.19",
+    "pg": "8.13.1"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "iq.raqeem.desktop",
+    "productName": "Raqeem",
+    "artifactName": "Raqeem-Setup-${version}.${ext}",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**",
+      "server/**",
+      "!server/*.test.mjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/sql",
+        "to": "sql"
+      },
+      {
+        "from": "resources/admin",
+        "to": "admin"
+      },
+      {
+        "from": "resources/bin",
+        "to": "bin"
+      },
+      {
+        "from": "resources/icon.png",
+        "to": "icon.png"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "resources/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "رقيم",
+      "language": "1025"
+    },
+    "asar": false
+  }
+}

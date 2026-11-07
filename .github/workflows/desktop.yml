@@ -1,0 +1,140 @@
+# رقيم لسطح المكتب (ويندوز، بلا إنترنت):
+#   test  : لينكس — البوابة + Postgres المضمّن + PostgREST الحقيقي + اختبار شامل للواجهة (إنشاء حساب، منتج، بيع، عرض، نسخة، عزل الحسابات، إعادة التشغيل)
+#   build : ويندوز — فحص تشغيل الخلفية على ويندوز ثم بناء ملف التثبيت Raqeem-Setup.exe
+#   publish (يدوي فقط): نشر الملف في مستودع الإصدارات العام برابط ثابت
+name: Desktop
+on:
+  push:
+    branches: [main, claude/happy-rubin-s67gcc]
+    paths: ['desktop/**', 'apps/admin/**', 'packages/shared/**', 'supabase/migrations/**', 'supabase/seed.sql', 'supabase/tests/supabase_stub.sql', '.github/workflows/desktop.yml']
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'نشر ملف التثبيت للتنزيل (نعم/لا)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  POSTGREST_VERSION: v12.2.12
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Desktop deps (without Electron)
+        working-directory: desktop
+        run: npm ci --omit=dev
+      - name: Resources (sql + admin)
+        working-directory: desktop
+        run: node scripts/prepare.mjs --admin
+      - name: PostgREST
+        working-directory: desktop
+        run: |
+          curl -sSL -o /tmp/pgrst.tar.xz "https://github.com/PostgREST/postgrest/releases/download/$POSTGREST_VERSION/postgrest-$POSTGREST_VERSION-linux-static-x86-64.tar.xz"
+          tar -xf /tmp/pgrst.tar.xz -C resources/bin && chmod +x resources/bin/postgrest && resources/bin/postgrest --version
+      - name: Playwright
+        run: npm i --no-save playwright@1.49.1 --prefix desktop && npx --prefix desktop playwright install --with-deps chromium
+      - name: E2E — first run
+        working-directory: desktop
+        run: |
+          RAQEEM_ROOT=$RUNNER_TEMP/raqeem RAQEEM_DEBUG=1 node server/cli.mjs 47831 > $RUNNER_TEMP/gw1.log 2>&1 &
+          echo $! > $RUNNER_TEMP/gw.pid
+          for i in $(seq 1 40); do curl -sf http://127.0.0.1:47831/local/state >/dev/null && break; sleep 0.5; done
+          SHOTS=$RUNNER_TEMP/shots node e2e/flow.mjs first || { tail -60 $RUNNER_TEMP/gw1.log; exit 1; }
+          kill -INT $(cat $RUNNER_TEMP/gw.pid); sleep 3
+      - name: E2E — after restart
+        working-directory: desktop
+        run: |
+          RAQEEM_ROOT=$RUNNER_TEMP/raqeem RAQEEM_DEBUG=1 node server/cli.mjs 47831 > $RUNNER_TEMP/gw2.log 2>&1 &
+          for i in $(seq 1 40); do curl -sf http://127.0.0.1:47831/local/state >/dev/null && break; sleep 0.5; done
+          SHOTS=$RUNNER_TEMP/shots node e2e/flow.mjs second || { tail -60 $RUNNER_TEMP/gw2.log; exit 1; }
+          ls -la $RUNNER_TEMP/raqeem/*/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: desktop-e2e-shots, path: '${{ runner.temp }}/shots', retention-days: 7, if-no-files-found: ignore }
+
+  build:
+    needs: test
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Desktop deps
+        working-directory: desktop
+        run: npm ci
+      - name: Resources (sql + admin)
+        working-directory: desktop
+        run: node scripts/prepare.mjs --admin
+      - name: PostgREST for Windows
+        working-directory: desktop
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/PostgREST/postgrest/releases/download/$env:POSTGREST_VERSION/postgrest-$env:POSTGREST_VERSION-windows-x64.zip" -OutFile "$env:RUNNER_TEMP\pgrst.zip"
+          Expand-Archive "$env:RUNNER_TEMP\pgrst.zip" -DestinationPath resources\bin -Force
+          Get-ChildItem resources\bin
+          & resources\bin\postgrest.exe --version
+      - name: Smoke test on Windows (database + API start, account works)
+        working-directory: desktop
+        shell: pwsh
+        run: |
+          $env:RAQEEM_ROOT = "$env:RUNNER_TEMP\raqeem"
+          $p = Start-Process node -ArgumentList 'server/cli.mjs','47831' -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\gw.log" -RedirectStandardError "$env:RUNNER_TEMP\gw.err"
+          Start-Sleep 3
+          $c = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:47831/local/create -ContentType 'application/json' -Body (@{ name = 'Smoke Store'; password = '1234' } | ConvertTo-Json)
+          $s = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:47831/local/open -ContentType 'application/json' -Body (@{ id = $c.id; password = '1234' } | ConvertTo-Json)
+          $wh = Invoke-RestMethod -Uri 'http://127.0.0.1:47831/rest/v1/warehouses?select=id,name' -Headers @{ Authorization = "Bearer $($s.access_token)" }
+          if (-not $wh -or $wh.Count -lt 1) { Get-Content "$env:RUNNER_TEMP\gw.log","$env:RUNNER_TEMP\gw.err"; throw 'no warehouses' }
+          $b = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:47831/local/backup -Headers @{ Authorization = "Bearer $($s.access_token)" } -ContentType 'application/json' -Body '{}'
+          if (-not (Test-Path $b.file)) { throw 'backup missing' }
+          Write-Host "OK: account $($c.id), warehouses $($wh.Count), backup $($b.file)"
+          Invoke-RestMethod -Method Post -Uri http://127.0.0.1:47831/local/close -ContentType 'application/json' -Body '{}' | Out-Null
+          Stop-Process -Id $p.Id -Force
+      - name: Build installer
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder --win nsis --x64 --publish never
+      - name: Installer
+        shell: pwsh
+        working-directory: desktop
+        run: |
+          $f = Get-ChildItem dist\*.exe | Select-Object -First 1
+          Copy-Item $f.FullName dist\Raqeem-Setup.exe
+          "{0:N1} MB" -f ($f.Length / 1MB)
+      - uses: actions/upload-artifact@v4
+        with: { name: Raqeem-Setup, path: desktop/dist/Raqeem-Setup.exe, retention-days: 30 }
+
+  publish:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: Raqeem-Setup, path: out }
+      - name: Publish to the public releases repo (fixed link)
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          REPO: ${{ vars.RELEASES_REPO || 'makhzani2027/raqeem-app' }}
+        run: |
+          [ -n "$GH_TOKEN" ] || { echo "::error::السر RELEASES_TOKEN غير مضاف."; exit 1; }
+          ls -lh out
+          if gh release view desktop --repo "$REPO" >/dev/null 2>&1; then
+            gh release upload desktop out/Raqeem-Setup.exe --repo "$REPO" --clobber
+          else
+            printf '%s\n' 'رقيم لسطح المكتب (ويندوز) — يعمل بلا إنترنت، وبياناتك على حاسوبك.' '' \
+              'عند أول تشغيل قد يظهر «Windows protected your PC»: اضغط More info ثم Run anyway.' > notes.md
+            gh release create desktop out/Raqeem-Setup.exe --repo "$REPO" --title 'رقيم لسطح المكتب (ويندوز)' --notes-file notes.md --latest=false
+          fi
+          echo "✓ https://github.com/$REPO/releases/download/desktop/Raqeem-Setup.exe"

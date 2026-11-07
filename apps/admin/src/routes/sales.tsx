@@ -36,6 +36,7 @@ const Settings = lazy(() => import('../pages/system/Settings'));
 const Audit = lazy(() => import('../pages/system/Audit'));
 const SiteContent = lazy(() => import('../pages/system/SiteContent'));
 const Platform = lazy(() => import('../pages/system/Platform'));
+const LocalData = lazy(() => import('../pages/system/LocalData'));
 
 export const salesRoutes: AppRoute[] = [
   { path: '/', label: 'نظرة عامة', icon: 'grid', group: 'home', perm: 'dashboard.view', element: Overview, order: 0 },
@@ -46,9 +47,9 @@ export const salesRoutes: AppRoute[] = [
   { path: '/quotations', label: 'عروض الأسعار', icon: 'fileText', group: 'sales', perm: 'quotations.manage', element: Quotations, order: 4 },
   { path: '/quotations/new', label: 'عرض سعر جديد', icon: 'fileText', group: 'sales', perm: 'quotations.manage', element: QuotationForm, nav: false },
   { path: '/quotations/:id', label: 'عرض السعر', icon: 'fileText', group: 'sales', perm: 'quotations.manage', element: QuotationForm, nav: false },
-  { path: '/orders', label: 'الطلبات', icon: 'bag', group: 'sales', perm: 'orders.view', element: Orders, order: 5, badge: 'ordersNew' },
-  { path: '/orders/:id', label: 'الطلب', icon: 'bag', group: 'sales', perm: 'orders.view', element: OrderDetail, nav: false },
-  { path: '/requests', label: 'طلبات التوفير', icon: 'request', group: 'sales', perm: 'requests.manage', element: Requests, order: 6, badge: 'requestsNew' },
+  { online: true, path: '/orders', label: 'الطلبات', icon: 'bag', group: 'sales', perm: 'orders.view', element: Orders, order: 5, badge: 'ordersNew' },
+  { online: true, path: '/orders/:id', label: 'الطلب', icon: 'bag', group: 'sales', perm: 'orders.view', element: OrderDetail, nav: false },
+  { online: true, path: '/requests', label: 'طلبات التوفير', icon: 'request', group: 'sales', perm: 'requests.manage', element: Requests, order: 6, badge: 'requestsNew' },
   { path: '/customers', label: 'الزبائن', icon: 'users', group: 'finance', perm: 'customers.view', element: Customers, order: 1 },
   { path: '/customers/:id', label: 'الزبون', icon: 'user', group: 'finance', perm: 'customers.view', element: CustomerDetail, nav: false },
   { path: '/debts', label: 'الديون', icon: 'debt', group: 'finance', perm: 'finance.view', element: Debts, order: 2 },
@@ -58,14 +59,15 @@ export const salesRoutes: AppRoute[] = [
   { path: '/cash', label: 'الصندوق', icon: 'cash', group: 'finance', perm: 'finance.view', element: Cash, order: 6 },
   { path: '/expenses', label: 'المصروفات', icon: 'expense', group: 'finance', perm: 'finance.view', element: Expenses, order: 7 },
   { path: '/reports', label: 'التقارير', icon: 'chartBar', group: 'finance', perm: 'reports.view', element: Reports, order: 8 },
-  { path: '/storefront', label: 'واجهة المتجر', icon: 'layout', group: 'store', perm: 'store.manage', element: Storefront, order: 1 },
-  { path: '/coupons', label: 'الكوبونات', icon: 'ticket', group: 'store', perm: 'store.manage', element: Coupons, order: 2 },
-  { path: '/delivery', label: 'التوصيل والدفع', icon: 'truck', group: 'store', perm: 'store.manage', element: Delivery, order: 3 },
-  { path: '/notifications', label: 'الإشعارات', icon: 'megaphone', group: 'store', perm: 'notifications.send', element: Notifications, order: 4 },
-  { path: '/reviews', label: 'التقييمات', icon: 'star', group: 'store', perm: 'products.write', element: Reviews, order: 5 },
-  { path: '/staff', label: 'المستخدمون', icon: 'idCard', group: 'system', perm: 'staff.manage', element: Staff, order: 1 },
+  { online: true, path: '/storefront', label: 'واجهة المتجر', icon: 'layout', group: 'store', perm: 'store.manage', element: Storefront, order: 1 },
+  { online: true, path: '/coupons', label: 'الكوبونات', icon: 'ticket', group: 'store', perm: 'store.manage', element: Coupons, order: 2 },
+  { online: true, path: '/delivery', label: 'التوصيل والدفع', icon: 'truck', group: 'store', perm: 'store.manage', element: Delivery, order: 3 },
+  { online: true, path: '/notifications', label: 'الإشعارات', icon: 'megaphone', group: 'store', perm: 'notifications.send', element: Notifications, order: 4 },
+  { online: true, path: '/reviews', label: 'التقييمات', icon: 'star', group: 'store', perm: 'products.write', element: Reviews, order: 5 },
+  { online: true, path: '/staff', label: 'المستخدمون', icon: 'idCard', group: 'system', perm: 'staff.manage', element: Staff, order: 1 },
   { path: '/settings', label: 'الإعدادات', icon: 'settings', group: 'system', perm: 'settings.manage', element: Settings, order: 2 },
-  { path: '/site', label: 'الموقع التعريفي', icon: 'globe', group: 'system', perm: 'settings.manage', mainStore: true, element: SiteContent, order: 3 },
-  { path: '/platform', label: 'متاجر المنصة', icon: 'store', group: 'system', platform: true, element: Platform, order: 0 },
+  { online: true, path: '/site', label: 'الموقع التعريفي', icon: 'globe', group: 'system', perm: 'settings.manage', mainStore: true, element: SiteContent, order: 3 },
+  { localOnly: true, path: '/local-data', label: 'البيانات والنسخ الاحتياطي', icon: 'shield', group: 'system', perm: 'settings.manage', element: LocalData, order: 0 },
+  { online: true, path: '/platform', label: 'متاجر المنصة', icon: 'store', group: 'system', platform: true, element: Platform, order: 0 },
   { path: '/audit', label: 'سجل العمليات', icon: 'history', group: 'system', perm: 'audit.view', element: Audit, order: 4 },
 ];

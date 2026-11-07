@@ -1,8 +1,13 @@
 import { defaultMediaBase } from '@raqeem/shared';
 
+/** نسخة الحاسوب (بلا إنترنت): البوابة المحلية تحقن window.__RAQEEM_LOCAL__ وتخدم اللوحة وواجهات البيانات من نفس العنوان */
+const LOCAL = (globalThis as { __RAQEEM_LOCAL__?: { anonKey: string; version?: string } }).__RAQEEM_LOCAL__;
+export const IS_LOCAL = !!LOCAL;
+export const LOCAL_VERSION = LOCAL?.version ?? '';
+
 /** متغيرات البيئة العامة (لا أسرار هنا أبداً) */
-export const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim() || '';
-export const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim() || '';
+export const SUPABASE_URL = LOCAL ? location.origin : (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim() || '';
+export const SUPABASE_ANON_KEY = LOCAL ? LOCAL.anonKey : (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim() || '';
 
 /** وضع العرض: بلا إعداد Supabase تعمل اللوحة ببيانات تجريبية في الذاكرة */
 export const IS_DEMO = !SUPABASE_URL || !SUPABASE_ANON_KEY;

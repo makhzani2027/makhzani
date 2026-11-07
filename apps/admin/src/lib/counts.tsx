@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { BadgeKey } from '../routes/types';
 import { demoDb } from './demo-db';
-import { IS_DEMO } from './env';
+import { IS_DEMO, IS_LOCAL } from './env';
 import { supabase } from './supabase';
 import { beep } from './scanner';
 import { toast } from '../ui/toast';
@@ -46,7 +46,7 @@ export function CountsProvider({ enabled, children, canOrders }: { enabled: bool
   }, [refresh]);
 
   useEffect(() => {
-    if (!enabled || !canOrders || !supabase) return;
+    if (!enabled || !canOrders || !supabase || IS_LOCAL) return;
     const ch = supabase
       .channel('orders-new')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {

@@ -2,7 +2,7 @@ import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNo
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { routes, NAV_GROUPS, type AppRoute } from './routes';
 import { useAuth } from './lib/auth';
-import { IS_DEMO } from './lib/env';
+import { IS_DEMO, IS_LOCAL } from './lib/env';
 import { CountsProvider, useCounts } from './lib/counts';
 import { SettingsProvider, useFmt } from './lib/settings';
 import { useHotkey, useStored } from './lib/hooks';
@@ -10,6 +10,7 @@ import { useThemePref } from './lib/theme';
 import { Avatar, Button, ErrorState, Icon, IconButton, Loading, Mark, Menu } from './ui';
 import Login from './pages/core/Login';
 import { StoreGate } from './pages/core/StoreSignup';
+import LocalAccounts from './pages/core/LocalAccounts';
 import { imgUrl } from './lib/media';
 
 const MAIN_STORE = '00000000-0000-4000-a000-000000000001';
@@ -19,6 +20,8 @@ import NotFound, { NoAccess } from './pages/core/NotFound';
 export default function App() {
   const auth = useAuth();
   if (!auth.ready) return <Loading />;
+  // نسخة الحاسوب: شاشة حسابات الشركات على هذا الجهاز بدل الدخول أونلاين
+  if (IS_LOCAL && !auth.session) return <LocalAccounts />;
   if (!IS_DEMO && (!auth.session || auth.mfaPending)) return <Login denied={false} />;
   // حساب مسجّل بلا لوحة: طلب متجر (جديد/بانتظار الموافقة/مرفوض)، متجر موقوف، أو موظف موقوف
   // مدير المنصة (صاحب رقيم) بلا متجر يديره: يدخل اللوحة بصفحات المنصة فقط
@@ -78,7 +81,8 @@ function Shell() {
   }, [location.pathname]);
 
   // الصفحات المسموحة لهذا الموظف فقط
-  const allowed = useMemo(() => routes.filter((r) => (!r.perm || auth.can(r.perm)) && (!r.platform || IS_DEMO || auth.isPlatformAdmin) && (!r.mainStore || IS_DEMO || !auth.store || auth.store.id === MAIN_STORE)), [auth]);
+  const allowed = useMemo(() => routes.filter((r) => (!r.perm || auth.can(r.perm)) && (!r.platform || IS_DEMO || auth.isPlatformAdmin) && (!r.mainStore || IS_DEMO || !auth.store || auth.store.id === MAIN_STORE)
+    && !(IS_LOCAL && r.online) && (!r.localOnly || IS_LOCAL)), [auth]);
   const navItems = useMemo(
     () => NAV_GROUPS.map((g) => ({ ...g, items: allowed.filter((r) => r.group === g.key && r.nav !== false).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)) })).filter((g) => g.items.length),
     [allowed],
@@ -98,7 +102,7 @@ function Shell() {
         {menuOpen ? <div className="scrim only-mobile" onClick={() => setMenuOpen(false)} role="presentation" /> : null}
         <nav className={`side ${menuOpen ? 'open' : ''}`} aria-label="القائمة الرئيسية">
           <div className="side-brand">
-            {auth.store && auth.store.id !== MAIN_STORE ? (
+            {auth.store && (auth.store.id !== MAIN_STORE || IS_LOCAL) ? (
               <>
                 {auth.store.logo_key ? <img src={imgUrl(auth.store.logo_key, 'sm') ?? ''} alt="" style={{ width: 34, height: 34, objectFit: 'contain', borderRadius: 8, background: '#fff' }} /> : <Mark size={34} ink="var(--side-ink)" hole="#E8622A" />}
                 <b className="truncate" title={auth.store.name}>{auth.store.name}</b>
@@ -141,7 +145,7 @@ function Shell() {
             <Avatar name={auth.profile?.full_name} imageKey={auth.profile?.avatar_key} />
             <div className="who">
               <b className="truncate">{auth.profile?.full_name ?? (auth.isPlatformAdmin ? 'صاحب رقيم' : 'موظف')}</b>
-              <span>{auth.isPlatformAdmin && !auth.isStaff ? 'مدير منصة رقيم' : auth.isOwner ? 'صاحب المتجر' : auth.role?.name ?? 'موظف'}</span>
+              <span>{IS_LOCAL ? 'نسخة الحاسوب' : auth.isPlatformAdmin && !auth.isStaff ? 'مدير منصة رقيم' : auth.isOwner ? 'صاحب المتجر' : auth.role?.name ?? 'موظف'}</span>
             </div>
           </div>
         </nav>
@@ -156,7 +160,7 @@ function Shell() {
               <span className="kbd only-desktop">Ctrl K</span>
             </button>
             <span className="grow" />
-            {auth.isPlatformAdmin && auth.isStaff && current?.path !== '/platform' ? <Button icon="store" onClick={() => navigate('/platform')}><span className="only-desktop">إدارة رقيم</span></Button> : null}
+            {!IS_LOCAL && auth.isPlatformAdmin && auth.isStaff && current?.path !== '/platform' ? <Button icon="store" onClick={() => navigate('/platform')}><span className="only-desktop">إدارة رقيم</span></Button> : null}
             {auth.can('pos.sell') && current?.path !== '/pos' ? <Button variant="primary" icon="pos" onClick={() => navigate('/pos')}><span className="only-desktop">بيع جديد</span></Button> : null}
             <Menu
               trigger={(open) => <IconButton icon={theme === 'dark' ? 'moon' : theme === 'light' ? 'sun' : 'eye'} label="المظهر" onClick={open} />}
