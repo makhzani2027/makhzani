@@ -33,7 +33,7 @@ export default function LocalData() {
           </div>
         </Card>
         <Card title="النسخ الاحتياطي" icon="shield">
-          <p className="dim">تُحفظ نسخة تلقائياً كل يوم عند فتح الحساب (آخر ١٤ نسخة). انسخ مجلد النسخ إلى فلاشة أو قرص آخر من حين لآخر، فلو تعطّل الحاسوب تبقى بياناتك.</p>
+          <p className="dim">تُحفظ نسخة تلقائياً كل يوم عند فتح الحساب (آخر ٧ نسخ)، وزر «نسخة احتياطية الآن» يوقف البرنامج ثوانٍ قليلة أثناء النسخ. انسخ مجلد النسخ إلى فلاشة أو قرص آخر من حين لآخر، فلو تعطّل الحاسوب تبقى بياناتك.</p>
           {last ? <Alert tone="success">حُفظت النسخة: <span className="ltr">{last}</span></Alert> : null}
           <div className="sx-row" style={{ marginTop: 10 }}>
             <Button variant="primary" icon="download" loading={busy} onClick={() => void backup()}>نسخة احتياطية الآن</Button>

@@ -122,6 +122,7 @@ export class Backend {
     if (!checkPassword(password, a.password)) throw new Error('كلمة السر غير صحيحة.');
     if (this.cur?.account.id !== id) {
       if (this.cur) await this.closeAccount();
+      this.autoBackupBeforeOpen(a);
       await this.startDb(a, { init: false });
       try {
         if ((a.schema_version ?? 0) < SCHEMA_VERSION) await this.applySchema(a);
@@ -131,7 +132,6 @@ export class Backend {
         await this.stopDb().catch(() => {});
         throw e;
       }
-      this.autoBackup().catch((e) => this.log(`backup: ${e.message}`));
     }
     a.last_opened_at = new Date().toISOString();
     this.writeAccount(a);
@@ -283,33 +283,47 @@ export class Backend {
   }
 
   // ---------------------------------------------------------------- النسخ الاحتياطي
-  /** نسخة كاملة (pg_dump بصيغة SQL) في backups/ — مرة يومياً عند الفتح، وتُحفظ آخر ١٤ نسخة */
-  async backup(dest) {
-    if (!this.cur) throw new Error('افتح الحساب أولاً.');
-    const a = this.cur.account;
+  /**
+   * نسخة كاملة = نسخ مجلد قاعدة البيانات والصور والإعدادات والقاعدة متوقفة (نسخة متسقة جاهزة للاسترجاع كما هي).
+   * تلقائياً مرة كل يوم عند فتح الحساب (قبل تشغيل القاعدة)، ويدوياً بزر «نسخة احتياطية الآن» (توقف القاعدة ثوانٍ).
+   * تُحفظ آخر ٧ نسخ في backups/. الاسترجاع: أغلق البرنامج وانسخ محتوى النسخة مكان مجلد الحساب.
+   */
+  copyBackup(a) {
+    const dir = this.accountDir(a.id);
     const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
-    const out = dest ?? path.join(this.accountDir(a.id), 'backups', `raqeem-${a.id}-${stamp}.sql`);
-    const bin = path.dirname(require.resolve('embedded-postgres/package.json'));
-    const dumpBin = findPgDump(bin);
-    await new Promise((resolve, reject) => {
-      const p = spawn(dumpBin, ['-h', '127.0.0.1', '-p', String(this.cur.pgPort), '-U', 'postgres', '-f', out, '--no-owner', 'postgres'],
-        { env: { ...process.env, PGPASSWORD: a.pg_password }, windowsHide: true });
-      let err = '';
-      p.stderr.on('data', (d) => { err += d; });
-      p.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(err || `pg_dump ${code}`))));
-      p.on('error', reject);
-    });
-    const dir = path.join(this.accountDir(a.id), 'backups');
-    const old = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort().slice(0, -14);
-    for (const f of old) fs.rmSync(path.join(dir, f), { force: true });
+    const out = path.join(dir, 'backups', `raqeem-${stamp}`);
+    fs.mkdirSync(out, { recursive: true });
+    fs.cpSync(path.join(dir, 'pg'), path.join(out, 'pg'), { recursive: true, filter: (src) => !/postmaster\.(pid|opts)$/.test(src) });
+    if (fs.existsSync(path.join(dir, 'media'))) fs.cpSync(path.join(dir, 'media'), path.join(out, 'media'), { recursive: true });
+    for (const f of fs.readdirSync(dir)) if (f === 'account.json' || /^logo\./.test(f)) fs.copyFileSync(path.join(dir, f), path.join(out, f));
+    const all = fs.readdirSync(path.join(dir, 'backups')).filter((f) => f.startsWith('raqeem-')).sort();
+    for (const f of all.slice(0, -7)) fs.rmSync(path.join(dir, 'backups', f), { recursive: true, force: true });
     return out;
   }
 
-  async autoBackup() {
-    const dir = path.join(this.accountDir(this.cur.account.id), 'backups');
+  /** «نسخة احتياطية الآن»: إيقاف قصير للقاعدة ثم نسخ ثم تشغيل */
+  async backup() {
+    if (!this.cur) throw new Error('افتح الحساب أولاً.');
+    const a = this.cur.account;
+    await this.stopRest();
+    await this.stopDb();
+    let out;
+    try { out = this.copyBackup(a); } finally {
+      await this.startDb(a, { init: false });
+      await this.startRest();
+      this.cur.account = a;
+    }
+    return out;
+  }
+
+  /** مرة يومياً عند الفتح والقاعدة متوقفة */
+  autoBackupBeforeOpen(a) {
+    const dir = path.join(this.accountDir(a.id), 'backups');
+    fs.mkdirSync(dir, { recursive: true });
     const today = new Date().toISOString().slice(0, 10);
     if (fs.readdirSync(dir).some((f) => f.includes(today))) return;
-    await this.backup();
+    if (!fs.existsSync(path.join(this.accountDir(a.id), 'pg', 'PG_VERSION'))) return;
+    try { this.copyBackup(a); } catch (e) { this.log(`auto backup: ${e.message}`); }
   }
 }
 
@@ -324,17 +338,4 @@ async function stopLeftover(dataDir, log) {
   try { process.kill(pid, process.platform === 'win32' ? undefined : 'SIGINT'); } catch { /* */ }
   for (let i = 0; i < 60 && alive(pid); i++) await new Promise((r) => setTimeout(r, 250));
   if (alive(pid)) { try { process.kill(pid, 'SIGKILL'); } catch { /* */ } await new Promise((r) => setTimeout(r, 500)); }
-}
-
-function findPgDump(pkgDir) {
-  const exe = process.platform === 'win32' ? 'pg_dump.exe' : 'pg_dump';
-  const roots = [path.join(pkgDir, '..', '@embedded-postgres')];
-  for (const r of roots) {
-    if (!fs.existsSync(r)) continue;
-    for (const plat of fs.readdirSync(r)) {
-      const f = path.join(r, plat, 'native', 'bin', exe);
-      if (fs.existsSync(f)) return f;
-    }
-  }
-  return exe;
 }

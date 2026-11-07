@@ -32,7 +32,7 @@ const page = await (await browser.newContext({ viewport: { width: 1360, height: 
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 const token = async () => page.evaluate(() => {
-  const k = Object.keys(localStorage).find((x) => x.startsWith('sb-') && x.endsWith('-auth-token'));
+  const k = localStorage.getItem('rq.admin.auth') ? 'rq.admin.auth' : Object.keys(localStorage).find((x) => x.endsWith('-auth-token'));
   return k ? JSON.parse(localStorage.getItem(k)).access_token : null;
 });
 
@@ -85,7 +85,9 @@ try {
 
     // ---------------------------------------------------------------- نسخة احتياطية
     const b = await post('/local/backup', {}, t);
-    ok(fs.existsSync(b.file) && fs.statSync(b.file).size > 10_000, `نسخة احتياطية ${b.file}`);
+    ok(fs.existsSync(path.join(b.file, 'pg', 'PG_VERSION')) && fs.existsSync(path.join(b.file, 'account.json')), `نسخة احتياطية ${b.file}`);
+    // البرنامج يكمل بعد النسخة (القاعدة أُعيد تشغيلها)
+    ok((await rest(t, 'products?select=id')).length === 1, 'البيانات متاحة بعد النسخة');
 
     // ---------------------------------------------------------------- حساب ثانٍ على نفس الحاسوب: معزول
     const acc2 = await post('/local/create', { name: 'شركة ثانية', password: 'pass2' });
