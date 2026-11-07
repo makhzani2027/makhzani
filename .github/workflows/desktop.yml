@@ -113,6 +113,28 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npx electron-builder --win nsis --x64 --publish never
+      - name: Smoke test the built app (Electron window + local server)
+        shell: pwsh
+        working-directory: desktop
+        run: |
+          $exe = Get-ChildItem dist\win-unpacked\*.exe | Select-Object -First 1
+          $env:RAQEEM_ROOT = "$env:RUNNER_TEMP\raqeem-app"
+          $app = Start-Process $exe.FullName -PassThru
+          $ok = $false
+          for ($i = 0; $i -lt 60; $i++) {
+            Start-Sleep 1
+            try { $st = Invoke-RestMethod http://127.0.0.1:47831/local/state; $ok = $true; break } catch { }
+          }
+          if (-not $ok) { Get-Content "$env:APPDATA\Raqeem\raqeem.log" -ErrorAction SilentlyContinue; throw 'the app did not start its local server' }
+          $page = Invoke-WebRequest http://127.0.0.1:47831/ -UseBasicParsing
+          if ($page.Content -notmatch '/local/config.js') { throw 'dashboard not served' }
+          $c = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:47831/local/create -ContentType 'application/json' -Body (@{ name = 'App Smoke'; password = '1234' } | ConvertTo-Json)
+          $s = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:47831/local/open -ContentType 'application/json' -Body (@{ id = $c.id; password = '1234' } | ConvertTo-Json)
+          $wh = Invoke-RestMethod -Uri 'http://127.0.0.1:47831/rest/v1/warehouses?select=id' -Headers @{ Authorization = "Bearer $($s.access_token)" }
+          if (-not $wh) { throw 'no data from the app' }
+          Write-Host "OK: the installed app runs; root $($st.root); account $($c.id)"
+          Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
+          Get-Process postgres, postgrest -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
       - name: Installer
         shell: pwsh
         working-directory: desktop

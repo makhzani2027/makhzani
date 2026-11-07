@@ -28,10 +28,13 @@ function defaultRoot() {
 async function start() {
   const cfg = readCfg();
   if (!cfg.secret) cfg.secret = crypto.randomBytes(32).toString('hex');
+  if (process.env.RAQEEM_ROOT) cfg.root = process.env.RAQEEM_ROOT;
   if (!cfg.root) cfg.root = defaultRoot();
   writeCfg(cfg);
-  const { Backend } = await import(path.join(__dirname, '..', 'server', 'backend.mjs'));
-  const { createGateway } = await import(path.join(__dirname, '..', 'server', 'gateway.mjs'));
+  // ويندوز: استيراد وحدات ESM بمسار file:// (المسار C:\… وحده يُرفض)
+  const { pathToFileURL } = require('node:url');
+  const { Backend } = await import(pathToFileURL(path.join(__dirname, '..', 'server', 'backend.mjs')).href);
+  const { createGateway } = await import(pathToFileURL(path.join(__dirname, '..', 'server', 'gateway.mjs')).href);
   const logFile = path.join(app.getPath('userData'), 'raqeem.log');
   const log = (m) => { try { fs.appendFileSync(logFile, `${new Date().toISOString()} ${m}\n`); } catch { /* */ } };
   backend = new Backend({
