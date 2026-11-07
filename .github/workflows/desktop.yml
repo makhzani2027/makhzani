@@ -79,8 +79,14 @@ jobs:
       - name: PostgREST for Windows
         working-directory: desktop
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          Invoke-WebRequest -Uri "https://github.com/PostgREST/postgrest/releases/download/$env:POSTGREST_VERSION/postgrest-$env:POSTGREST_VERSION-windows-x64.zip" -OutFile "$env:RUNNER_TEMP\pgrst.zip"
+          $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/PostgREST/postgrest/releases/tags/$env:POSTGREST_VERSION" -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; 'User-Agent' = 'raqeem' }
+          $asset = $rel.assets | Where-Object { $_.name -match 'windows' -and $_.name -like '*.zip' } | Select-Object -First 1
+          if (-not $asset) { $rel.assets | ForEach-Object { $_.name }; throw 'no windows asset' }
+          Write-Host "PostgREST: $($asset.name)"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "$env:RUNNER_TEMP\pgrst.zip"
           Expand-Archive "$env:RUNNER_TEMP\pgrst.zip" -DestinationPath resources\bin -Force
           Get-ChildItem resources\bin
           & resources\bin\postgrest.exe --version
