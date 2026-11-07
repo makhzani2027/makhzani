@@ -18,7 +18,7 @@
     "pg": "8.13.1"
   },
   "devDependencies": {
-    "electron": "33.2.1",
+    "electron": "37.10.3",
     "electron-builder": "25.1.8"
   },
   "build": {

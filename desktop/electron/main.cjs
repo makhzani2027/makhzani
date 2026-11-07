@@ -81,7 +81,19 @@ Menu.setApplicationMenu(Menu.buildFromTemplate([
   { label: 'عرض', submenu: [{ role: 'zoomIn', label: 'تكبير' }, { role: 'zoomOut', label: 'تصغير' }, { role: 'resetZoom', label: 'الحجم الأصلي' }, { type: 'separator' }, { role: 'toggleDevTools', label: 'أدوات المطوّر' }] },
 ]));
 
-app.whenReady().then(start).catch((e) => { dialog.showErrorBox('رقيم', String(e && e.message || e)); app.quit(); });
+function logFatal(e) {
+  const msg = `${new Date().toISOString()} FATAL ${e && e.stack || e}\n`;
+  try { fs.mkdirSync(app.getPath('userData'), { recursive: true }); fs.appendFileSync(path.join(app.getPath('userData'), 'raqeem.log'), msg); } catch { /* */ }
+  try { process.stderr.write(msg); } catch { /* */ }
+}
+process.on('uncaughtException', logFatal);
+process.on('unhandledRejection', logFatal);
+app.whenReady().then(start).catch((e) => {
+  logFatal(e);
+  // في الفحص الآلي لا نافذة خطأ (تمنع الإغلاق)
+  if (!process.env.RAQEEM_ROOT) dialog.showErrorBox('رقيم', `تعذّر تشغيل البرنامج: ${String(e && e.message || e)}`);
+  app.quit();
+});
 
 let quitting = false;
 app.on('before-quit', (e) => {

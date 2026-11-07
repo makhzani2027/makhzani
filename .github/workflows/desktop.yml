@@ -119,13 +119,13 @@ jobs:
         run: |
           $exe = Get-ChildItem dist\win-unpacked\*.exe | Select-Object -First 1
           $env:RAQEEM_ROOT = "$env:RUNNER_TEMP\raqeem-app"
-          $app = Start-Process $exe.FullName -PassThru
+          $app = Start-Process $exe.FullName -PassThru -RedirectStandardError "$env:RUNNER_TEMP\app.err" -RedirectStandardOutput "$env:RUNNER_TEMP\app.out"
           $ok = $false
           for ($i = 0; $i -lt 60; $i++) {
             Start-Sleep 1
             try { $st = Invoke-RestMethod http://127.0.0.1:47831/local/state; $ok = $true; break } catch { }
           }
-          if (-not $ok) { Get-Content "$env:APPDATA\Raqeem\raqeem.log" -ErrorAction SilentlyContinue; throw 'the app did not start its local server' }
+          if (-not $ok) { Get-Content "$env:APPDATA\Raqeem\raqeem.log","$env:RUNNER_TEMP\app.err","$env:RUNNER_TEMP\app.out" -ErrorAction SilentlyContinue; throw 'the app did not start its local server' }
           $page = Invoke-WebRequest http://127.0.0.1:47831/ -UseBasicParsing
           if ($page.Content -notmatch '/local/config.js') { throw 'dashboard not served' }
           $c = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:47831/local/create -ContentType 'application/json' -Body (@{ name = 'App Smoke'; password = '1234' } | ConvertTo-Json)
