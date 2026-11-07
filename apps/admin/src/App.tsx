@@ -10,6 +10,7 @@ import { useThemePref } from './lib/theme';
 import { Avatar, Button, ErrorState, Icon, IconButton, Loading, Mark, Menu } from './ui';
 import Login from './pages/core/Login';
 import SetNewPassword from './pages/core/SetNewPassword';
+import ChooseDashboard, { type DashMode } from './pages/core/ChooseDashboard';
 import { StoreGate } from './pages/core/StoreSignup';
 import LocalAccounts from './pages/core/LocalAccounts';
 import { imgUrl } from './lib/media';
@@ -18,8 +19,25 @@ const MAIN_STORE = '00000000-0000-4000-a000-000000000001';
 import CommandPalette from './pages/core/CommandPalette';
 import NotFound, { NoAccess } from './pages/core/NotFound';
 
+// اختيار اللوحة لحساب صاحب رقيم المدير أيضاً في متجر: لهذه الجلسة (التبويب) فقط، ويُسأل من جديد بعد كل دخول
+const MODE_KEY = 'rq.dash-mode';
+function readMode(uid: string | undefined): DashMode | null {
+  try { const v = sessionStorage.getItem(MODE_KEY); return v && uid && v.startsWith(`${uid}:`) ? (v.slice(uid.length + 1) as DashMode) : null; } catch { return null; }
+}
+
 export default function App() {
   const auth = useAuth();
+  const uid = auth.session?.user.id;
+  const [mode, setModeState] = useState<DashMode | null>(() => readMode(uid));
+  useEffect(() => {
+    // الخروج يمسح الاختيار: الدخول التالي يسأل من جديد
+    if (!uid && auth.ready) { try { sessionStorage.removeItem(MODE_KEY); } catch { /* */ } }
+    setModeState(readMode(uid));
+  }, [uid, auth.ready]);
+  const setMode = (m: DashMode | null) => {
+    try { if (m && uid) sessionStorage.setItem(MODE_KEY, `${uid}:${m}`); else sessionStorage.removeItem(MODE_KEY); } catch { /* */ }
+    setModeState(m);
+  };
   if (!auth.ready) return <Loading />;
   // نسخة الحاسوب: شاشة حسابات الشركات على هذا الجهاز بدل الدخول أونلاين
   if (IS_LOCAL && !auth.session) return <LocalAccounts />;
@@ -28,16 +46,22 @@ export default function App() {
   // حساب مسجّل بلا لوحة: طلب متجر (جديد/بانتظار الموافقة/مرفوض)، متجر موقوف، أو موظف موقوف
   // مدير المنصة (صاحب رقيم) بلا متجر يديره: يدخل اللوحة بصفحات المنصة فقط
   if (!IS_DEMO && !auth.isStaff && !auth.isPlatformAdmin) return <StoreGate />;
+  const both = !IS_DEMO && !IS_LOCAL && auth.isPlatformAdmin && auth.isStaff;
+  if (both && !mode) {
+    return <ChooseDashboard storeName={auth.store?.name ?? 'متجري'} storeLogo={auth.store?.logo_key ?? null} onPick={setMode}
+      onSignOut={() => { setMode(null); void auth.signOut(); }} />;
+  }
+  const platformOnly = !IS_DEMO && !IS_LOCAL && auth.isPlatformAdmin && (!auth.isStaff || mode === 'platform');
   return (
     <SettingsProvider enabled>
-      <CountsProvider enabled canOrders={auth.can('orders.view') && !auth.isPlatformAdmin} platform={auth.isPlatformAdmin}>
-        <Shell />
+      <CountsProvider enabled canOrders={auth.can('orders.view') && !platformOnly} platform={platformOnly}>
+        <Shell platformOnly={platformOnly} switchTo={both ? () => setMode(null) : null} />
       </CountsProvider>
     </SettingsProvider>
   );
 }
 
-function Shell() {
+function Shell({ platformOnly, switchTo }: { platformOnly: boolean; switchTo: (() => void) | null }) {
   const auth = useAuth();
   const { counts } = useCounts();
   const fmt = useFmt();
@@ -82,10 +106,9 @@ function Shell() {
     return () => { el.removeEventListener('scroll', update); ro.disconnect(); };
   }, [location.pathname]);
 
-  // حساب صاحب رقيم (مدير المنصة): لوحة المنصة وحدها — لا صفحات متجر ولا مخزون ولا اسم متجر
-  const platformOnly = !IS_DEMO && !IS_LOCAL && auth.isPlatformAdmin;
+  // platformOnly: لوحة إدارة رقيم وحدها — لا صفحات متجر ولا مخزون ولا اسم متجر
   // الصفحات المسموحة لهذا الموظف فقط
-  const allowed = useMemo(() => routes.filter((r) => platformOnly ? (r.platform || r.path === '/account') : (!r.perm || auth.can(r.perm)) && (!r.platform || IS_DEMO || auth.isPlatformAdmin) && (!r.mainStore || IS_DEMO || !auth.store || auth.store.id === MAIN_STORE)
+  const allowed = useMemo(() => routes.filter((r) => platformOnly ? (r.platform || r.path === '/account') : (!r.perm || auth.can(r.perm)) && (!r.platform || IS_DEMO) && (!r.mainStore || IS_DEMO || !auth.store || auth.store.id === MAIN_STORE)
     && !(IS_LOCAL && r.online) && (!r.localOnly || IS_LOCAL)), [auth, platformOnly]);
   const navItems = useMemo(
     () => NAV_GROUPS.map((g) => ({ ...g, items: allowed.filter((r) => r.group === g.key && r.nav !== false).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)) })).filter((g) => g.items.length),
@@ -148,7 +171,7 @@ function Shell() {
             <Avatar name={auth.profile?.full_name} imageKey={auth.profile?.avatar_key} />
             <div className="who">
               <b className="truncate">{auth.profile?.full_name ?? (auth.isPlatformAdmin ? 'صاحب رقيم' : 'موظف')}</b>
-              <span>{IS_LOCAL ? 'نسخة الحاسوب' : auth.isPlatformAdmin ? 'صاحب رقيم' : auth.isOwner ? 'صاحب المتجر' : auth.role?.name ?? 'موظف'}</span>
+              <span>{IS_LOCAL ? 'نسخة الحاسوب' : platformOnly ? 'صاحب رقيم' : auth.isOwner ? 'صاحب المتجر' : auth.role?.name ?? 'موظف'}</span>
             </div>
           </div>
         </nav>
@@ -176,6 +199,7 @@ function Shell() {
               trigger={(open) => <button type="button" className="btn ghost icon" onClick={open} aria-label="حسابي"><Avatar name={auth.profile?.full_name} imageKey={auth.profile?.avatar_key} size={30} /></button>}
               items={[
                 { label: 'حسابي', icon: 'user', onClick: () => navigate('/account') },
+                ...(switchTo ? [{ label: platformOnly ? 'الدخول إلى متجري' : 'لوحة إدارة رقيم', icon: 'store' as const, onClick: () => { navigate('/'); switchTo(); } }] : []),
                 ...(!IS_LOCAL && !platformOnly ? [{ label: 'تنزيل برنامج الحاسوب', icon: 'download' as const, onClick: () => navigate('/desktop') }] : []),
                 { divider: true, label: '' },
                 { label: 'تسجيل الخروج', icon: 'logout', danger: true, onClick: () => void auth.signOut(), disabled: IS_DEMO },
