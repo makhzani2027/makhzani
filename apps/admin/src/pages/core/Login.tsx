@@ -17,6 +17,8 @@ export default function Login({ denied }: { denied: boolean }) {
   const [factorId, setFactorId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);
   // «أنشئ متجرك» يظهر فقط إن كانت قاعدة البيانات تدعم تعدد المتاجر
   const [multiStore, setMultiStore] = useState(false);
   useEffect(() => {
@@ -68,6 +70,20 @@ export default function Login({ denied }: { denied: boolean }) {
     }
   };
 
+  // «نسيت كلمة السر»: رابط لبريد الحساب يفتح اللوحة على شاشة كلمة سر جديدة
+  const sendReset = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const em = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { setError('اكتب البريد الإلكتروني للحساب (ليس رقم الهاتف).'); return; }
+    if (!supabase) return;
+    setBusy(true);
+    const { error: err } = await supabase.auth.resetPasswordForEmail(em, { redirectTo: `${location.origin}${location.pathname}` });
+    setBusy(false);
+    if (err) { setError(/rate|seconds|limit/i.test(err.message) ? 'طلبت رابطاً قبل قليل. انتظر دقيقة ثم أعد المحاولة.' : errorMessage(err)); return; }
+    setSent(em);
+  };
+
   return (
     <div className="login-page">
       <aside className="login-art" aria-hidden="true">
@@ -79,7 +95,23 @@ export default function Login({ denied }: { denied: boolean }) {
         <span className="login-foot">قبل خمسة آلاف عام، في أوروك، سُجّل أول مخزون في التاريخ على لوح من طين.</span>
       </aside>
       <main className="login-form">
-        {signup && multiStore && !factorId ? <StoreSignupForm onBack={() => setSignup(false)} /> : (
+        {forgot && !factorId ? (
+          <form onSubmit={sendReset} className="col" style={{ gap: 16, width: 'min(380px, 100%)' }}>
+            <div className="only-mobile" style={{ marginBottom: 8 }}><Mark size={56} /></div>
+            <div>
+              <h2 style={{ fontSize: 28 }}>نسيت كلمة السر</h2>
+              <p className="dim">اكتب بريد حسابك، وسنرسل لك رابطاً تضع منه كلمة سر جديدة.</p>
+            </div>
+            {error ? <Alert tone="danger">{error}</Alert> : null}
+            {sent ? (
+              <Alert tone="success">أرسلنا الرابط إلى <b className="ltr">{sent}</b>. افتح بريدك (وتفقّد مجلد الرسائل غير المرغوبة Spam) واضغط الرابط خلال ساعة.</Alert>
+            ) : (
+              <Field label="البريد الإلكتروني"><Input type="email" dir="ltr" autoFocus required value={email} onChange={(e) => setEmail(e.target.value)} icon="user" placeholder="name@mail.com" /></Field>
+            )}
+            {!sent ? <Button type="submit" variant="primary" size="lg" block loading={busy}>إرسال رابط كلمة السر</Button> : null}
+            <Button variant="ghost" block onClick={() => { setForgot(false); setSent(null); setError(null); }}>رجوع لتسجيل الدخول</Button>
+          </form>
+        ) : signup && multiStore && !factorId ? <StoreSignupForm onBack={() => setSignup(false)} /> : (
         <form onSubmit={submit} className="col" style={{ gap: 16, width: 'min(380px, 100%)' }}>
           <div className="only-mobile" style={{ marginBottom: 8 }}><Mark size={56} /></div>
           {!factorId && multiStore ? (
@@ -116,7 +148,9 @@ export default function Login({ denied }: { denied: boolean }) {
           )}
           <Button type="submit" variant="primary" size="lg" block loading={busy}>{factorId ? 'تحقق' : 'دخول'}</Button>
           {factorId ? <Button variant="ghost" block onClick={() => { setFactorId(null); setCode(''); setError(null); void signOut(); }}>الخروج واستعمال حساب آخر</Button> : null}
-          <p className="small faint">نسيت كلمة السر؟ اطلب من صاحب المتجر إعادة تعيينها من صفحة الموظفين.</p>
+          {!factorId ? (
+            <button type="button" className="link-btn small" style={{ alignSelf: 'center' }} onClick={() => { setError(null); setSent(null); setForgot(true); }}>نسيت كلمة السر؟</button>
+          ) : null}
           {!factorId && multiStore ? (
             <div className="card" style={{ padding: 14, textAlign: 'center' }}>
               <b>صاحب متجر وتريد لوحة لمتجرك؟</b>

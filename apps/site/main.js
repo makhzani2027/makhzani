@@ -1,5 +1,10 @@
 // موقع رقيم التعريفي — كل السلوك هنا (صغير وبلا مكتبات). الصفحة تعمل كاملة بلا JavaScript؛ هذا تحسين فوقها.
 (() => {
+  // رابط «نسيت كلمة السر» إن رجع للصفحة الرئيسية (عنوان الموقع الافتراضي في Supabase): نكمله في اللوحة
+  if (/type=recovery/.test(location.hash) && !location.pathname.startsWith('/dashboard')) {
+    location.replace(`/dashboard/${location.hash}`);
+    return;
+  }
   const root = document.documentElement;
   const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;

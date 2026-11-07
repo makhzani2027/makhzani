@@ -9,6 +9,7 @@ import { useHotkey, useStored } from './lib/hooks';
 import { useThemePref } from './lib/theme';
 import { Avatar, Button, ErrorState, Icon, IconButton, Loading, Mark, Menu } from './ui';
 import Login from './pages/core/Login';
+import SetNewPassword from './pages/core/SetNewPassword';
 import { StoreGate } from './pages/core/StoreSignup';
 import LocalAccounts from './pages/core/LocalAccounts';
 import { imgUrl } from './lib/media';
@@ -23,6 +24,7 @@ export default function App() {
   // نسخة الحاسوب: شاشة حسابات الشركات على هذا الجهاز بدل الدخول أونلاين
   if (IS_LOCAL && !auth.session) return <LocalAccounts />;
   if (!IS_DEMO && (!auth.session || auth.mfaPending)) return <Login denied={false} />;
+  if (!IS_DEMO && auth.recovery) return <SetNewPassword />;
   // حساب مسجّل بلا لوحة: طلب متجر (جديد/بانتظار الموافقة/مرفوض)، متجر موقوف، أو موظف موقوف
   // مدير المنصة (صاحب رقيم) بلا متجر يديره: يدخل اللوحة بصفحات المنصة فقط
   if (!IS_DEMO && !auth.isStaff && !auth.isPlatformAdmin) return <StoreGate />;

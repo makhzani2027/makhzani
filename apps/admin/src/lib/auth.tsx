@@ -24,9 +24,15 @@ interface AuthState {
   signIn: (identifier: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   reload: () => Promise<void>;
+  /** دخل من رابط استعادة كلمة السر: يجب أن يضع كلمة سر جديدة قبل أي شيء */
+  recovery: boolean;
+  endRecovery: () => void;
 }
 
 const Ctx = createContext<AuthState | null>(null);
+
+// رابط «نسيت كلمة السر» من البريد يفتح اللوحة بـ #…type=recovery — نلتقطه قبل أن يستهلكه عميل Supabase
+const RECOVERY_AT_LOAD = typeof location !== 'undefined' && /type=recovery/.test(location.hash);
 
 const DEMO_PROFILE: Profile = {
   id: 'demo-owner', kind: 'staff', full_name: 'صاحب المتجر (عرض)', phone: null, email: 'demo@raqeem.iq', avatar_key: null,
@@ -41,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<StaffRole | null>(null);
   const [store, setStore] = useState<AuthState['store']>(null);
   const [mfaPending, setMfaPending] = useState(false);
+  const [recovery, setRecovery] = useState(RECOVERY_AT_LOAD);
   const seq = useRef(0);
 
   // كل ما يخص الجلسة يُحمَّل أولاً ثم يُضبط دفعة واحدة: لو ضُبط الملف قبل الدور أو قبل فحص التحقق بخطوتين
@@ -82,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       // لا await داخل المستمع (توصية supabase-js) — نحمّل بعده
+      if (event === 'PASSWORD_RECOVERY') setRecovery(true);
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED' || event === 'MFA_CHALLENGE_VERIFIED') setTimeout(() => void loadProfile(s), 0);
       else setSession(s);
     });
@@ -129,8 +137,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data } = await supabase.auth.getSession();
         await loadProfile(data.session);
       },
+      recovery,
+      endRecovery: () => setRecovery(false),
     };
-  }, [ready, session, profile, role, store, mfaPending, loadProfile]);
+  }, [ready, session, profile, role, store, mfaPending, loadProfile, recovery]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
