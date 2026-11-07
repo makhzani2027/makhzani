@@ -1,0 +1,25 @@
+# فحص قراءة فقط: ما يعرضه الموقع التعريفي الآن — بيانات تواصل المنصة (platform_settings) مقابل إعدادات المتجر ١
+name: Site Check
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - run: |
+          html=$(curl -sS https://raqeem-iq.web.app/)
+          echo "$html" | grep -o '<title>[^<]*' | head -1
+          key=$(echo "$html" | grep -o '"anonKey":"[^"]*"' | head -1 | cut -d'"' -f4)
+          [ -n "$key" ] || key=$(curl -sS https://raqeem-iq.web.app/env.js | grep -o '"anonKey":"[^"]*"' | head -1 | cut -d'"' -f4)
+          echo "anon key found: $([ -n "$key" ] && echo yes || echo no)"
+          echo "main.js reads platform_settings: $(curl -sS https://raqeem-iq.web.app/main.js | grep -c platform_settings)"
+          base="https://$PROJECT_REF.supabase.co/rest/v1"
+          echo "== platform_settings (ما يعرضه الموقع)"
+          curl -sS "$base/platform_settings?select=key,value,updated_at" -H "apikey: $key" -H "Authorization: Bearer $key"; echo
+          echo "== store 1 contact (إعدادات المتجر الأول)"
+          curl -sS "$base/app_settings?key=eq.store&select=value->phone,value->whatsapp,value->email,value->address,value->city,value->hours,value->map_url,value->socials" -H "apikey: $key" -H "Authorization: Bearer $key"; echo
