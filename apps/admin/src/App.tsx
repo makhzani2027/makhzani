@@ -30,7 +30,7 @@ export default function App() {
   if (!IS_DEMO && !auth.isStaff && !auth.isPlatformAdmin) return <StoreGate />;
   return (
     <SettingsProvider enabled>
-      <CountsProvider enabled canOrders={auth.can('orders.view')} platform={auth.isPlatformAdmin}>
+      <CountsProvider enabled canOrders={auth.can('orders.view') && !auth.isPlatformAdmin} platform={auth.isPlatformAdmin}>
         <Shell />
       </CountsProvider>
     </SettingsProvider>
@@ -82,9 +82,11 @@ function Shell() {
     return () => { el.removeEventListener('scroll', update); ro.disconnect(); };
   }, [location.pathname]);
 
+  // حساب صاحب رقيم (مدير المنصة): لوحة المنصة وحدها — لا صفحات متجر ولا مخزون ولا اسم متجر
+  const platformOnly = !IS_DEMO && !IS_LOCAL && auth.isPlatformAdmin;
   // الصفحات المسموحة لهذا الموظف فقط
-  const allowed = useMemo(() => routes.filter((r) => (!r.perm || auth.can(r.perm)) && (!r.platform || IS_DEMO || auth.isPlatformAdmin) && (!r.mainStore || IS_DEMO || !auth.store || auth.store.id === MAIN_STORE)
-    && !(IS_LOCAL && r.online) && (!r.localOnly || IS_LOCAL)), [auth]);
+  const allowed = useMemo(() => routes.filter((r) => platformOnly ? (r.platform || r.path === '/account') : (!r.perm || auth.can(r.perm)) && (!r.platform || IS_DEMO || auth.isPlatformAdmin) && (!r.mainStore || IS_DEMO || !auth.store || auth.store.id === MAIN_STORE)
+    && !(IS_LOCAL && r.online) && (!r.localOnly || IS_LOCAL)), [auth, platformOnly]);
   const navItems = useMemo(
     () => NAV_GROUPS.map((g) => ({ ...g, items: allowed.filter((r) => r.group === g.key && r.nav !== false).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)) })).filter((g) => g.items.length),
     [allowed],
@@ -108,7 +110,7 @@ function Shell() {
             <Mark size={34} ink="var(--side-ink)" hole="#E8622A" />
             <b>رَقيم</b>
             <span className="tag">الإدارة</span>
-            {auth.store ? (
+            {auth.store && !platformOnly ? (
               <div className="side-store" title={auth.store.name}>
                 {auth.store.logo_key ? <img src={imgUrl(auth.store.logo_key, 'sm') ?? ''} alt="" />
                   : <span className="side-store-initial">{auth.store.name.slice(0, 1)}</span>}
@@ -146,7 +148,7 @@ function Shell() {
             <Avatar name={auth.profile?.full_name} imageKey={auth.profile?.avatar_key} />
             <div className="who">
               <b className="truncate">{auth.profile?.full_name ?? (auth.isPlatformAdmin ? 'صاحب رقيم' : 'موظف')}</b>
-              <span>{IS_LOCAL ? 'نسخة الحاسوب' : auth.isPlatformAdmin && !auth.isStaff ? 'مدير منصة رقيم' : auth.isOwner ? 'صاحب المتجر' : auth.role?.name ?? 'موظف'}</span>
+              <span>{IS_LOCAL ? 'نسخة الحاسوب' : auth.isPlatformAdmin ? 'صاحب رقيم' : auth.isOwner ? 'صاحب المتجر' : auth.role?.name ?? 'موظف'}</span>
             </div>
           </div>
         </nav>
@@ -155,14 +157,13 @@ function Shell() {
           <header className="topbar">
             <IconButton icon="menu" label="القائمة" className="only-mobile" onClick={() => setMenuOpen(true)} />
             <IconButton icon={collapsed ? 'chevronLeft' : 'chevronRight'} label={collapsed ? 'توسيع القائمة' : 'طي القائمة'} className="only-desktop" onClick={() => setCollapsed(!collapsed)} />
-            <button type="button" className="btn ghost topbar-search" onClick={() => setPaletteOpen(true)}>
+            {!platformOnly ? <button type="button" className="btn ghost topbar-search" onClick={() => setPaletteOpen(true)}>
               <Icon name="search" size={18} />
               <span className="grow truncate" style={{ textAlign: 'start', fontWeight: 500 }}>بحث عن منتج، زبون، طلب…</span>
               <span className="kbd only-desktop">Ctrl K</span>
-            </button>
+            </button> : null}
             <span className="grow" />
-            {!IS_LOCAL && auth.isPlatformAdmin && auth.isStaff && current?.path !== '/platform' ? <Button icon="store" onClick={() => navigate('/platform')}><span className="only-desktop">إدارة رقيم</span></Button> : null}
-            {auth.can('pos.sell') && current?.path !== '/pos' ? <Button variant="primary" icon="pos" onClick={() => navigate('/pos')}><span className="only-desktop">بيع جديد</span></Button> : null}
+            {!platformOnly && auth.can('pos.sell') && current?.path !== '/pos' ? <Button variant="primary" icon="pos" onClick={() => navigate('/pos')}><span className="only-desktop">بيع جديد</span></Button> : null}
             <Menu
               trigger={(open) => <IconButton icon={theme === 'dark' ? 'moon' : theme === 'light' ? 'sun' : 'eye'} label="المظهر" onClick={open} />}
               items={[
@@ -175,7 +176,7 @@ function Shell() {
               trigger={(open) => <button type="button" className="btn ghost icon" onClick={open} aria-label="حسابي"><Avatar name={auth.profile?.full_name} imageKey={auth.profile?.avatar_key} size={30} /></button>}
               items={[
                 { label: 'حسابي', icon: 'user', onClick: () => navigate('/account') },
-                ...(!IS_LOCAL ? [{ label: 'تنزيل برنامج الحاسوب', icon: 'download' as const, onClick: () => navigate('/desktop') }] : []),
+                ...(!IS_LOCAL && !platformOnly ? [{ label: 'تنزيل برنامج الحاسوب', icon: 'download' as const, onClick: () => navigate('/desktop') }] : []),
                 { divider: true, label: '' },
                 { label: 'تسجيل الخروج', icon: 'logout', danger: true, onClick: () => void auth.signOut(), disabled: IS_DEMO },
               ]}
