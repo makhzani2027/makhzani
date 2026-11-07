@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "embedded-postgres": "17.11.0-beta.19",
-    "pg": "8.13.1"
+    "pg": "8.23.1"
   },
   "devDependencies": {
     "electron": "37.10.3",
