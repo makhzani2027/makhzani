@@ -102,18 +102,17 @@ function Shell() {
         {menuOpen ? <div className="scrim only-mobile" onClick={() => setMenuOpen(false)} role="presentation" /> : null}
         <nav className={`side ${menuOpen ? 'open' : ''}`} aria-label="القائمة الرئيسية">
           <div className="side-brand">
-            {auth.store ? (
-              <>
-                {auth.store.logo_key ? <img src={imgUrl(auth.store.logo_key, 'sm') ?? ''} alt="" style={{ width: 34, height: 34, objectFit: 'contain', borderRadius: 8, background: '#fff' }} /> : <Mark size={34} ink="var(--side-ink)" hole="#E8622A" />}
-                <b className="truncate" title={auth.store.name}>{auth.store.name}</b>
-              </>
-            ) : (
-              <>
-                <Mark size={34} ink="var(--side-ink)" hole="#E8622A" />
-                <b>رَقيم</b>
-              </>
-            )}
+            {/* رقيم دائماً في الأعلى، وتحته اسم متجر صاحب الحساب وشعاره */}
+            <Mark size={34} ink="var(--side-ink)" hole="#E8622A" />
+            <b>رَقيم</b>
             <span className="tag">الإدارة</span>
+            {auth.store ? (
+              <div className="side-store" title={auth.store.name}>
+                {auth.store.logo_key ? <img src={imgUrl(auth.store.logo_key, 'sm') ?? ''} alt="" />
+                  : <span className="side-store-initial">{auth.store.name.slice(0, 1)}</span>}
+                <span className="truncate">{auth.store.name}</span>
+              </div>
+            ) : null}
           </div>
           {navItems.map((g) => {
             const hasActive = g.items.some((r) => isActive(r.path));
