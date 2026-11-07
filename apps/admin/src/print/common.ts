@@ -120,14 +120,11 @@ tr:nth-child(even) td{background:#F6F7F5}
 h3.sec{font-size:13px;margin:6mm 0 2mm;color:${BRAND.ink}}
 `;
 
-/** شعار المتجر في المطبوعات: صورة الشعار إن وُجدت، وإلا شعار رقيم للمتجر الأصلي أو الحرف الأول لاسم المتجر */
+/** شعار المتجر في المطبوعات: صورة شعار المتجر إن وُجدت، وإلا الحرف الأول من اسمه — المطبوعات باسم كل متجر وحده، لا باسم رقيم */
 export function storeMark(store: StoreSettings, size: string, ink = '#000', hole = '#fff'): string {
   const url = imgUrl(store.logo_key ?? null, 'md');
   if (url) return `<img src="${escapeHtml(url)}" alt="" style="width:${size};height:${size};object-fit:contain;display:inline-block">`;
-  if (store.logo_key === null) {
-    return `<span style="display:inline-grid;place-items:center;width:${size};height:${size};border-radius:22%;background:${ink};color:${hole};font-weight:900;font-size:calc(${size} * .55);line-height:1">${escapeHtml((store.name || '').trim().slice(0, 1))}</span>`;
-  }
-  return markSvg(size, ink, hole);
+  return `<span style="display:inline-grid;place-items:center;width:${size};height:${size};border-radius:22%;background:${ink};color:${hole};font-weight:900;font-size:calc(${size} * .55);line-height:1">${escapeHtml((store.name || '').trim().slice(0, 1))}</span>`;
 }
 
 export function a4Header(store: StoreSettings, right: { kind: string; number?: string | null; meta: string[] }): string {

@@ -7,7 +7,7 @@
 import { amountInWords, countOf, nouns, type InvoiceSettings, type Quotation, type QuotationItem, type StoreSettings } from '@raqeem/shared';
 import { imgUrl } from '../lib/media';
 import type { QuotationItemExtra } from '../pages/sales/api';
-import { BRAND, code, escapeHtml, formatPhoneSafe, markSvg, printFmt, storeMark, type PrintDoc } from './common';
+import { BRAND, code, escapeHtml, formatPhoneSafe, printFmt, storeMark, type PrintDoc } from './common';
 
 export interface QuotationPrintInput {
   quotation: Quotation;
@@ -71,7 +71,7 @@ export function buildQuotationA4(o: QuotationPrintInput): PrintDoc {
   // ---------------------------------------------------------------- المميزات
   const feats = (q.features ?? []).filter((x) => x.trim());
   const featBlock = feats.length ? `<section class="feats">
-  <h3><span>${markSvg('5mm', '#fff', BRAND.brick)}</span>ماذا يقدّم لك هذا العرض</h3>
+  <h3><span><b style="color:#fff;font-size:3.6mm;line-height:1">✓</b></span>ماذا يقدّم لك هذا العرض</h3>
   <ul>${feats.map((x) => `<li><i>${ICON_CHECK}</i><span>${escapeHtml(x)}</span></li>`).join('')}</ul>
 </section>` : '';
 
@@ -82,7 +82,7 @@ export function buildQuotationA4(o: QuotationPrintInput): PrintDoc {
     const sub = [it.variant_title, ex?.brand?.name].filter(Boolean).map((x) => escapeHtml(x)).join('، ');
     return `<tr>
   <td class="n">${f.num(n + 1)}</td>
-  <td class="p"><div class="pi">${src ? `<img src="${escapeHtml(src)}" alt="">` : `<span class="ph">${markSvg('5mm', '#C9CDC8', '#fff')}</span>`}<div><b>${escapeHtml(it.name)}</b>${sub ? `<em>${sub}</em>` : ''}</div></div></td>
+  <td class="p"><div class="pi">${src ? `<img src="${escapeHtml(src)}" alt="">` : `<span class="ph">${storeMark(o.store, '5mm', '#C9CDC8', '#fff')}</span>`}<div><b>${escapeHtml(it.name)}</b>${sub ? `<em>${sub}</em>` : ''}</div></div></td>
   <td class="e q">${f.qty(it.qty)}</td>
   <td class="e">${f.money(it.unit_price, true)}</td>
   ${hasDisc ? `<td class="e">${it.discount > 0 ? `− ${f.money(it.discount, true)}` : '—'}</td>` : ''}
@@ -118,7 +118,7 @@ ${words ? `<div class="words"><span>المبلغ كتابةً</span>${escapeHtml
   // ---------------------------------------------------------------- الختم والتوقيع
   const sign = `<div class="end"><section class="sign">
   <div class="s"><div class="ln"></div><span>موافقة الزبون وتوقيعه</span></div>
-  <div class="seal">${markSvg('9mm', '#C9CDC8', '#fff')}<span>الختم</span></div>
+  <div class="seal"><span style="opacity:.35">${storeMark(o.store, '9mm', '#C9CDC8', '#fff')}</span><span>الختم</span></div>
   <div class="s"><div class="ln"></div><span>توقيع ${escapeHtml(o.store.name)}</span></div>
 </section>
 <footer class="ft"><span>${escapeHtml(o.store.name)}${o.store.address ? `، ${escapeHtml(o.store.address)}` : ''}</span><span>شكراً لثقتكم</span></footer></div>`;
