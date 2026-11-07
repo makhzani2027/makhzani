@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>رقيم — تسوّق بثقة | متجر إلكتروني عراقي</title>
-  <meta name="description" content="رقيم متجر إلكتروني عراقي: هواتف وإكسسوارات وأجهزة منزلية أصلية بضمان، توصيل لكل المحافظات، والدفع عند الاستلام. حمّل التطبيق وتابع طلبك لحظة بلحظة." />
+  <title>رقيم — منصة إدارة المتاجر | بيع، مخزون، عروض أسعار وفواتير</title>
+  <meta name="description" content="رقيم منصة عراقية لإدارة المتاجر: نقطة بيع، مخزون، عروض أسعار بشعارك، فواتير، زبائن وديون، ورابط متجر لزبائنك. أنشئ حساب متجرك، واعمل على الإنترنت أو على حاسوبك بلا إنترنت." />
   <link rel="canonical" href="https://raqeem-iq.web.app/" />
   <meta name="theme-color" content="#EDEEEC" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0E100F" media="(prefers-color-scheme: dark)" />
@@ -12,8 +12,8 @@
   <meta property="og:site_name" content="رقيم" />
   <meta property="og:locale" content="ar_IQ" />
   <meta property="og:url" content="https://raqeem-iq.web.app/" />
-  <meta property="og:title" content="رقيم — تسوّق بثقة." />
-  <meta property="og:description" content="منتجات أصلية بضمان، توصيل لكل محافظات العراق، والدفع عند الاستلام." />
+  <meta property="og:title" content="رقيم — متجرك كلّه في لوحة واحدة." />
+  <meta property="og:description" content="بيع ومخزون وعروض أسعار وفواتير لمتجرك، على الإنترنت أو على حاسوبك بلا إنترنت." />
   <meta property="og:image" content="https://raqeem-iq.web.app/og.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -44,15 +44,13 @@
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "Store",
+      "@type": "SoftwareApplication",
       "name": "رقيم",
-      "slogan": "تسوّق بثقة.",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web, Windows",
       "url": "https://raqeem-iq.web.app/",
       "logo": "https://raqeem-iq.web.app/icons/icon-512.png",
-      "image": "https://raqeem-iq.web.app/og.png",
-      "address": { "@type": "PostalAddress", "addressCountry": "IQ", "addressLocality": "بغداد" },
-      "currenciesAccepted": "IQD",
-      "paymentAccepted": "عند الاستلام، في المكتب أو عبر واتساب"
+      "description": "منصة عراقية لإدارة المتاجر: البيع والمخزون وعروض الأسعار والفواتير."
     }
   </script>
 </head>
@@ -81,303 +79,133 @@
 
   <main id="main">
     <!-- ============================================================ البطل -->
-    <section class="hero" id="download" aria-labelledby="hero-title">
+    <section class="hero lp-hero" aria-labelledby="hero-title">
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow rv" data-live><span class="wedge"></span><span data-tpl="site.hero.eyebrow"></span></p>
-          <h1 class="display rv" style="--d:1" id="hero-title">تسوّق <em>بثقة.</em></h1>
-          <p class="lead rv" style="--d:2" data-live data-tpl="site.hero.subtitle"></p>
+          <p class="eyebrow rv"><span class="wedge"></span>منصة عراقية لإدارة المتاجر</p>
+          <h1 class="display rv" style="--d:1" id="hero-title">متجرك كلّه <em>في لوحة واحدة.</em></h1>
+          <p class="lead rv" style="--d:2">البيع والمخزون وعروض الأسعار والفواتير والزبائن والديون، بالعربية وبالدينار العراقي. أنشئ حساب متجرك، واعمل من المتصفح أو من برنامج الحاسوب حتى بلا إنترنت.</p>
           <div class="dl rv" style="--d:3">
-            <a class="btn btn-accent btn-lg" href="#contact" data-apk>
-              <svg class="i" data-icon="download" aria-hidden="true"></svg>
-              <span><b data-apk-label>حمّل التطبيق لأندرويد</b><small data-apk-meta>ملف APK لأندرويد</small></span>
-            </a>
-            <a class="btn btn-ghost btn-lg" aria-disabled="true" data-play>
+            <a class="btn btn-accent btn-lg" href="/dashboard/?signup">
               <svg class="i" data-icon="store" aria-hidden="true"></svg>
-              <span><b>Google Play</b><small data-play-meta>قريباً</small></span>
+              <span><b>أنشئ متجرك</b><small>حساب خاص بمتجرك، منفصل عن غيره</small></span>
+            </a>
+            <a class="btn btn-ghost btn-lg" href="/dashboard/">
+              <svg class="i" data-icon="login" aria-hidden="true"></svg>
+              <span><b>دخول</b><small>لأصحاب المتاجر وموظفيهم</small></span>
             </a>
           </div>
           <ul class="hero-trust rv" style="--d:4">
-            <li><svg class="i" data-icon="shield" aria-hidden="true"></svg>أصلي بضمان</li>
-            <li><svg class="i" data-icon="cash" aria-hidden="true"></svg>الدفع عند الاستلام</li>
-            <li><svg class="i" data-icon="truck" aria-hidden="true"></svg>لكل محافظات العراق</li>
+            <li><svg class="i" data-icon="lock" aria-hidden="true"></svg>بيانات كل متجر منفصلة</li>
+            <li><svg class="i" data-icon="download" aria-hidden="true"></svg>برنامج حاسوب بلا إنترنت</li>
+            <li><svg class="i" data-icon="printer" aria-hidden="true"></svg>فواتير وعروض بشعارك</li>
           </ul>
         </div>
 
-        <!-- هاتفان يعرضان واجهة التطبيق مصغّرة (HTML/CSS، لا صور) -->
-        <div class="hero-art" aria-hidden="true">
-          <div class="phone phone-back rv" style="--d:4">
-            <div class="screen">
-              <div class="ph-sb"><span>٩:٤١</span><span class="ph-sig"><i></i><i></i><i></i><b></b></span></div>
-              <div class="pp-top">
-                <span class="ph-round"><svg class="ic" data-icon="chevronRight"></svg></span>
-                <div><span class="ph-round"><svg class="ic" data-icon="share"></svg></span><span class="ph-round"><svg class="ic" data-icon="heart"></svg></span></div>
+        <!-- نافذة لوحة تحكم مصغّرة (HTML/CSS، لا صور) -->
+        <div class="lp-win rv" style="--d:3" aria-hidden="true">
+          <div class="lp-bar"><i></i><i></i><i></i><span>لوحة متجرك</span></div>
+          <div class="lp-body">
+            <div class="lp-side"><b></b><span class="on"></span><span></span><span></span><span></span><span></span></div>
+            <div class="lp-main">
+              <div class="lp-kpis">
+                <div><small>مبيعات اليوم</small><strong>٢٬٤٥٠٬٠٠٠</strong></div>
+                <div><small>الفواتير</small><strong>٣٨</strong></div>
+                <div><small>عروض الأسعار</small><strong>٦</strong></div>
               </div>
-              <div class="pp-gal">
-                <svg class="art" viewBox="0 0 120 100">
-                  <ellipse class="sh" cx="60" cy="94" rx="40" ry="4" />
-                  <path class="st" d="M24 60V48a36 36 0 0 1 72 0v12" />
-                  <rect class="b2" x="14" y="52" width="22" height="36" rx="10" />
-                  <rect class="b2" x="84" y="52" width="22" height="36" rx="10" />
-                  <rect class="b1" x="30" y="56" width="10" height="28" rx="5" />
-                  <rect class="b1" x="80" y="56" width="10" height="28" rx="5" />
-                  <circle class="ac" cx="25" cy="80" r="2" />
-                </svg>
-                <span class="pp-count">١/٤</span>
-                <span class="ph-dots"><i></i><i></i><i></i><i></i></span>
-              </div>
-              <div class="pp-body">
-                <p class="pp-cat">سماعات وصوتيات</p>
-                <p class="pp-name">سماعة لاسلكية بعزل الضوضاء</p>
-                <p class="pp-rate"><svg class="ic" data-icon="star"></svg>٤٫٧ <span>(١٤ تقييماً)</span></p>
-                <div class="pp-price"><span class="tag tag-lg">١٢٥٬٠٠٠ <small>د.ع</small></span><s>١٥٠٬٠٠٠</s></div>
-                <p class="pp-lbl">اللون</p>
-                <ul class="pp-opts"><li class="sel"><i style="background:#121513"></i>أسود</li><li><i style="background:#F4F5F3"></i>أبيض</li><li class="na">كحلي</li></ul>
-                <p class="pp-stock"><svg class="ic" data-icon="checkCircle"></svg>متوفر · يصل خلال ١–٣ أيام</p>
-              </div>
-              <div class="pp-bar">
-                <span class="pp-qty"><svg class="ic" data-icon="plus"></svg>١<svg class="ic" data-icon="minus"></svg></span>
-                <span class="pp-add"><svg class="ic" data-icon="cartPlus"></svg>أضف للسلة</span>
-              </div>
+              <div class="lp-chart"><i style="--h:40%"></i><i style="--h:62%"></i><i style="--h:48%"></i><i style="--h:80%"></i><i style="--h:66%"></i><i style="--h:92%"></i><i style="--h:74%"></i></div>
+              <div class="lp-rows"><span></span><span></span><span></span></div>
             </div>
           </div>
-
-          <div class="phone phone-front rv" style="--d:2">
-            <div class="screen">
-              <!-- إشعار ينزل من تحت الكاميرا ثم يرتفع، كما على الهاتف الحقيقي -->
-              <div class="toast" aria-hidden="true">
-                <span class="toast-ic"><svg class="mark" data-logo></svg></span>
-                <div><b>رقيم <small>الآن</small></b><p>طلبك <span class="ltr">#RQ-1042</span> مع المندوب، في الطريق إليك.</p></div>
-              </div>
-              <div class="ph-sb"><span>٩:٤١</span><span class="ph-sig"><i></i><i></i><i></i><b></b></span></div>
-              <div class="ph-top">
-                <span class="ph-logo"><svg class="mark" data-logo></svg>رقيم</span>
-                <span class="ph-round"><svg class="ic" data-icon="bell"></svg><i></i></span>
-              </div>
-              <div class="ph-search"><svg class="ic" data-icon="search"></svg>ابحث عن منتج أو قسم…</div>
-              <div class="ph-banner ph-slides">
-                <div class="ph-slide">
-                  <div><b>أسبوع الإلكترونيات</b><small>خصومات حتى ٢٥٪ على السماعات والشواحن</small><span>تسوّق الآن</span></div>
-                  <svg class="art" viewBox="0 0 100 100">
-                    <rect class="bh" x="30" y="14" width="40" height="74" rx="20" />
-                    <circle class="bd" cx="50" cy="40" r="11" /><circle class="ac" cx="50" cy="40" r="4" />
-                    <circle class="bd" cx="50" cy="66" r="8" />
-                    <rect class="ac" x="44" y="18" width="12" height="3" rx="1.5" />
-                  </svg>
-                </div>
-                <div class="ph-slide">
-                  <div><b>مطبخك أذكى</b><small>قلايات هوائية وخلاطات بضمان سنة</small><span>اكتشف</span></div>
-                  <svg class="art" viewBox="0 0 100 100">
-                    <path class="bh" d="M28 30a10 10 0 0 1 10-10h24a10 10 0 0 1 10 10l4 52a6 6 0 0 1-6 6H30a6 6 0 0 1-6-6z" />
-                    <rect class="bd" x="34" y="50" width="32" height="22" rx="6" />
-                    <circle class="ac" cx="50" cy="34" r="5" />
-                  </svg>
-                </div>
-              </div>
-              <div class="ph-dots"><i></i><i></i><i></i></div>
-              <ul class="ph-cats">
-                <li><span><svg class="ic" data-icon="phone"></svg></span>هواتف</li>
-                <li><span><svg class="ic" data-icon="activity"></svg></span>صوتيات</li>
-                <li><span><svg class="ic" data-icon="home"></svg></span>المنزل</li>
-                <li><span><svg class="ic" data-icon="clock"></svg></span>ساعات</li>
-              </ul>
-              <div class="ph-sec"><div><b>عروض اليوم</b><span class="ph-timer">٠٤:١٢:٣٠</span></div><span>الكل</span></div>
-              <div class="ph-prods">
-                <div class="pc">
-                  <div class="pc-img">
-                    <span class="tag">−١٨٪</span>
-                    <span class="pc-fav"><svg class="ic" data-icon="heart"></svg></span>
-                    <svg class="art" viewBox="0 0 100 100">
-                      <ellipse class="sh" cx="50" cy="90" rx="28" ry="4" />
-                      <rect class="b3" x="38" y="12" width="7" height="18" rx="2" /><rect class="b3" x="55" y="12" width="7" height="18" rx="2" />
-                      <rect class="b1 o" x="24" y="26" width="52" height="62" rx="12" />
-                      <rect class="b2" x="36" y="46" width="28" height="6" rx="3" /><rect class="b2" x="36" y="58" width="28" height="6" rx="3" /><rect class="b2" x="40" y="70" width="20" height="6" rx="3" />
-                      <circle class="ac" cx="50" cy="35" r="2.2" />
-                    </svg>
-                  </div>
-                  <p>شاحن سريع ٦٥ واط GaN</p>
-                  <div class="pc-row"><span class="tag">٤٥٬٠٠٠ <small>د.ع</small></span><s>٥٥٬٠٠٠</s></div>
-                </div>
-                <div class="pc">
-                  <div class="pc-img">
-                    <span class="tag">−١٦٪</span>
-                    <span class="pc-fav"><svg class="ic" data-icon="heart"></svg></span>
-                    <svg class="art" viewBox="0 0 100 100">
-                      <ellipse class="sh" cx="50" cy="90" rx="30" ry="4" />
-                      <path class="b2" d="M26 26a10 10 0 0 1 10-10h28a10 10 0 0 1 10 10l4 56a6 6 0 0 1-6 6H28a6 6 0 0 1-6-6z" />
-                      <rect class="b4" x="32" y="48" width="36" height="26" rx="7" />
-                      <rect class="b3" x="40" y="78" width="20" height="4" rx="2" />
-                      <circle class="ac" cx="50" cy="31" r="5" />
-                    </svg>
-                  </div>
-                  <p>قلاية هوائية ٥ لتر</p>
-                  <div class="pc-row"><span class="tag">١٣٥٬٠٠٠ <small>د.ع</small></span><s>١٦٠٬٠٠٠</s></div>
-                </div>
-              </div>
-              <ul class="ph-tabs">
-                <li class="on"><span><svg class="ic" data-icon="home"></svg></span>الرئيسية</li>
-                <li><span><svg class="ic" data-icon="grid"></svg></span>الأقسام</li>
-                <li><span><svg class="ic" data-icon="cart"></svg></span><em>٢</em>السلة</li>
-                <li><span><svg class="ic" data-icon="heart"></svg></span>المفضلة</li>
-                <li><span><svg class="ic" data-icon="user"></svg></span>حسابي</li>
-              </ul>
-            </div>
-          </div>
-
         </div>
       </div>
     </section>
 
-    <!-- ============================================================ الأرقام -->
-    <section class="stats" aria-label="رقيم بالأرقام">
-      <div class="wrap stats-grid" data-live>
-        <div class="stat rv"><b><span data-stat="products"></span><sup>+</sup></b><span>منتج أصلي في المتجر</span></div>
-        <div class="stat rv" style="--d:1"><b><span data-stat="governorates"></span></b><span>محافظة نوصل إليها</span></div>
-        <div class="stat rv" style="--d:2"><b data-stat="delivery_days"></b><span>أيام للتوصيل</span></div>
-        <div class="stat rv" style="--d:3"><b><span data-stat="payment_methods"></span></b><span>طرق للدفع</span></div>
-      </div>
-    </section>
-
-    <!-- ============================================================ ماذا نبيع -->
-    <section class="sec" id="sell" aria-labelledby="sell-title">
-      <div class="wrap">
-        <div class="sec-head split">
-          <div>
-            <p class="eyebrow rv"><span class="wedge"></span>ماذا نبيع</p>
-            <h2 class="h2 rv" id="sell-title">من الشاحن الصغير إلى أجهزة البيت كلها.</h2>
-          </div>
-          <p class="lead rv">نختار ما نبيعه بعناية: علامات معروفة، ومصادر موثوقة، وأسعار واضحة بالدينار العراقي. وما لا تجده، نوفّره لك.</p>
-        </div>
-        <ul class="cats" data-cats>
-          <li class="cat rv"><span class="cat-ic"><svg class="i" data-icon="phone" aria-hidden="true"></svg></span><h3>هواتف وإكسسوارات</h3><p>شواحن وكابلات وأغطية وحمايات.</p></li>
-          <li class="cat rv"><span class="cat-ic"><svg class="i" data-icon="activity" aria-hidden="true"></svg></span><h3>سماعات وصوتيات</h3><p>سماعات لاسلكية ومكبرات صوت.</p></li>
-          <li class="cat rv"><span class="cat-ic"><svg class="i" data-icon="home" aria-hidden="true"></svg></span><h3>أجهزة منزلية</h3><p>مكانس ومكاوٍ ومنقيات هواء.</p></li>
-          <li class="cat rv"><span class="cat-ic"><svg class="i" data-icon="box" aria-hidden="true"></svg></span><h3>المطبخ</h3><p>قلايات هوائية وخلاطات وقدور.</p></li>
-          <li class="cat rv"><span class="cat-ic"><svg class="i" data-icon="heart" aria-hidden="true"></svg></span><h3>العناية الشخصية</h3><p>ماكينات حلاقة ومجففات شعر.</p></li>
-          <li class="cat rv"><span class="cat-ic"><svg class="i" data-icon="clock" aria-hidden="true"></svg></span><h3>ساعات ذكية</h3><p>ساعات وأساور رياضية.</p></li>
-          <li class="cat rv"><span class="cat-ic"><svg class="i" data-icon="gift" aria-hidden="true"></svg></span><h3>الألعاب والأطفال</h3><p>ألعاب تنمّي الخيال والمهارة.</p></li>
-          <li class="cat rv"><span class="cat-ic"><svg class="i" data-icon="bag" aria-hidden="true"></svg></span><h3>حقائب وسفر</h3><p>حقائب ظهر وحقائب سفر متينة.</p></li>
-          <li class="cat cat-more rv">
-            <h3>لم تجد ما تريد؟</h3>
-            <p>صوّر المنتج أو أرسل رابطه من التطبيق، ونبحث لك عنه ونبلغك حين يتوفر.</p>
-            <a class="link" href="#request">كيف تطلب منتجاً غير موجود<svg class="i" data-icon="arrowLeft" aria-hidden="true"></svg></a>
-          </li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- ============================================================ كيف تطلب -->
-    <section class="sec sec-order" id="order" aria-labelledby="order-title">
+    <!-- ============================================================ ماذا تقدّم المنصة -->
+    <section class="sec" id="features" aria-labelledby="features-title">
       <div class="wrap">
         <div class="sec-head">
-          <p class="eyebrow rv"><span class="wedge"></span>كيف تطلب</p>
-          <h2 class="h2 rv" id="order-title">أربع خطوات، وطلبك عند بابك.</h2>
+          <p class="eyebrow rv"><span class="wedge"></span>ماذا يقدّم رقيم</p>
+          <h2 class="h2 rv" id="features-title">كل ما يحتاجه متجرك، في مكان واحد.</h2>
         </div>
-        <ol class="steps">
-          <li class="step rv">
-            <div class="step-n"><svg data-wedge aria-hidden="true"></svg><b>١</b></div>
-            <h3>تصفّح بلا تسجيل</h3>
-            <p>حمّل التطبيق وتجوّل في الأقسام والعروض، وأضف ما يعجبك للسلة والمفضلة.</p>
-          </li>
-          <li class="step rv" style="--d:1">
-            <div class="step-n"><svg data-wedge aria-hidden="true"></svg><b>٢</b></div>
-            <h3>أكمل بحساب Google</h3>
-            <p>عند الطلب فقط: اسمك ورقم هاتفك ومحافظتك، وعنوانك مع أقرب نقطة دالة.</p>
-          </li>
-          <li class="step rv" style="--d:2">
-            <div class="step-n"><svg data-wedge aria-hidden="true"></svg><b>٣</b></div>
-            <h3>اختر طريقة الدفع</h3>
-            <p>عند الاستلام، أو في المكتب، أو إلكترونياً. والمجموع النهائي يظهر قبل التأكيد.</p>
-          </li>
-          <li class="step rv" style="--d:3">
-            <div class="step-n"><svg data-wedge aria-hidden="true"></svg><b>٤</b></div>
-            <h3>تابع طلبك لحظة بلحظة</h3>
-            <p>إشعار عند كل خطوة: التأكيد، التجهيز، خروج المندوب، ثم التسليم.</p>
-          </li>
-        </ol>
-      </div>
-    </section>
-
-    <!-- ============================================================ الدفع والتوصيل -->
-    <section class="sec" id="pay" aria-labelledby="pay-title">
-      <div class="wrap">
-        <div class="sec-head split">
-          <div>
-            <p class="eyebrow rv"><span class="wedge"></span>الدفع والتوصيل</p>
-            <h2 class="h2 rv" id="pay-title">ادفع كما يناسبك، ونوصل أينما كنت.</h2>
-          </div>
-          <p class="lead rv">لا مفاجآت: أجرة التوصيل والمجموع يظهران قبل أن تؤكد الطلب، ولا تدفع للمندوب إلا ما تراه في التطبيق.</p>
-        </div>
-        <div class="pay-grid" data-live>
-          <article class="card pay-card rv">
-            <h3 class="h3d" data-tpl="site.payments.title"></h3>
-            <!-- طرق الدفع المفعّلة من app_settings.site (يملؤها البناء من config.json، ثم main.js من البيانات الحية) -->
-            <ul class="methods" data-methods></ul>
-          </article>
-          <article class="card deliv-card rv" style="--d:1">
-            <h3 class="h3d" data-tpl="site.delivery.title"></h3>
-            <dl class="deliv-facts" data-deliv></dl>
-            <p class="gov-lbl"><svg class="i" data-icon="mapPin" aria-hidden="true"></svg>المحافظات التي نوصل إليها</p>
-            <ul class="gov" data-governorates></ul>
-            <p class="note"><svg class="i" data-icon="info" aria-hidden="true"></svg><span data-tpl="site.delivery.note"></span></p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============================================================ لماذا رقيم -->
-    <section class="sec" id="why" aria-labelledby="why-title" style="padding-top:0">
-      <div class="wrap">
-        <div class="story rv">
-          <svg class="mark story-mark" data-logo aria-hidden="true"></svg>
-          <div>
-            <p class="eyebrow"><span class="wedge"></span>لماذا رقيم</p>
-            <h2 class="h2" id="why-title">كلُّ قطعةٍ مرقومة.</h2>
-            <p>في أوروك جنوب العراق، قبل أكثر من خمسة آلاف سنة، ضغط الكتبة أقلام القصب على ألواح الطين ليسجّلوا كل كيس حنطة وكل رأس غنم. هكذا وُلدت الكتابة: سجلّاً للبضاعة.</p>
-            <p>«الرقيم» هو اللوح المرقوم. ونحن نسجّل كل قطعة نبيعها بالدقة نفسها: مصدرها، وسعرها، وضمانها، ورقمها التسلسلي.</p>
-          </div>
-        </div>
-        <ul class="reasons">
-          <li class="card reason rv"><svg class="i" data-icon="shield" aria-hidden="true"></svg><h3>أصلي فقط</h3><p>نشتري من الوكلاء والموزعين المعتمدين، ولا نبيع التقليد.</p></li>
-          <li class="card reason rv" style="--d:1"><svg class="i" data-icon="receipt" aria-hidden="true"></svg><h3>ضمان مكتوب</h3><p>الأجهزة مسجّلة برقمها التسلسلي، وفاتورتك في التطبيق هي ضمانك.</p></li>
-          <li class="card reason rv" style="--d:2"><svg class="i" data-icon="return" aria-hidden="true"></svg><h3>إرجاع واضح</h3><p>إن لم يناسبك المنتج تُرجعه خلال <span data-cfg="returns_days_text">٧ أيام</span> بشروط بسيطة. <a class="link" href="/returns">السياسة</a></p></li>
-          <li class="card reason rv" style="--d:3"><svg class="i" data-icon="chat" aria-hidden="true"></svg><h3>دعم قريب</h3><p>فريق حقيقي يرد عليك على واتساب والهاتف في ساعات العمل.</p></li>
+        <ul class="lp-grid">
+          <li class="card rv"><svg class="i" data-icon="pos" aria-hidden="true"></svg><h3>نقطة البيع والفواتير</h3><p>بيع سريع بالباركود، دفع نقدي أو آجل، إيصال حراري أو فاتورة A4، مرتجعات وسندات قبض.</p></li>
+          <li class="card rv" style="--d:1"><svg class="i" data-icon="warehouse" aria-hidden="true"></svg><h3>المخزون والمخازن</h3><p>كميات لكل مخزن، إدخال وإخراج وتالف، جرد، نقل بين المخازن، وتنبيهات النقص والصلاحية.</p></li>
+          <li class="card rv" style="--d:2"><svg class="i" data-icon="fileText" aria-hidden="true"></svg><h3>عروض أسعار احترافية</h3><p>جهّز عرضاً للزبون بالمكونات والمميزات، اطبعه A4 بشعارك، وحوّله لفاتورة بضغطة حين يوافق.</p></li>
+          <li class="card rv"><svg class="i" data-icon="users" aria-hidden="true"></svg><h3>الزبائن والديون</h3><p>كشف حساب لكل زبون ومورد، الديون والتحصيل، والصناديق بالدينار والدولار.</p></li>
+          <li class="card rv" style="--d:1"><svg class="i" data-icon="chartBar" aria-hidden="true"></svg><h3>التقارير</h3><p>المبيعات والأرباح، الأكثر مبيعاً، المنتجات الراكدة، وقيمة المخزون.</p></li>
+          <li class="card rv" style="--d:2"><svg class="i" data-icon="globe" aria-hidden="true"></svg><h3>رابط متجر لزبائنك</h3><p>صفحة باسم متجرك وشعاره تعرض منتجاتك وأسعارك، والزبون يطلب مباشرة عبر واتساب.</p></li>
+          <li class="card rv"><svg class="i" data-icon="idCard" aria-hidden="true"></svg><h3>موظفون وصلاحيات</h3><p>أضف موظفيك، وحدّد لكل واحد ما يراه: البيع فقط، أو المخزون، أو الحسابات.</p></li>
+          <li class="card rv" style="--d:1"><svg class="i" data-icon="barcode" aria-hidden="true"></svg><h3>الباركود والملصقات</h3><p>ولّد باركود لمنتجاتك واطبع الملصقات، وامسح بالكاميرا أو القارئ.</p></li>
+          <li class="card rv" style="--d:2"><svg class="i" data-icon="download" aria-hidden="true"></svg><h3>برنامج للحاسوب</h3><p>نفس اللوحة على حاسوبك، تعمل بلا إنترنت، وبياناتك محفوظة عندك مع نسخ احتياطي يومي.</p></li>
         </ul>
       </div>
     </section>
 
-    <!-- ============================================================ اطلب منتجاً غير موجود -->
-    <section class="sec sec-order" id="request" aria-labelledby="req-title">
-      <div class="wrap req-grid">
+    <!-- ============================================================ كيف تبدأ -->
+    <section class="sec sec-order" id="how" aria-labelledby="how-title">
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="eyebrow rv"><span class="wedge"></span>كيف تبدأ</p>
+          <h2 class="h2 rv" id="how-title">أربع خطوات، ومتجرك يعمل.</h2>
+        </div>
+        <ol class="lp-steps">
+          <li class="rv"><b>١</b><h3>أنشئ حسابك</h3><p>بريدك أو رقم هاتفك وكلمة سر، واسم شركتك وشعارها ورابط متجرك.</p></li>
+          <li class="rv" style="--d:1"><b>٢</b><h3>نفعّل متجرك</h3><p>نراجع الطلب ونفعّله، فيُجهَّز متجرك بمخزنه وصناديقه وإعداداته.</p></li>
+          <li class="rv" style="--d:2"><b>٣</b><h3>أضف منتجاتك</h3><p>منتجاً منتجاً أو من ملف Excel، بالأسعار والصور والباركود والكميات.</p></li>
+          <li class="rv" style="--d:3"><b>٤</b><h3>ابدأ البيع</h3><p>من نقطة البيع، أو بعروض الأسعار، وشارك رابط متجرك مع زبائنك.</p></li>
+        </ol>
+        <div class="dl rv" style="justify-content:center;margin-top:28px">
+          <a class="btn btn-accent btn-lg" href="/dashboard/?signup"><svg class="i" data-icon="store" aria-hidden="true"></svg><span><b>أنشئ متجرك الآن</b></span></a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ برنامج الحاسوب -->
+    <section class="sec" id="desktop" aria-labelledby="desktop-title">
+      <div class="wrap lp-split">
         <div>
-          <p class="eyebrow rv"><span class="wedge"></span>اطلب منتجاً غير موجود</p>
-          <h2 class="h2 rv" id="req-title">ما وجدته عندنا؟ نوفّره لك.</h2>
-          <p class="lead rv">من صفحة «اطلب منتجاً» في التطبيق، أخبرنا بما تبحث عنه. نبحث عند موزعينا ونرد عليك بالسعر والموعد، ونبلغك بإشعار حين يصل.</p>
-          <ol class="req-steps rv">
-            <li>اكتب اسمه، أو صوّره، أو الصق رابطه</li>
-            <li>حدّد الكمية والميزانية التي تناسبك</li>
-            <li>نبلغك حين يتوفر، فتطلبه بضغطة</li>
-          </ol>
-        </div>
-        <div class="req-art" aria-hidden="true">
-          <div class="ticket ticket-a rv">
-            <div class="t-head"><span>طلب توفير <span class="ltr">#217</span></span><span class="st st-warn"><svg class="i" data-icon="search"></svg>نبحث عنه</span></div>
-            <div class="t-body">
-              <span class="t-img"><svg class="i" data-icon="camera"></svg></span>
-              <div><b>ماكينة قهوة إسبريسو</b><small>الكمية: ١ · الميزانية: حتى ٢٠٠٬٠٠٠ د.ع</small></div>
-            </div>
-            <div class="t-line"><i class="on"></i><i class="on"></i><i></i></div>
+          <p class="eyebrow rv"><span class="wedge"></span>رقيم لسطح المكتب</p>
+          <h2 class="h2 rv" id="desktop-title">يعمل حتى لو انقطع الإنترنت.</h2>
+          <p class="lead rv">نزّل برنامج رقيم على حاسوبك (ويندوز ١٠ و١١)، وأنشئ فيه حساب شركتك باسمها وشعارها. البيع والمخزون والعروض والفواتير كلها تعمل بلا إنترنت، وبياناتك محفوظة على حاسوبك فقط.</p>
+          <ul class="lp-list rv">
+            <li><svg class="i" data-icon="check" aria-hidden="true"></svg>أكثر من شركة على نفس الحاسوب، كل واحدة بكلمة سر وبياناتها منفصلة</li>
+            <li><svg class="i" data-icon="check" aria-hidden="true"></svg>نسخة احتياطية تلقائية كل يوم، وزر «نسخة الآن» للفلاشة</li>
+            <li><svg class="i" data-icon="check" aria-hidden="true"></svg>نفس اللوحة التي تعرفها، بلا تعلّم من جديد</li>
+          </ul>
+          <div class="dl rv">
+            <a class="btn btn-ink btn-lg" href="https://github.com/makhzani2027/raqeem-app/releases/download/desktop/Raqeem-Setup.exe">
+              <svg class="i" data-icon="download" aria-hidden="true"></svg>
+              <span><b>تنزيل برنامج الحاسوب</b><small>ويندوز · Raqeem-Setup.exe</small></span>
+            </a>
           </div>
-          <div class="ticket ticket-b rv" style="--d:2">
-            <div class="t-head"><span>طلب توفير <span class="ltr">#204</span></span><span class="st st-ok"><svg class="i" data-icon="checkCircle"></svg>صار متوفراً</span></div>
-            <div class="t-body">
-              <span class="t-img"><svg class="i" data-icon="clock"></svg></span>
-              <div><b>ساعة ذكية بحزام جلد</b><small>وصلت اليوم · بقي ٣ قطع</small></div>
+          <p class="small rv lp-note">عند التثبيت أول مرة قد يظهر «Windows protected your PC»: اضغط <b>More info</b> ثم <b>Run anyway</b>.</p>
+        </div>
+        <div class="lp-pc rv" aria-hidden="true">
+          <div class="lp-win lp-win-sm">
+            <div class="lp-bar"><i></i><i></i><i></i><span>رقيم — بلا إنترنت</span></div>
+            <div class="lp-acc">
+              <div><span>م</span><b>مركز الحلول الكهربائية</b></div>
+              <div><span>ب</span><b>بيت الإلكترونيات</b></div>
+              <div class="add">+ حساب شركة جديد</div>
             </div>
-            <div class="t-line"><i class="on"></i><i class="on"></i><i class="on"></i></div>
-            <div class="t-cta"><span class="tag">٩٥٬٠٠٠ <small>د.ع</small></span><span class="link">افتح المنتج<svg class="i" data-icon="arrowLeft"></svg></span></div>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ الأمان -->
+    <section class="sec" id="why" aria-labelledby="why-title" style="padding-top:0">
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="eyebrow rv"><span class="wedge"></span>لماذا رقيم</p>
+          <h2 class="h2 rv" id="why-title">متجرك لك وحدك.</h2>
+        </div>
+        <ul class="lp-grid lp-grid-3">
+          <li class="card rv"><svg class="i" data-icon="lock" aria-hidden="true"></svg><h3>عزل كامل</h3><p>كل متجر بحسابه وبياناته؛ لا يرى أي متجر منتجات غيره أو فواتيره أو زبائنه.</p></li>
+          <li class="card rv" style="--d:1"><svg class="i" data-icon="shield" aria-hidden="true"></svg><h3>نسخ احتياطي</h3><p>نسخ دورية لبياناتك على الإنترنت، ونسخ يومية على حاسوبك في برنامج سطح المكتب.</p></li>
+          <li class="card rv" style="--d:2"><svg class="i" data-icon="zap" aria-hidden="true"></svg><h3>مصمّم للعراق</h3><p>العربية من اليمين لليسار، الدينار والدولار بسعر صرفك، والمحافظات ومناطق التوصيل.</p></li>
+        </ul>
       </div>
     </section>
 
@@ -387,11 +215,17 @@
         <div class="faq-aside">
           <p class="eyebrow rv"><span class="wedge"></span>الأسئلة الشائعة</p>
           <h2 class="h2 rv" id="faq-title">قبل أن تسأل.</h2>
-          <p class="lead rv">ولم تجد جوابك؟ راسلنا، نرد في ساعات العمل.</p>
+          <p class="lead rv">ولم تجد جوابك؟ راسلنا.</p>
           <a class="btn btn-ink rv" href="#contact" data-link="whatsapp"><svg class="i" data-icon="whatsapp" aria-hidden="true"></svg>اسألنا على واتساب</a>
         </div>
-        <!-- الأسئلة من app_settings.site: details/summary أصلية (لوحة المفاتيح وقارئ الشاشة بلا سكربت) -->
-        <div class="faq rv" data-live data-faq></div>
+        <div class="faq rv">
+          <details><summary>هل يرى أحد بيانات متجري؟</summary><p>لا. كل متجر منفصل تماماً في قاعدة البيانات نفسها: منتجاتك وفواتيرك وزبائنك لا يراها إلا أنت وموظفوك.</p></details>
+          <details><summary>هل أحتاج إنترنت دائماً؟</summary><p>اللوحة على المتصفح تحتاج الإنترنت. وإن أردت العمل بلا إنترنت، نزّل برنامج الحاسوب: يعمل كاملاً بلا إنترنت وبياناتك على حاسوبك.</p></details>
+          <details><summary>كيف يطلب زبائني؟</summary><p>لكل متجر رابط خاص يعرض منتجاته وأسعاره وتوفرها، والزبون يرسل طلبه مباشرة على واتساب المتجر.</p></details>
+          <details><summary>هل أستطيع إضافة موظفين؟</summary><p>نعم، من «المستخدمون» تضيف موظفيك وتحدد صلاحيات كل واحد، ويدخلون بالبريد أو رقم الهاتف.</p></details>
+          <details><summary>ماذا لو تعطّل حاسوبي؟</summary><p>على الإنترنت بياناتك محفوظة على الخادم. وفي برنامج الحاسوب تُحفظ نسخة يومية تلقائياً، وننصحك بنسخها إلى فلاشة من حين لآخر.</p></details>
+          <details><summary>كم يستغرق تفعيل المتجر؟</summary><p>بعد إرسال الطلب نراجعه ونفعّله، وتفتح لوحتك مباشرة بعد الموافقة.</p></details>
+        </div>
       </div>
     </section>
 
@@ -448,13 +282,11 @@
     <section class="cta" aria-labelledby="cta-title">
       <div class="wrap">
         <svg class="mark cta-mark rv" data-logo aria-hidden="true"></svg>
-        <h2 class="h2 rv" id="cta-title">رقيم في جيبك.</h2>
-        <p class="lead rv">حمّل التطبيق، وتسوّق بثقة من أي مكان في العراق.</p>
+        <h2 class="h2 rv" id="cta-title">ابدأ متجرك على رقيم.</h2>
+        <p class="lead rv">حساب خاص لمتجرك، ولوحة كاملة على الإنترنت وعلى حاسوبك.</p>
         <div class="dl rv">
-          <a class="btn btn-accent btn-lg" href="#contact" data-apk>
-            <svg class="i" data-icon="download" aria-hidden="true"></svg>
-            <span><b data-apk-label>حمّل التطبيق لأندرويد</b><small data-apk-meta>ملف APK لأندرويد</small></span>
-          </a>
+          <a class="btn btn-accent btn-lg" href="/dashboard/?signup"><svg class="i" data-icon="store" aria-hidden="true"></svg><span><b>أنشئ متجرك</b></span></a>
+          <a class="btn btn-ghost btn-lg" href="/dashboard/"><svg class="i" data-icon="login" aria-hidden="true"></svg><span><b>دخول</b></span></a>
         </div>
       </div>
     </section>

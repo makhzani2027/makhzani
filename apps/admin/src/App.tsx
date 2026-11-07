@@ -174,6 +174,7 @@ function Shell() {
               trigger={(open) => <button type="button" className="btn ghost icon" onClick={open} aria-label="حسابي"><Avatar name={auth.profile?.full_name} imageKey={auth.profile?.avatar_key} size={30} /></button>}
               items={[
                 { label: 'حسابي', icon: 'user', onClick: () => navigate('/account') },
+                ...(!IS_LOCAL ? [{ label: 'تنزيل برنامج الحاسوب', icon: 'download' as const, onClick: () => navigate('/desktop') }] : []),
                 { divider: true, label: '' },
                 { label: 'تسجيل الخروج', icon: 'logout', danger: true, onClick: () => void auth.signOut(), disabled: IS_DEMO },
               ]}
