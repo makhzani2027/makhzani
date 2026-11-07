@@ -7,6 +7,7 @@ import { useFmt } from '../../lib/settings';
 import { imgUrl } from '../../lib/media';
 import { sb } from '../../lib/supabase';
 import { IS_DEMO } from '../../lib/env';
+import PlatformContact from './PlatformContact';
 
 type Row = Store & { owner_name: string | null; owner_email: string | null; products: number; invoices: number; staff: number };
 const STATUS: Record<StoreStatus, { label: string; tone: 'warning' | 'success' | 'danger' | 'neutral' }> = {
@@ -26,7 +27,7 @@ export default function Platform() {
     if (error) throw error;
     return (data ?? []) as Row[];
   }, []);
-  const [tab, setTab] = useState<StoreStatus | 'all'>('pending');
+  const [tab, setTab] = useState<StoreStatus | 'all' | 'site'>('pending');
   const rows = useMemo(() => (list.data ?? []).filter((r) => tab === 'all' || r.status === tab), [list.data, tab]);
   const count = (s: StoreStatus) => (list.data ?? []).filter((r) => r.status === s).length;
   const act = useAction(async (a: { id: string; status: StoreStatus; note?: string | null }) => {
@@ -50,15 +51,16 @@ export default function Platform() {
   if (list.error) return <ErrorState message={list.error} onRetry={list.reload} />;
   return (
     <>
-      <PageHeader title="متاجر المنصة" description="طلبات أصحاب المتاجر الجدد والمتاجر العاملة. كل متجر منفصل تماماً ببياناته ولوحته." />
+      <PageHeader title="متاجر المنصة" description="طلبات أصحاب المتاجر الجدد والمتاجر العاملة، وبيانات تواصل موقع رقيم. كل متجر منفصل تماماً ببياناته ولوحته." />
       <Tabs value={tab} onChange={setTab} items={[
         { value: 'pending' as const, label: `بانتظار الموافقة${count('pending') ? ` (${fmt.num(count('pending'))})` : ''}` },
         { value: 'active' as const, label: 'الفعّالة' },
         { value: 'suspended' as const, label: 'الموقوفة' },
         { value: 'rejected' as const, label: 'المرفوضة' },
         { value: 'all' as const, label: 'الكل' },
+        { value: 'site' as const, label: 'موقع رقيم' },
       ]} />
-      {!list.data ? <Loading /> : !rows.length ? (
+      {tab === 'site' ? <PlatformContact /> : !list.data ? <Loading /> : !rows.length ? (
         <EmptyState icon="store" title={tab === 'pending' ? 'لا طلبات جديدة' : 'لا متاجر هنا'} text={tab === 'pending' ? 'رابط التسجيل لأصحاب المتاجر: صفحة الدخول ← «أنشئ متجرك».' : undefined} />
       ) : (
         <div className="stack">

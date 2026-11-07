@@ -301,9 +301,15 @@
   const api = (path, extra = {}) => fetch(`${sb.url}/rest/v1/${path}`, {
     headers: { apikey: sb.anonKey, Authorization: `Bearer ${sb.anonKey}`, ...extra },
   });
-  const liveP = hasSb
-    ? api('app_settings?key=in.(store,site,app)&select=key,value').then((r) => (r.ok ? r.json() : [])).catch(() => [])
-    : Promise.resolve([]);
+  // صفحات منصة رقيم (الرئيسية والسياسات): بيانات التواصل من platform_settings — يعدّلها مدير المنصة وحده،
+  // ولا تتأثر بإعدادات أي متجر. صفحة مشاركة المنتج /p/ تبقى للمتجر ١ (منتجاته).
+  const isStorePage = /^\/p(\/|$)/.test(location.pathname);
+  const liveP = !hasSb ? Promise.resolve([])
+    : isStorePage
+      ? api('app_settings?key=in.(store,site,app)&select=key,value').then((r) => (r.ok ? r.json() : [])).catch(() => [])
+      : api('platform_settings?key=eq.contact&select=key,value').then((r) => (r.ok ? r.json() : []))
+        .then((rows) => (Array.isArray(rows) ? rows.map((r) => (r.key === 'contact' ? { key: 'store', value: r.value } : r)) : []))
+        .catch(() => []);
   const shown = () => root.classList.remove('cfg-wait');
   cfgP.then((cfg) => {
     const slow = setTimeout(() => { apply(cfg); shown(); }, 1200);
