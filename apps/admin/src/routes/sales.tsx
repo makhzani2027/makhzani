@@ -34,7 +34,6 @@ const Reviews = lazy(() => import('../pages/store/Reviews'));
 const Staff = lazy(() => import('../pages/system/Staff'));
 const Settings = lazy(() => import('../pages/system/Settings'));
 const Audit = lazy(() => import('../pages/system/Audit'));
-const SiteContent = lazy(() => import('../pages/system/SiteContent'));
 const Platform = lazy(() => import('../pages/system/Platform'));
 const LocalData = lazy(() => import('../pages/system/LocalData'));
 const DesktopApp = lazy(() => import('../pages/system/DesktopApp'));
@@ -67,9 +66,8 @@ export const salesRoutes: AppRoute[] = [
   { online: true, path: '/reviews', label: 'التقييمات', icon: 'star', group: 'store', perm: 'products.write', element: Reviews, order: 5 },
   { online: true, path: '/staff', label: 'المستخدمون', icon: 'idCard', group: 'system', perm: 'staff.manage', element: Staff, order: 1 },
   { path: '/settings', label: 'الإعدادات', icon: 'settings', group: 'system', perm: 'settings.manage', element: Settings, order: 2 },
-  { online: true, path: '/site', label: 'الموقع التعريفي', icon: 'globe', group: 'system', perm: 'settings.manage', mainStore: true, element: SiteContent, order: 3 },
   { online: true, path: '/desktop', label: 'برنامج الحاسوب', icon: 'download', group: 'system', element: DesktopApp, order: 9 },
   { localOnly: true, path: '/local-data', label: 'البيانات والنسخ الاحتياطي', icon: 'shield', group: 'system', perm: 'settings.manage', element: LocalData, order: 0 },
-  { online: true, path: '/platform', label: 'متاجر المنصة', icon: 'store', group: 'system', platform: true, element: Platform, order: 0 },
+  { online: true, path: '/platform', label: 'متاجر المنصة', icon: 'store', group: 'system', platform: true, element: Platform, order: 0, badge: 'storesPending' },
   { path: '/audit', label: 'سجل العمليات', icon: 'history', group: 'system', perm: 'audit.view', element: Audit, order: 4 },
 ];

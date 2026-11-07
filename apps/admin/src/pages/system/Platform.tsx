@@ -8,6 +8,7 @@ import { imgUrl } from '../../lib/media';
 import { sb } from '../../lib/supabase';
 import { IS_DEMO } from '../../lib/env';
 import PlatformContact from './PlatformContact';
+import PlatformAdmins from './PlatformAdmins';
 
 type Row = Store & { owner_name: string | null; owner_email: string | null; products: number; invoices: number; staff: number };
 const STATUS: Record<StoreStatus, { label: string; tone: 'warning' | 'success' | 'danger' | 'neutral' }> = {
@@ -27,7 +28,7 @@ export default function Platform() {
     if (error) throw error;
     return (data ?? []) as Row[];
   }, []);
-  const [tab, setTab] = useState<StoreStatus | 'all' | 'site'>('pending');
+  const [tab, setTab] = useState<StoreStatus | 'all' | 'site' | 'admins'>('pending');
   const rows = useMemo(() => (list.data ?? []).filter((r) => tab === 'all' || r.status === tab), [list.data, tab]);
   const count = (s: StoreStatus) => (list.data ?? []).filter((r) => r.status === s).length;
   const act = useAction(async (a: { id: string; status: StoreStatus; note?: string | null }) => {
@@ -59,8 +60,9 @@ export default function Platform() {
         { value: 'rejected' as const, label: 'المرفوضة' },
         { value: 'all' as const, label: 'الكل' },
         { value: 'site' as const, label: 'موقع رقيم' },
+        { value: 'admins' as const, label: 'مدراء المنصة' },
       ]} />
-      {tab === 'site' ? <PlatformContact /> : !list.data ? <Loading /> : !rows.length ? (
+      {tab === 'site' ? <PlatformContact /> : tab === 'admins' ? <PlatformAdmins /> : !list.data ? <Loading /> : !rows.length ? (
         <EmptyState icon="store" title={tab === 'pending' ? 'لا طلبات جديدة' : 'لا متاجر هنا'} text={tab === 'pending' ? 'رابط التسجيل لأصحاب المتاجر: صفحة الدخول ← «أنشئ متجرك».' : undefined} />
       ) : (
         <div className="stack">

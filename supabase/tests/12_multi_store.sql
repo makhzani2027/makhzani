@@ -10,7 +10,9 @@ begin
   perform test.ok(not exists (select 1 from public.products where store_id <> private.store1()), 'متجر ١: كل المنتجات القائمة في المتجر ١');
   perform test.ok(not exists (select 1 from public.stock_movements where store_id <> private.store1()), 'متجر ١: كل حركات المخزون في المتجر ١');
   perform test.ok((select status from public.stores where id = private.store1()) = 'active', 'متجر ١: فعّال');
-  perform test.ok((select is_platform_admin from public.profiles where id = test.id('owner')), 'متجر ١: المالك مدير المنصة');
+  perform test.ok(not (select is_platform_admin from public.profiles where id = test.id('owner')), 'متجر ١: صاحب المتجر ليس مدير المنصة تلقائياً');
+  -- في الاختبار: مالك المتجر ١ يُعيَّن مدير منصة يدوياً (كما يفعل Platform Admin لحساب صاحب رقيم)
+  update public.profiles set is_platform_admin = true where id = test.id('owner');
   perform test.eq((select count(*) from pg_proc p join pg_namespace s on s.oid = p.pronamespace
     where s.nspname in ('public', 'private') and p.prosecdef and pg_get_userbyid(p.proowner) not in ('raqeem_fn')
       and p.proname not in ('current_store', 'current_store_id', 'store1', 'fill_store', 'keep_store', 'has_perm', 'is_staff', 'staff_ok', 'aal_ok',

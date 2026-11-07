@@ -28,7 +28,7 @@ export default function App() {
   if (!IS_DEMO && !auth.isStaff && !auth.isPlatformAdmin) return <StoreGate />;
   return (
     <SettingsProvider enabled>
-      <CountsProvider enabled canOrders={auth.can('orders.view')}>
+      <CountsProvider enabled canOrders={auth.can('orders.view')} platform={auth.isPlatformAdmin}>
         <Shell />
       </CountsProvider>
     </SettingsProvider>
@@ -102,7 +102,7 @@ function Shell() {
         {menuOpen ? <div className="scrim only-mobile" onClick={() => setMenuOpen(false)} role="presentation" /> : null}
         <nav className={`side ${menuOpen ? 'open' : ''}`} aria-label="القائمة الرئيسية">
           <div className="side-brand">
-            {auth.store && (auth.store.id !== MAIN_STORE || IS_LOCAL) ? (
+            {auth.store ? (
               <>
                 {auth.store.logo_key ? <img src={imgUrl(auth.store.logo_key, 'sm') ?? ''} alt="" style={{ width: 34, height: 34, objectFit: 'contain', borderRadius: 8, background: '#fff' }} /> : <Mark size={34} ink="var(--side-ink)" hole="#E8622A" />}
                 <b className="truncate" title={auth.store.name}>{auth.store.name}</b>

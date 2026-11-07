@@ -29,3 +29,18 @@ select test.ok(not ((select value from public.platform_settings where key = 'con
 select test.ok(not ((select value -> 'socials' from public.platform_settings where key = 'contact') ? 'facebook'), 'موقع رقيم: روابط غير https تُحذف');
 select test.throws($$select public.set_platform_setting('other', '{}')$$, 'إعداد غير معروف', 'موقع رقيم: مفاتيح معروفة فقط');
 reset role;
+
+-- لا أحد يمنح نفسه (أو غيره) إدارة المنصة من الواجهة: زبون، ولا صاحب متجر بصلاحية الموظفين
+select test.login('cust_a');
+set role authenticated;
+select test.throws($$update public.profiles set is_platform_admin = true where id = auth.uid()$$, 'إدارة المنصة', 'مدير المنصة: الزبون لا يمنح نفسه');
+reset role;
+select test.login('owner2');
+set role authenticated;
+select test.throws($$update public.profiles set is_platform_admin = true where id = auth.uid()$$, 'إدارة المنصة', 'مدير المنصة: صاحب متجر لا يمنح نفسه');
+reset role;
+select test.ok(not (select is_platform_admin from public.profiles where id = test.id('cust_a')) and not (select is_platform_admin from public.profiles where id = test.id('owner2')), 'مدير المنصة: لم يتغير شيء');
+select test.login('cust_a');
+set role authenticated;
+select test.throws($$update public.profiles set store_id = (select id from public.stores where id <> private.store1() limit 1) where id = auth.uid()$$, '', 'العزل: الزبون لا ينقل نفسه لمتجر آخر');
+reset role;

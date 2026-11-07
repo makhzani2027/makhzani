@@ -13,7 +13,7 @@ export const NAV_GROUPS = [
 export type NavGroup = (typeof NAV_GROUPS)[number]['key'];
 
 /** عدّادات حية تظهر بجانب التبويب */
-export type BadgeKey = 'ordersNew' | 'requestsNew' | 'lowStock';
+export type BadgeKey = 'ordersNew' | 'requestsNew' | 'lowStock' | 'storesPending';
 
 export interface AppRoute {
   /** المسار داخل اللوحة: '/products' أو '/products/:id' */

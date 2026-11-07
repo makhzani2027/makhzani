@@ -7,7 +7,7 @@ import { beep } from './scanner';
 import { toast } from '../ui/toast';
 
 type Counts = Record<BadgeKey, number>;
-const Ctx = createContext<{ counts: Counts; refresh: () => void }>({ counts: { ordersNew: 0, requestsNew: 0, lowStock: 0 }, refresh: () => undefined });
+const Ctx = createContext<{ counts: Counts; refresh: () => void }>({ counts: { ordersNew: 0, requestsNew: 0, lowStock: 0, storesPending: 0 }, refresh: () => undefined });
 
 /** نغمة «طلب جديد» من نغمتين قصيرتين */
 function chime() {
@@ -18,8 +18,8 @@ function chime() {
 /**
  * عدّادات القائمة الجانبية + تنبيه لحظي بصوت عند وصول طلب جديد من التطبيق (Realtime على جدول orders).
  */
-export function CountsProvider({ enabled, children, canOrders }: { enabled: boolean; canOrders: boolean; children: ReactNode }) {
-  const [counts, setCounts] = useState<Counts>({ ordersNew: 0, requestsNew: 0, lowStock: 0 });
+export function CountsProvider({ enabled, children, canOrders, platform = false }: { enabled: boolean; canOrders: boolean; platform?: boolean; children: ReactNode }) {
+  const [counts, setCounts] = useState<Counts>({ ordersNew: 0, requestsNew: 0, lowStock: 0, storesPending: 0 });
 
   const refresh = useCallback(async () => {
     if (!enabled) return;
@@ -28,16 +28,19 @@ export function CountsProvider({ enabled, children, canOrders }: { enabled: bool
         ordersNew: demoDb.orders.filter((o) => o.status === 'pending').length,
         requestsNew: demoDb.product_requests.filter((r) => r.status === 'new').length,
         lowStock: demoDb.product_variants.filter((v) => v.is_active && v.available_qty <= v.min_stock).length,
+        storesPending: 0,
       });
       return;
     }
-    const [o, r, l] = await Promise.all([
+    const [o, r, l, s] = await Promise.all([
       supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('product_requests').select('id', { count: 'exact', head: true }).eq('status', 'new'),
       supabase.rpc('low_stock', { lim: 500 }),
+      // طلبات المتاجر الجديدة — لمدير المنصة وحده (RLS: يرى كل المتاجر)
+      platform && !IS_LOCAL ? supabase.from('stores').select('id', { count: 'exact', head: true }).eq('status', 'pending') : Promise.resolve({ count: 0 }),
     ]);
-    setCounts({ ordersNew: o.count ?? 0, requestsNew: r.count ?? 0, lowStock: Array.isArray(l.data) ? l.data.length : 0 });
-  }, [enabled]);
+    setCounts({ ordersNew: o.count ?? 0, requestsNew: r.count ?? 0, lowStock: Array.isArray(l.data) ? l.data.length : 0, storesPending: s.count ?? 0 });
+  }, [enabled, platform]);
 
   useEffect(() => {
     void refresh();
