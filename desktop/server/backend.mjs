@@ -191,9 +191,19 @@ export class Backend {
     if (init && typeof process.getuid === 'function' && process.getuid() === 0) fs.chmodSync(this.accountDir(a.id), 0o777);
     if (init) await pg.initialise();
     else await stopLeftover(path.join(this.accountDir(a.id), 'pg'), this.log);
+    const dataDir = path.join(this.accountDir(a.id), 'pg');
     try {
+      if (process.platform === 'win32') {
+        // ويندوز: postgres.exe يرفض العمل مباشرة تحت حساب مدير الجهاز؛ pg_ctl يشغّله بصلاحيات مقيّدة (الطريقة الرسمية)
+        await pgCtl(['start', '-w', '-t', '60', '-D', dataDir, '-l', path.join(this.accountDir(a.id), 'postgres.log'),
+          '-o', `-p ${port} -c listen_addresses=127.0.0.1 -c max_connections=40`], this.log);
+        this.cur = { account: a, pg: { stop: () => pgCtl(['stop', '-w', '-t', '30', '-m', 'fast', '-D', dataDir], this.log) }, pgPort: port, rest: null, restPort: null };
+        return;
+      }
       await pg.start();
     } catch (e) {
+      const tail = readTail(path.join(this.accountDir(a.id), 'postgres.log'));
+      this.log(`db start failed: ${e && e.message} ${tail}`);
       throw new Error(`تعذّر تشغيل قاعدة البيانات${e && e.message ? `: ${e.message}` : ''}. أغلق البرنامج وافتحه من جديد.`);
     }
     this.cur = { account: a, pg, pgPort: port, rest: null, restPort: null };
@@ -327,6 +337,31 @@ export class Backend {
   }
 }
 
+/** مجلد برامج Postgres المضمّنة (initdb و pg_ctl و postgres) */
+function pgBinDir() {
+  const plat = { win32: 'windows-x64', linux: 'linux-x64', darwin: process.arch === 'arm64' ? 'darwin-arm64' : 'darwin-x64' }[process.platform];
+  for (let d = path.dirname(require.resolve('embedded-postgres')); d !== path.dirname(d); d = path.dirname(d)) {
+    if (path.basename(d) === 'node_modules') return path.join(d, '@embedded-postgres', plat, 'native', 'bin');
+  }
+  return '';
+}
+
+function pgCtl(args, log) {
+  const exe = path.join(pgBinDir(), process.platform === 'win32' ? 'pg_ctl.exe' : 'pg_ctl');
+  return new Promise((resolve, reject) => {
+    const p = spawn(exe, args, { windowsHide: true });
+    let out = '';
+    p.stdout.on('data', (d) => { out += d; });
+    p.stderr.on('data', (d) => { out += d; });
+    p.on('error', reject);
+    p.on('exit', (code) => { log(`pg_ctl ${args[0]}: ${code} ${out.trim()}`); code === 0 ? resolve() : reject(new Error(out.trim() || `pg_ctl ${code}`)); });
+  });
+}
+
+function readTail(file) {
+  try { return fs.readFileSync(file, 'utf8').slice(-1500); } catch { return ''; }
+}
+
 /** قاعدة بقيت تعمل بعد إغلاق غير طبيعي للبرنامج: نوقفها قبل التشغيل (Postgres يتعافى من سجلّه تلقائياً) */
 async function stopLeftover(dataDir, log) {
   const pidFile = path.join(dataDir, 'postmaster.pid');
@@ -335,6 +370,9 @@ async function stopLeftover(dataDir, log) {
   const alive = (n) => { try { process.kill(n, 0); return true; } catch { return false; } };
   if (!pid || !alive(pid)) return;
   log(`stopping leftover postgres ${pid}`);
+  if (process.platform === 'win32') {
+    try { await pgCtl(['stop', '-w', '-t', '30', '-m', 'fast', '-D', dataDir], log); return; } catch { /* نكمل بالإيقاف القسري */ }
+  }
   try { process.kill(pid, process.platform === 'win32' ? undefined : 'SIGINT'); } catch { /* */ }
   for (let i = 0; i < 60 && alive(pid); i++) await new Promise((r) => setTimeout(r, 250));
   if (alive(pid)) { try { process.kill(pid, 'SIGKILL'); } catch { /* */ } await new Promise((r) => setTimeout(r, 500)); }

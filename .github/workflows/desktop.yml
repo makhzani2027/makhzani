@@ -95,8 +95,10 @@ jobs:
         shell: pwsh
         run: |
           $env:RAQEEM_ROOT = "$env:RUNNER_TEMP\raqeem"
+          $env:RAQEEM_DEBUG = '1'
           $p = Start-Process node -ArgumentList 'server/cli.mjs','47831' -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\gw.log" -RedirectStandardError "$env:RUNNER_TEMP\gw.err"
           Start-Sleep 3
+          trap { Write-Host '----- gateway log'; Get-Content "$env:RUNNER_TEMP\gw.log","$env:RUNNER_TEMP\gw.err" -ErrorAction SilentlyContinue; Get-ChildItem "$env:RUNNER_TEMP\raqeem" -Recurse -Filter postgres.log | ForEach-Object { Write-Host "----- $($_.FullName)"; Get-Content $_.FullName -Tail 40 }; break }
           $c = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:47831/local/create -ContentType 'application/json' -Body (@{ name = 'Smoke Store'; password = '1234' } | ConvertTo-Json)
           $s = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:47831/local/open -ContentType 'application/json' -Body (@{ id = $c.id; password = '1234' } | ConvertTo-Json)
           $wh = Invoke-RestMethod -Uri 'http://127.0.0.1:47831/rest/v1/warehouses?select=id,name' -Headers @{ Authorization = "Bearer $($s.access_token)" }
