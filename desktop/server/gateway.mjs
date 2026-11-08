@@ -34,6 +34,27 @@ const safeRel = (p) => {
   return parts.join('/');
 };
 
+/** رفع صورة من المتصفح يأتي multipart/form-data (storage-js): نأخذ بايتات الملف وحده، لا الطلب كاملاً */
+export function fileFromUpload(body, contentType) {
+  const m = /multipart\/form-data;.*boundary=("?)([^";]+)\1/i.exec(contentType || '');
+  if (!m) return body;
+  const sep = Buffer.from(`--${m[2]}`);
+  let at = body.indexOf(sep);
+  while (at !== -1) {
+    const next = body.indexOf(sep, at + sep.length);
+    if (next === -1) break;
+    const part = body.subarray(at + sep.length, next);
+    const headEnd = part.indexOf('\r\n\r\n');
+    if (headEnd !== -1 && /filename=/i.test(part.subarray(0, headEnd).toString('utf8'))) {
+      let data = part.subarray(headEnd + 4);
+      if (data.subarray(-2).toString() === '\r\n') data = data.subarray(0, -2);
+      return data;
+    }
+    at = next;
+  }
+  return body;
+}
+
 /**
  * @param {import('./backend.mjs').Backend} backend
  * @param {{ adminDir: string, port: number, host?: string, desktop?: { chooseFolder?: () => Promise<string|null>, openPath?: (p: string) => void } }} o
@@ -86,6 +107,8 @@ export function createGateway(backend, o) {
         const rel = safeRel(p.slice('/storage/v1/object/public/media/'.length));
         if (!rel) return send(res, 400, 'bad path');
         const dir = backend.accountDir(backend.cur.account.id);
+        // local/ = شعار الحساب فقط (لا ملفات الحساب الأخرى: account.json، القاعدة، النسخ)
+        if (rel.startsWith('local/') && !/^local\/logo\.(png|jpe?g|webp)$/i.test(rel)) return send(res, 404, 'not found');
         let file = rel.startsWith('local/') ? path.join(dir, rel.slice(6)) : path.join(dir, 'media', rel);
         if (!fs.existsSync(file)) {
           // صورة بمقاس غير مرفوع (-sm/-md/-lg): نقدّم المتوفر
@@ -110,7 +133,7 @@ export function createGateway(backend, o) {
           const body = await readBody(req);
           const file = path.join(dir, rel);
           fs.mkdirSync(path.dirname(file), { recursive: true });
-          fs.writeFileSync(file, body);
+          fs.writeFileSync(file, fileFromUpload(body, req.headers['content-type']));
           return send(res, 200, { Key: `media/${rel}`, Id: rel });
         }
         return send(res, 405, { message: 'method' });
@@ -168,12 +191,14 @@ export function createGateway(backend, o) {
       if (req.method === 'POST' && p === '/local/choose-root') {
         const dir = await o.desktop?.chooseFolder?.();
         if (dir) {
+          await backend.closeAccount();
           backend.setRoot(path.join(dir, path.basename(dir).toLowerCase() === 'raqeem' ? '' : 'Raqeem'));
           o.desktop?.saveRoot?.(backend.root);
         }
         return send(res, 200, { root: backend.root, chosen: !!dir });
       }
       if (req.method === 'POST' && p === '/local/confirm-root') {
+        await backend.closeAccount();
         backend.setRoot(backend.root);
         o.desktop?.saveRoot?.(backend.root);
         return send(res, 200, { root: backend.root });

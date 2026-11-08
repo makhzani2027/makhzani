@@ -12,5 +12,6 @@ export const SUPABASE_ANON_KEY = LOCAL ? LOCAL.anonKey : (import.meta.env.VITE_S
 /** وضع العرض: بلا إعداد Supabase تعمل اللوحة ببيانات تجريبية في الذاكرة */
 export const IS_DEMO = !SUPABASE_URL || !SUPABASE_ANON_KEY;
 
-export const MEDIA_BASE =
-  (import.meta.env.VITE_MEDIA_BASE as string | undefined)?.trim() || (SUPABASE_URL ? defaultMediaBase(SUPABASE_URL) : '');
+// نسخة الحاسوب: الصور من الخادم المحلي دائماً (لا رابط إنترنت حتى لو ضُبط VITE_MEDIA_BASE عند البناء)
+export const MEDIA_BASE = LOCAL ? defaultMediaBase(location.origin)
+  : (import.meta.env.VITE_MEDIA_BASE as string | undefined)?.trim() || (SUPABASE_URL ? defaultMediaBase(SUPABASE_URL) : '');

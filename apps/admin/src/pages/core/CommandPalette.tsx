@@ -5,7 +5,7 @@ import type { AppRoute } from '../../routes/types';
 import { Icon, Modal, Thumb } from '../../ui';
 import { useDebounced } from '../../lib/hooks';
 import { useAuth } from '../../lib/auth';
-import { IS_DEMO } from '../../lib/env';
+import { IS_DEMO, IS_LOCAL } from '../../lib/env';
 import { demoDb } from '../../lib/demo-db';
 import { supabase } from '../../lib/supabase';
 
@@ -64,7 +64,7 @@ export default function CommandPalette({ open, onClose, routes }: { open: boolea
           const { data } = phone ? await query.eq('phone', phone) : await query.ilike('name', like);
           for (const c of data ?? []) out.push({ key: c.id, icon: 'user', title: c.name, sub: formatPhone(c.phone), to: `/customers/${c.id}` });
         })());
-        if (can('orders.view')) tasks.push((async () => {
+        if (can('orders.view') && !IS_LOCAL) tasks.push((async () => {
           const { data } = await supabase!.from('orders').select('id,number').ilike('number', like).limit(4);
           for (const o of data ?? []) out.push({ key: o.id, icon: 'bag', title: `طلب ${o.number}`, to: `/orders/${o.id}` });
         })());

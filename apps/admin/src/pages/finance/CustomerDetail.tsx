@@ -14,6 +14,7 @@ import { QuickCustomer, RangePicker, VoucherModal, useMoney, useRange } from '..
 import { listPayments, partyStatement } from './api';
 import { StatementView } from './StatementView';
 import '../sales/sales.css';
+import { IS_LOCAL } from '../../lib/env';
 
 export default function CustomerDetail() {
   const { id = '' } = useParams();
@@ -81,7 +82,7 @@ export default function CustomerDetail() {
         </div>
       ) : null}
       {cust.notes ? <p className="sx-muted sx-pre">{cust.notes}</p> : null}
-      <Tabs value={tab} onChange={setTab} items={[{ value: 'invoices', label: 'الفواتير' }, { value: 'orders', label: 'طلبات التطبيق' }, ...(can('finance.view') ? [{ value: 'payments' as const, label: 'الدفعات' }, { value: 'statement' as const, label: 'كشف الحساب' }] : [])]} />
+      <Tabs value={tab} onChange={setTab} items={[{ value: 'invoices', label: 'الفواتير' }, ...(!IS_LOCAL ? [{ value: 'orders' as const, label: 'طلبات التطبيق' }] : []), ...(can('finance.view') ? [{ value: 'payments' as const, label: 'الدفعات' }, { value: 'statement' as const, label: 'كشف الحساب' }] : [])]} />
       {tab === 'invoices' ? <DataTable rows={invs.data?.rows} columns={invCols} rowKey={(i) => i.id} loading={invs.loading} error={invs.error} onRetry={invs.reload} onRowClick={(i) => nav(`/invoices/${i.id}`)} empty={{ icon: 'receipt', title: 'لا فواتير لهذا الزبون' }} /> : null}
       {tab === 'orders' ? <DataTable rows={ords.data?.rows} columns={ordCols} rowKey={(o) => o.id} loading={ords.loading} error={ords.error} onRetry={ords.reload} onRowClick={(o) => nav(`/orders/${o.id}`)} empty={{ icon: 'bag', title: 'لا طلبات من التطبيق' }} /> : null}
       {tab === 'payments' ? <DataTable rows={pays.data?.rows} columns={payCols} rowKey={(p) => p.id} loading={pays.loading} error={pays.error} onRetry={pays.reload} empty={{ icon: 'wallet', title: 'لا دفعات' }} /> : null}

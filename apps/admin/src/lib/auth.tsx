@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { ALL_PERMISSIONS, can as canPerm, type Permission, type Profile, type StaffRole, type Store } from '@raqeem/shared';
-import { IS_DEMO } from './env';
+import { IS_DEMO, IS_LOCAL } from './env';
 import { supabase, errorMessage } from './supabase';
 
 interface AuthState {
@@ -84,7 +84,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let alive = true;
     supabase.auth.getSession().then(async ({ data }) => {
       if (!alive) return;
-      await loadProfile(data.session);
+      let s = data.session;
+      // نسخة الحاسوب: جلسة محفوظة من تشغيل سابق والحساب مغلق الآن (أُعيد فتح البرنامج) ← شاشة الحسابات، لا شاشة «ليس موظفاً»
+      if (IS_LOCAL && s && supabase) {
+        let acc = '';
+        try { acc = JSON.parse(atob(s.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).acc ?? ''; } catch { /* */ }
+        const st = await fetch('/local/state').then((r) => r.json()).catch(() => null) as { open?: { id: string } | null } | null;
+        if (!st?.open || st.open.id !== acc) { await supabase.auth.signOut({ scope: 'local' }).catch(() => {}); s = null; }
+      }
+      if (!alive) return;
+      await loadProfile(s);
       if (alive) setReady(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
@@ -131,6 +140,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       signOut: async () => {
         if (supabase) await supabase.auth.signOut();
+        // نسخة الحاسوب: إغلاق قاعدة الحساب (لتغيير مجلد البيانات أو فتح حساب آخر بأمان)
+        if (IS_LOCAL) await fetch('/local/close', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
       },
       reload: async () => {
         if (!supabase) return;

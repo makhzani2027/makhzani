@@ -38,6 +38,8 @@ export default function LocalAccounts() {
   const [logo, setLogo] = useState<File | null>(null);
   const [storeFile, setStoreFile] = useState<StoreFile | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
+  const [importNote, setImportNote] = useState<string | null>(null);
+  const [pendingSession, setPendingSession] = useState<{ access_token: string; refresh_token: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,8 +75,13 @@ export default function LocalAccounts() {
       if (storeFile) {
         setProgress('جارٍ نقل المنتجات…');
         const res = await importStoreFile(storeFile, s.access_token, (d, t) => setProgress(`جارٍ نقل المنتجات: ${d} من ${t}`));
-        if (res.failed.length) console.warn('منتجات لم تُنقل', res.failed);
         setProgress(null);
+        if (res.failed.length) {
+          // نُبقي الشاشة لعرض ما لم يُنقل، ثم يدخل المستخدم بنفسه
+          setImportNote(`نُقل ${res.ok} من ${res.ok + res.failed.length} منتج. لم يُنقل: ${res.failed.slice(0, 5).join('، ')}${res.failed.length > 5 ? '…' : ''}`);
+          setPendingSession(s);
+          return;
+        }
       }
       const { error: err } = await supabase.auth.setSession({ access_token: s.access_token, refresh_token: s.refresh_token });
       if (err) throw err;
@@ -119,6 +126,11 @@ export default function LocalAccounts() {
         <div className="col" style={{ gap: 16, width: 'min(440px, 100%)' }}>
           <div className="only-mobile"><Mark size={56} /></div>
           {error ? <Alert tone="danger">{error}</Alert> : null}
+          {importNote ? (
+            <Alert tone="warning">{importNote}
+              <div style={{ marginTop: 8 }}><Button size="sm" variant="primary" onClick={() => { const ps = pendingSession; setImportNote(null); setPendingSession(null); if (ps && supabase) void supabase.auth.setSession(ps); }}>متابعة إلى الحساب</Button></div>
+            </Alert>
+          ) : null}
 
           {!st.root_chosen && !st.accounts.length ? (
             <div className="col" style={{ gap: 14 }}>

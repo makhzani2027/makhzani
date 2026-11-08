@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Field, Input, PageHeader, Segmented, toast } from '../../ui';
 import { useAuth } from '../../lib/auth';
-import { IS_DEMO } from '../../lib/env';
+import { IS_DEMO, IS_LOCAL } from '../../lib/env';
 import { supabase, errorMessage } from '../../lib/supabase';
 import { useThemePref, type ThemePref } from '../../lib/theme';
 
 /** حسابي: الاسم، كلمة السر، التحقق بخطوتين (TOTP)، المظهر */
 export default function Account() {
-  const { profile, isOwner, role, reload } = useAuth();
+  const { profile, isOwner, role, reload, session } = useAuth();
+  const [oldPw, setOldPw] = useState('');
   const [name, setName] = useState(profile?.full_name ?? '');
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
@@ -18,7 +19,7 @@ export default function Account() {
   const [code, setCode] = useState('');
 
   const loadMfa = async () => {
-    if (!supabase) return;
+    if (!supabase || IS_LOCAL) return;
     const { data } = await supabase.auth.mfa.listFactors();
     setMfa((data?.totp ?? []).map((f) => ({ id: f.id, status: f.status })));
   };
@@ -33,6 +34,20 @@ export default function Account() {
   };
   const savePw = async () => {
     if (!supabase) return;
+    // نسخة الحاسوب: كلمة سر حساب الشركة على هذا الحاسوب (تُفحص الحالية أولاً)
+    if (IS_LOCAL) {
+      if (pw.length < 4) return toast.error('كلمة السر ٤ أحرف على الأقل.');
+      if (pw !== pw2) return toast.error('كلمتا السر غير متطابقتين.');
+      let acc = '';
+      try { acc = JSON.parse(atob((session?.access_token ?? '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).acc ?? ''; } catch { /* */ }
+      setBusy('pw');
+      const r = await fetch('/local/password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: acc, old_password: oldPw, new_password: pw }) });
+      const j = await r.json().catch(() => ({}));
+      setBusy(null);
+      if (!r.ok) return toast.error(j.error || 'تعذّر تغيير كلمة السر.');
+      toast.success('تم تغيير كلمة سر الحساب'); setOldPw(''); setPw(''); setPw2('');
+      return;
+    }
     if (pw.length < 10) return toast.error('كلمة السر يجب ألا تقل عن ١٠ أحرف.');
     if (pw !== pw2) return toast.error('كلمتا السر غير متطابقتين.');
     setBusy('pw');
@@ -81,12 +96,13 @@ export default function Account() {
         </Card>
         <Card title="كلمة السر" icon="lock">
           <div className="col">
-            <Field label="كلمة السر الجديدة" hint="١٠ أحرف على الأقل"><Input type="password" dir="ltr" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
+            {IS_LOCAL ? <Field label="كلمة السر الحالية"><Input type="password" dir="ltr" autoComplete="current-password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} /></Field> : null}
+            <Field label="كلمة السر الجديدة" hint={IS_LOCAL ? '٤ أحرف على الأقل' : '١٠ أحرف على الأقل'}><Input type="password" dir="ltr" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
             <Field label="أعد كتابتها"><Input type="password" dir="ltr" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></Field>
             <div><Button variant="primary" loading={busy === 'pw'} disabled={IS_DEMO || !pw} onClick={savePw}>تغيير كلمة السر</Button></div>
           </div>
         </Card>
-        <Card title="التحقق بخطوتين" icon="shield" actions={verified.length ? <Badge tone="success">مفعّل</Badge> : <Badge>غير مفعّل</Badge>}>
+        {!IS_LOCAL ? <Card title="التحقق بخطوتين" icon="shield" actions={verified.length ? <Badge tone="success">مفعّل</Badge> : <Badge>غير مفعّل</Badge>}>
           <div className="col">
             <p className="dim small">عند الدخول يُطلب رمز من تطبيق مصادقة على هاتفك (Google Authenticator أو Microsoft Authenticator). ننصح به بشدة لصاحب المتجر.</p>
             {verified.map((f) => <div key={f.id} className="row between"><span>تطبيق المصادقة</span><Button size="sm" variant="danger" onClick={() => void removeFactor(f.id)}>إيقاف</Button></div>)}
@@ -101,7 +117,7 @@ export default function Account() {
               </div>
             ) : null}
           </div>
-        </Card>
+        </Card> : null}
       </div>
     </>
   );

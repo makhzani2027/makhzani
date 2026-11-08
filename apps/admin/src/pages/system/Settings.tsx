@@ -14,6 +14,7 @@ import { useMoney } from '../sales/components/common';
 import { listBranches, saveBranch } from './api';
 import { listBrands } from '../catalog/api';
 import '../sales/sales.css';
+import { IS_LOCAL } from '../../lib/env';
 
 type Tab = 'store' | 'currency' | 'branches' | 'invoice' | 'inventory' | 'app';
 
@@ -22,7 +23,7 @@ export default function Settings() {
   return (
     <>
       <PageHeader title="الإعدادات" description="بيانات المتجر والعملة والطباعة والمخزون والتطبيق. محتوى الموقع التعريفي (الأسئلة وطرق الدفع والتوصيل) في «الموقع التعريفي»." />
-      <Tabs value={tab} onChange={setTab} items={[{ value: 'store', label: 'المتجر' }, { value: 'currency', label: 'العملة' }, { value: 'branches', label: 'الفروع' }, { value: 'invoice', label: 'الفواتير والطباعة' }, { value: 'inventory', label: 'المخزون والبيع' }, { value: 'app', label: 'التطبيق' }]} />
+      <Tabs value={tab} onChange={setTab} items={[{ value: 'store', label: 'المتجر' }, { value: 'currency', label: 'العملة' }, { value: 'branches', label: 'الفروع' }, { value: 'invoice', label: 'الفواتير والطباعة' }, { value: 'inventory', label: 'المخزون والبيع' }, ...(!IS_LOCAL ? [{ value: 'app' as const, label: 'التطبيق' }] : [])]} />
       {tab === 'store' ? <StoreTab /> : tab === 'currency' ? <CurrencyTab /> : tab === 'branches' ? <BranchesTab /> : tab === 'invoice' ? <InvoiceTab /> : tab === 'inventory' ? <InventoryTab /> : <AppTab />}
     </>
   );

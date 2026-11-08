@@ -10,6 +10,7 @@ import { dashboardSummary, listOrders, lowStock, openSessions, salesSeries, topP
 import { useSetting } from './data/app-settings';
 import { previousRange, rangeOf, useMoney, VoucherModal, type RangeKey } from './components/common';
 import './sales.css';
+import { IS_LOCAL } from '../../lib/env';
 
 /** اسم الترحيب: الاسم الأول، وكلمتان إن كان الأول جزءاً من اسم مركّب أو لقباً («عبد الله»، «صاحب المتجر»)، بلا ما بين القوسين */
 const NAME_PREFIX = new Set(['عبد', 'أبو', 'ابو', 'أم', 'ام', 'آل', 'ابن', 'بنت', 'صاحب', 'صاحبة', 'مدير', 'مديرة', 'الحاج', 'الحاجة', 'حاج', 'السيد', 'السيدة', 'الأستاذ', 'الأستاذة', 'د.', 'دكتور']);
@@ -95,7 +96,7 @@ export default function Overview() {
                 format={(v) => m(v, 'IQD', true)} />
             )}
           </Card> : null}
-          {can('orders.view') ? (
+          {can('orders.view') && !IS_LOCAL ? (
             <Card title="أحدث الطلبات" icon="bag" actions={<Button size="sm" variant="ghost" onClick={() => nav('/orders')}>كل الطلبات</Button>} flush>
               {orders.loading && !orders.data ? <div style={{ padding: 16 }}><Skeleton h={160} /></div> : !(orders.data?.rows.length) ? <EmptyState icon="bag" title="لا طلبات بعد" text="طلبات تطبيق المتجر تظهر هنا فور وصولها." /> : (
                 <div className="list" style={{ padding: '0 16px' }}>

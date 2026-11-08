@@ -101,6 +101,21 @@ try {
     await page.screenshot({ path: `${SHOTS}/05-pos.png` });
     ok((await page.locator('.pos-card').count()) >= 1, 'نقطة البيع تعرض المنتج');
 
+    // ---------------------------------------------------------------- إعادة الفحص: الصور وحماية ملفات الحساب وكلمة السر
+    const png = fs.readFileSync('resources/icon.png');
+    const fd = new FormData();
+    fd.append('cacheControl', '3600');
+    fd.append('', new Blob([png], { type: 'image/png' }), 'blob');
+    const up = await fetch(`${BASE}/storage/v1/object/media/products/e2e/test.png`, { method: 'POST', headers: { Authorization: `Bearer ${t}` }, body: fd });
+    const got = Buffer.from(await (await fetch(`${BASE}/storage/v1/object/public/media/products/e2e/test.png`)).arrayBuffer());
+    ok(up.ok && got.equals(png), `رفع صورة (multipart) يحفظ الصورة سليمة (${got.length} من ${png.length} بايت)`);
+    const leak = await fetch(`${BASE}/storage/v1/object/public/media/local/account.json`);
+    ok(leak.status === 404, `ملفات الحساب غير مكشوفة عبر رابط الصور (${leak.status})`);
+    const st1 = await (await fetch(`${BASE}/local/state`)).json();
+    const pw = (o, n) => fetch(`${BASE}/local/password`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: st1.open.id, old_password: o, new_password: n }) });
+    ok(!(await pw('خطأ', 'جديدة1')).ok, 'تغيير كلمة السر يرفض الحالية الخاطئة');
+    ok((await pw('سر1234', 'سر1234')).ok, 'تغيير كلمة السر يعمل');
+
     // ---------------------------------------------------------------- نسخة احتياطية
     const b = await post('/local/backup', {}, t);
     ok(fs.existsSync(path.join(b.file, 'pg', 'PG_VERSION')) && fs.existsSync(path.join(b.file, 'account.json')), `نسخة احتياطية ${b.file}`);
