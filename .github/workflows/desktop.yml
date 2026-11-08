@@ -50,7 +50,7 @@ jobs:
           for i in $(seq 1 40); do curl -sf http://127.0.0.1:47831/local/state >/dev/null && break; sleep 0.5; done
           SHOTS=$RUNNER_TEMP/shots node e2e/flow.mjs first || { tail -60 $RUNNER_TEMP/gw1.log; exit 1; }
           kill -INT $(cat $RUNNER_TEMP/gw.pid); sleep 3
-      - name: E2E — after restart (+ account from the first release: update its database)
+      - name: E2E — after restart (+ account from the first release gets its database updated)
         working-directory: desktop
         run: |
           # كأن الحساب أُنشئ بالإصدار الأول (بلا قائمة تحديثات): الفتح يطبّق تحديثات القاعدة الأحدث
