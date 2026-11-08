@@ -60,6 +60,10 @@ jobs:
           SHOTS=$RUNNER_TEMP/shots node e2e/flow.mjs second || { tail -60 $RUNNER_TEMP/gw2.log; exit 1; }
           grep -q "upgrade: 20261107000029_platform_settings.sql" $RUNNER_TEMP/gw2.log || { echo "::error::account database was not updated"; tail -40 $RUNNER_TEMP/gw2.log; exit 1; }
           ls -la $RUNNER_TEMP/raqeem/*/
+      - name: Inspector 3 — open every page and record errors
+        working-directory: desktop
+        continue-on-error: true
+        run: SHOTS=$RUNNER_TEMP/shots node e2e/crawl.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: desktop-e2e-shots, path: '${{ runner.temp }}/shots', retention-days: 7, if-no-files-found: ignore }
