@@ -17,12 +17,12 @@ const cfgFile = () => path.join(app.getPath('userData'), 'raqeem.json');
 function readCfg() { try { return JSON.parse(fs.readFileSync(cfgFile(), 'utf8')); } catch { return {}; } }
 function writeCfg(c) { fs.mkdirSync(path.dirname(cfgFile()), { recursive: true }); fs.writeFileSync(cfgFile(), JSON.stringify(c, null, 2)); }
 
-/** مجلد البيانات الافتراضي: D:\Raqeem إن وُجد القرص D، وإلا «المستندات\Raqeem» */
+/** مجلد البيانات الافتراضي: D:\Raqeem إن وُجد القرص D، وإلا مجلد المستخدم\Raqeem (خارج OneDrive: مزامنته تُتلف قاعدة البيانات) */
 function defaultRoot() {
   if (process.platform === 'win32' && fs.existsSync('D:\\')) {
     try { fs.mkdirSync('D:\\Raqeem', { recursive: true }); fs.accessSync('D:\\Raqeem', fs.constants.W_OK); return 'D:\\Raqeem'; } catch { /* قرص للقراءة فقط */ }
   }
-  return path.join(app.getPath('documents'), 'Raqeem');
+  return path.join(app.getPath('home'), 'Raqeem');
 }
 
 async function start() {
@@ -74,7 +74,40 @@ async function start() {
   });
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(`http://127.0.0.1:${PORT}`)) { e.preventDefault(); void shell.openExternal(url); } });
   await win.loadURL(`http://127.0.0.1:${PORT}/`);
+  setupUpdates();
 }
+
+// ---------------------------------------------------------------- التحديث التلقائي
+// يفحص عند التشغيل ثم كل ٤ ساعات (إن وُجد إنترنت)، ينزّل التحديث بالخلفية، ثم يسأل: إعادة التشغيل الآن أم عند الإغلاق.
+// بلا إنترنت: لا شيء يتغير، والبرنامج يعمل كالعادة.
+let updateReady = false;
+function setupUpdates() {
+  if (!app.isPackaged || process.env.RAQEEM_ROOT) return;
+  let autoUpdater;
+  try { ({ autoUpdater } = require('electron-updater')); } catch { return; }
+  const log = (m) => { try { fs.appendFileSync(path.join(app.getPath('userData'), 'raqeem.log'), `${new Date().toISOString()} update: ${m}\n`); } catch { /* */ } };
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.logger = { info: log, warn: log, error: log, debug: () => {} };
+  autoUpdater.on('error', (e) => log(`error ${e && e.message}`));
+  autoUpdater.on('update-available', (i) => log(`available ${i && i.version}`));
+  autoUpdater.on('update-downloaded', async (i) => {
+    updateReady = true;
+    if (!win) return;
+    const r = await dialog.showMessageBox(win, {
+      type: 'info', buttons: ['إعادة التشغيل الآن', 'لاحقاً'], defaultId: 0, cancelId: 1,
+      title: 'رقيم', message: `تحديث جديد لرقيم جاهز (${i && i.version ? i.version : ''})`,
+      detail: 'بياناتك لا تتأثر. إن اخترت «لاحقاً» يُثبَّت التحديث تلقائياً عند إغلاق البرنامج.',
+    });
+    if (r.response === 0) { quitForUpdate = true; app.quit(); }
+  });
+  const check = () => autoUpdater.checkForUpdates().catch((e) => log(`check failed ${e && e.message}`));
+  setTimeout(check, 15_000);
+  setInterval(check, 4 * 3600_000);
+  installUpdate = () => { try { autoUpdater.quitAndInstall(true, true); } catch (e) { log(`install failed ${e && e.message}`); } };
+}
+let quitForUpdate = false;
+let installUpdate = null;
 
 Menu.setApplicationMenu(Menu.buildFromTemplate([
   { label: 'رقيم', submenu: [{ role: 'reload', label: 'تحديث' }, { role: 'togglefullscreen', label: 'ملء الشاشة' }, { type: 'separator' }, { role: 'quit', label: 'خروج' }] },
@@ -102,6 +135,10 @@ app.on('before-quit', (e) => {
   e.preventDefault();
   quitting = true;
   // إغلاق نظيف لقاعدة البيانات قبل الخروج (حتى لا تبقى تعمل في الخلفية)
-  Promise.resolve(backend.closeAccount()).catch(() => {}).finally(() => { gateway?.close().catch(() => {}); app.quit(); });
+  Promise.resolve(backend.closeAccount()).catch(() => {}).finally(() => {
+    gateway?.close().catch(() => {});
+    // التحديث بعد إغلاق قاعدة البيانات بأمان
+    if (quitForUpdate && updateReady && installUpdate) installUpdate(); else app.quit();
+  });
 });
 app.on('window-all-closed', () => app.quit());

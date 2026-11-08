@@ -127,6 +127,7 @@ export default function LocalAccounts() {
                 <p className="dim">كل منتجاتك وفواتيرك ونسخك الاحتياطية تُحفظ في هذا المجلد على حاسوبك. اختر قرصاً غير قرص النظام (مثل D) ليبقى آمناً إن أُعيد تثبيت ويندوز.</p>
               </div>
               <div className="card" style={{ padding: 14 }}><span className="small dim">المكان المقترح</span><div className="ltr" style={{ fontWeight: 800, fontSize: 18, textAlign: 'start' }}>{st.root}</div></div>
+              {/onedrive/i.test(st.root) ? <Alert tone="warning">هذا المكان داخل OneDrive، ومزامنته قد تُتلف قاعدة البيانات. اختر مكاناً خارجه مثل D:\Raqeem أو C:\Raqeem.</Alert> : null}
               <Button variant="primary" size="lg" block onClick={() => void confirmRoot()}>الحفظ هنا</Button>
               <Button block icon="edit" onClick={() => void chooseRoot()}>اختيار مكان آخر…</Button>
             </div>
@@ -188,6 +189,7 @@ export default function LocalAccounts() {
             </div>
           )}
           <div className="small faint" style={{ marginTop: 8 }}>
+            {/onedrive/i.test(st.root) ? <Alert tone="warning">مجلد البيانات داخل OneDrive، ومزامنته قد تُتلف قاعدة البيانات وتمنع تشغيلها. انقل المجلد إلى مكان خارجه (مثل D:\Raqeem) ثم اختره من «تغيير».</Alert> : null}
             مجلد البيانات: <span className="ltr">{st.root}</span>{' '}
             <button type="button" className="link-btn small" onClick={() => void chooseRoot()}>تغيير</button>
           </div>

@@ -16,6 +16,8 @@ import { checkPassword, hashPassword, randomSecret, signJwt } from './jwt.mjs';
 
 const require = createRequire(import.meta.url);
 const SCHEMA_VERSION = 1;
+// حسابات أُنشئت قبل تتبّع التحديثات: قاعدتها فيها الملفات حتى هذا الملف (أول إصدار للبرنامج)
+const LEGACY_LAST_MIGRATION = '20261104000028_store_signup.sql';
 export const STORE1 = '00000000-0000-4000-a000-000000000001';
 
 export function freePort(preferred = 0) {
@@ -128,7 +130,8 @@ export class Backend {
       await this.startDb(a, { init: false });
       try {
         if ((a.schema_version ?? 0) < SCHEMA_VERSION) await this.applySchema(a);
-        await this.startRest();
+        else await this.upgradeSchema(a);
+        await this.startRestRetry();
       } catch (e) {
         await this.stopRest().catch(() => {});
         await this.stopDb().catch(() => {});
@@ -231,9 +234,11 @@ export class Backend {
       await c.query('set client_min_messages = warning');
       await c.query(this.sqlFile('stub.sql'));
       const dir = path.join(this.resources, 'sql', 'migrations');
-      for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.sql')).sort()) {
+      const files = this.migrationFiles();
+      for (const f of files) {
         try { await c.query(fs.readFileSync(path.join(dir, f), 'utf8')); } catch (e) { throw new Error(`${f}: ${e.message}`); }
       }
+      a.migrations = files;
       await c.query(this.sqlFile('seed.sql'));
       const email = `owner@${a.id}.local`;
       await c.query(`insert into auth.users (id, email, raw_user_meta_data) values ($1, $2, $3) on conflict (id) do nothing`,
@@ -249,6 +254,47 @@ export class Backend {
       this.writeAccount(a);
     } finally {
       await c.end();
+    }
+  }
+
+  migrationFiles() {
+    return fs.readdirSync(path.join(this.resources, 'sql', 'migrations')).filter((x) => x.endsWith('.sql')).sort();
+  }
+
+  /** تحديث البرنامج: يطبّق على قاعدة الحساب ملفات التحديث الجديدة فقط (كل ملف في معاملة) ويحفظ ما طُبّق */
+  async upgradeSchema(a) {
+    const files = this.migrationFiles();
+    const done = new Set(Array.isArray(a.migrations) ? a.migrations : files.filter((f) => f <= LEGACY_LAST_MIGRATION));
+    const pending = files.filter((f) => !done.has(f));
+    if (!pending.length) { if (!Array.isArray(a.migrations)) { a.migrations = [...done]; this.writeAccount(a); } return; }
+    const c = await this.client();
+    try {
+      await c.query('set client_min_messages = warning');
+      for (const f of pending) {
+        this.log(`upgrade: ${f}`);
+        try {
+          await c.query('begin');
+          await c.query(fs.readFileSync(path.join(this.resources, 'sql', 'migrations', f), 'utf8'));
+          await c.query('commit');
+        } catch (e) {
+          await c.query('rollback').catch(() => {});
+          throw new Error(`تعذّر تحديث قاعدة البيانات (${f}): ${e.message}`);
+        }
+        done.add(f);
+        a.migrations = [...done].sort();
+        this.writeAccount(a);
+      }
+    } finally {
+      await c.end();
+    }
+  }
+
+  /** واجهة البيانات: محاولة ثانية بعد ثانيتين إن توقفت فور تشغيلها */
+  async startRestRetry() {
+    try { await this.startRest(); } catch (e) {
+      this.log(`rest failed, retrying: ${e.message}`);
+      await new Promise((r) => setTimeout(r, 2000));
+      await this.startRest();
     }
   }
 
@@ -269,17 +315,25 @@ export class Backend {
       'db-plan-enabled = false',
     ].join('\n'));
     let failed = null;
-    const proc = spawn(this.postgrestBin, [conf], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    const out = [];
+    const keep = (d) => { const t = String(d).trim(); if (!t) return; this.log(`rest: ${t}`); out.push(...t.split(/\r?\n/)); if (out.length > 8) out.splice(0, out.length - 8); };
+    if (!fs.existsSync(this.postgrestBin)) throw new Error(`تعذّر تشغيل واجهة البيانات: الملف غير موجود (${this.postgrestBin}). أعد تثبيت البرنامج.`);
+    const proc = spawn(this.postgrestBin, [conf], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, cwd: path.dirname(conf) });
     proc.on('error', (e) => { failed = e; });
-    proc.stdout.on('data', (d) => this.log(`rest: ${String(d).trim()}`));
-    proc.stderr.on('data', (d) => this.log(`rest: ${String(d).trim()}`));
+    proc.stdout.on('data', keep);
+    proc.stderr.on('data', keep);
     this.cur.rest = proc;
     this.cur.restPort = port;
     // انتظار الجاهزية
     for (let i = 0; i < 100; i++) {
       const ok = await fetch(`http://127.0.0.1:${port}/`).then((r) => r.status < 500).catch(() => false);
       if (ok) return;
-      if (failed || proc.exitCode !== null) { this.cur.rest = null; throw new Error(`تعذّر تشغيل واجهة البيانات${failed ? ` (${failed.code ?? failed.message})` : ''}.`); }
+      if (failed || proc.exitCode !== null) {
+        this.cur.rest = null;
+        await new Promise((r) => setTimeout(r, 200));
+        const why = failed ? (failed.code ?? failed.message) : out.slice(-3).join(' | ') || `exit ${proc.exitCode}`;
+        throw new Error(`تعذّر تشغيل واجهة البيانات (${why}).`);
+      }
       await new Promise((r) => setTimeout(r, 150));
     }
     throw new Error('تأخر تشغيل واجهة البيانات.');
