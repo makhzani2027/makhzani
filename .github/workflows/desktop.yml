@@ -48,7 +48,9 @@ jobs:
           for i in 1 2 3; do curl -sSfL --retry 3 -o /tmp/pgrst.tar.xz "$url" && break; sleep 5; done
           tar -xf /tmp/pgrst.tar.xz -C resources/bin && chmod +x resources/bin/postgrest && resources/bin/postgrest --version
       - name: Playwright
-        run: npm i --no-save playwright@1.49.1 --prefix desktop && npx --prefix desktop playwright install --with-deps chromium
+        run: |
+          npm i --no-save playwright@1.49.1 --prefix desktop
+          for i in 1 2 3; do npx --prefix desktop playwright install --with-deps chromium && exit 0; echo "retry $i"; sleep 20; done; exit 1
       - name: E2E — first run
         working-directory: desktop
         run: |
@@ -86,7 +88,9 @@ jobs:
       - run: npm ci
       - name: Desktop deps
         working-directory: desktop
-        run: npm ci
+        shell: bash
+        # تنزيل Electron قد يفشل مؤقتاً (5xx من الخادم): ثلاث محاولات
+        run: for i in 1 2 3; do npm ci && exit 0; echo "retry $i"; sleep 20; done; exit 1
       - name: Resources (sql + admin)
         working-directory: desktop
         run: node scripts/prepare.mjs --admin
