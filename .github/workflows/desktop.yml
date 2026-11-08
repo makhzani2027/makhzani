@@ -37,8 +37,15 @@ jobs:
         run: node scripts/prepare.mjs --admin
       - name: PostgREST
         working-directory: desktop
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          curl -sSL -o /tmp/pgrst.tar.xz "https://github.com/PostgREST/postgrest/releases/download/$POSTGREST_VERSION/postgrest-$POSTGREST_VERSION-linux-static-x86-64.tar.xz"
+          # اسم الملف يُقرأ من واجهة GitHub (بالرمز: لا حدّ للطلبات) بدل تخمينه
+          url=$(curl -sS --fail-with-body -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/PostgREST/postgrest/releases/tags/$POSTGREST_VERSION" \
+            | jq -r '.assets[] | select(.name | test("linux-static-x(86-)?64\\.tar\\.xz$")) | .browser_download_url' | head -1)
+          [ -n "$url" ] || { echo "::error::no linux asset for PostgREST $POSTGREST_VERSION"; exit 1; }
+          echo "PostgREST: $url"
+          for i in 1 2 3; do curl -sSfL --retry 3 -o /tmp/pgrst.tar.xz "$url" && break; sleep 5; done
           tar -xf /tmp/pgrst.tar.xz -C resources/bin && chmod +x resources/bin/postgrest && resources/bin/postgrest --version
       - name: Playwright
         run: npm i --no-save playwright@1.49.1 --prefix desktop && npx --prefix desktop playwright install --with-deps chromium
