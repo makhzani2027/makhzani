@@ -69,6 +69,9 @@ export function createGateway(backend, o) {
 
   const server = http.createServer(async (req, res) => {
     // محلي فقط: لا طلبات من مواقع أخرى
+    // اسم المضيف: يمنع مواقع الإنترنت من الوصول للبرنامج بخدعة DNS (rebinding)
+    const host = String(req.headers.host || '');
+    if (host !== `127.0.0.1:${o.port}` && host !== `localhost:${o.port}`) return send(res, 403, { error: 'forbidden' });
     const origin = req.headers.origin;
     if (origin && origin !== `http://127.0.0.1:${o.port}` && origin !== `http://localhost:${o.port}`) return send(res, 403, { error: 'forbidden' });
     const url = new URL(req.url, `http://127.0.0.1:${o.port}`);
@@ -115,9 +118,9 @@ export function createGateway(backend, o) {
           const base = file.replace(/-(sm|md|lg)\.webp$/, '');
           file = ['-md.webp', '-lg.webp', '-sm.webp'].map((s) => base + s).find((f) => fs.existsSync(f)) ?? '';
         }
-        if (!file || !fs.existsSync(file)) return send(res, 404, 'not found');
+        if (!file || !fs.existsSync(file) || !fs.statSync(file).isFile()) return send(res, 404, 'not found');
         res.writeHead(200, { 'Content-Type': TYPES[path.extname(file).toLowerCase()] ?? 'application/octet-stream', 'Cache-Control': 'private, max-age=86400' });
-        return fs.createReadStream(file).pipe(res);
+        return fs.createReadStream(file).on('error', () => res.destroy()).pipe(res);
       }
       if (p.startsWith('/storage/v1/object/media')) {
         if (!authed(req)) return send(res, 401, { message: 'سجّل الدخول.' });
@@ -161,15 +164,15 @@ export function createGateway(backend, o) {
       }
       if (req.method === 'POST' && p === '/local/create') {
         const b = await json(req);
-        const r = await backend.createAccount({ name: b.name, password: b.password, logo: b.logo });
+        const r = await backend.serial(() => backend.createAccount({ name: b.name, password: b.password, logo: b.logo }));
         return send(res, 200, r);
       }
       if (req.method === 'POST' && p === '/local/open') {
         const b = await json(req);
-        return send(res, 200, await backend.openAccount(b.id, b.password));
+        return send(res, 200, await backend.serial(() => backend.openAccount(b.id, b.password)));
       }
       if (req.method === 'POST' && p === '/local/close') {
-        await backend.closeAccount();
+        await backend.serial(() => backend.closeAccount());
         return send(res, 200, { ok: true });
       }
       if (req.method === 'POST' && p === '/local/password') {
@@ -179,7 +182,7 @@ export function createGateway(backend, o) {
       }
       if (req.method === 'POST' && p === '/local/backup') {
         if (!authed(req)) return send(res, 401, { error: 'سجّل الدخول.' });
-        const file = await backend.backup();
+        const file = await backend.serial(() => backend.backup());
         return send(res, 200, { file });
       }
       if (req.method === 'POST' && p === '/local/open-folder') {
@@ -190,15 +193,16 @@ export function createGateway(backend, o) {
       }
       if (req.method === 'POST' && p === '/local/choose-root') {
         const dir = await o.desktop?.chooseFolder?.();
+        if (dir && /onedrive/i.test(dir)) return send(res, 400, { error: 'هذا المجلد داخل OneDrive، ومزامنته تُتلف قاعدة البيانات. اختر مكاناً خارجه مثل D:\\Raqeem أو C:\\Raqeem.' });
         if (dir) {
-          await backend.closeAccount();
+          await backend.serial(() => backend.closeAccount());
           backend.setRoot(path.join(dir, path.basename(dir).toLowerCase() === 'raqeem' ? '' : 'Raqeem'));
           o.desktop?.saveRoot?.(backend.root);
         }
         return send(res, 200, { root: backend.root, chosen: !!dir });
       }
       if (req.method === 'POST' && p === '/local/confirm-root') {
-        await backend.closeAccount();
+        await backend.serial(() => backend.closeAccount());
         backend.setRoot(backend.root);
         o.desktop?.saveRoot?.(backend.root);
         return send(res, 200, { root: backend.root });
@@ -238,6 +242,6 @@ function proxy(req, res, port, pathAndQuery) {
     res.writeHead(r.statusCode ?? 502, r.headers);
     r.pipe(res);
   });
-  up.on('error', () => send(res, 502, { message: 'واجهة البيانات غير متاحة.' }));
+  up.on('error', () => { if (res.headersSent) res.destroy(); else send(res, 502, { message: 'واجهة البيانات غير متاحة.' }); });
   req.pipe(up);
 }

@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import net from 'node:net';
 import crypto from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import EmbeddedPostgres from 'embedded-postgres';
@@ -46,7 +46,16 @@ export class Backend {
     this.postgrestBin = o.postgrest;
     this.log = o.log ?? (() => {});
     this.cur = null; // الحساب المفتوح
-    fs.mkdirSync(this.root, { recursive: true });
+    this.queue = Promise.resolve();
+    // قرص غير موجود الآن (USB/قرص أُزيل): البرنامج يفتح ويُطلب اختيار مجلد آخر
+    try { fs.mkdirSync(this.root, { recursive: true }); } catch (e) { this.log(`root unavailable: ${e.message}`); }
+  }
+
+  /** عمليات فتح/إغلاق/إنشاء/نسخ الحساب واحدة تلو الأخرى (طلبان متزامنان لا يتداخلان) */
+  serial(fn) {
+    const run = this.queue.then(fn, fn);
+    this.queue = run.catch(() => {});
+    return run;
   }
 
   setRoot(root) {
@@ -60,9 +69,12 @@ export class Backend {
     if (!fs.existsSync(this.root)) return [];
     return fs.readdirSync(this.root, { withFileTypes: true })
       .filter((d) => d.isDirectory() && fs.existsSync(path.join(this.root, d.name, 'account.json')))
-      .map((d) => {
-        const a = this.readAccount(d.name);
-        return { id: a.id, name: a.name, logo: !!a.logo, created_at: a.created_at, last_opened_at: a.last_opened_at ?? null };
+      .flatMap((d) => {
+        // مجلد منسوخ أو تالف (نسخة OneDrive، «- Copy») لا يُسقط قائمة الحسابات كلها
+        try {
+          const a = this.readAccount(d.name);
+          return [{ id: a.id, name: a.name, logo: !!a.logo, created_at: a.created_at, last_opened_at: a.last_opened_at ?? null }];
+        } catch (e) { this.log(`skip account folder ${d.name}: ${e.message}`); return []; }
       })
       .sort((a, b) => String(b.last_opened_at ?? b.created_at).localeCompare(String(a.last_opened_at ?? a.created_at)));
   }
@@ -126,6 +138,8 @@ export class Backend {
     if (!checkPassword(password, a.password)) throw new Error('كلمة السر غير صحيحة.');
     if (this.cur?.account.id !== id) {
       if (this.cur) await this.closeAccount();
+      // بقايا تشغيل سابق أولاً: النسخة اليومية تُؤخذ والقاعدة متوقفة فعلاً
+      await stopLeftover(path.join(this.accountDir(a.id), 'pg'), this.log);
       this.autoBackupBeforeOpen(a);
       await this.startDb(a, { init: false });
       try {
@@ -293,6 +307,7 @@ export class Backend {
   async startRestRetry() {
     try { await this.startRest(); } catch (e) {
       this.log(`rest failed, retrying: ${e.message}`);
+      await this.stopRest().catch(() => {});
       await new Promise((r) => setTimeout(r, 2000));
       await this.startRest();
     }
@@ -318,7 +333,11 @@ export class Backend {
     const out = [];
     const keep = (d) => { const t = String(d).trim(); if (!t) return; this.log(`rest: ${t}`); out.push(...t.split(/\r?\n/)); if (out.length > 8) out.splice(0, out.length - 8); };
     if (!fs.existsSync(this.postgrestBin)) throw new Error(`تعذّر تشغيل واجهة البيانات: الملف غير موجود (${this.postgrestBin}). أعد تثبيت البرنامج.`);
-    const proc = spawn(this.postgrestBin, [conf], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, cwd: path.dirname(conf) });
+    // ويندوز: postgrest.exe يحتاج مكتبات libpq/OpenSSL — نقدّم مكتبات Postgres المضمّنة ومجلده هو أولاً في PATH
+    // (لا نعتمد على ما في حاسوب المستخدم: قد لا يوجد، أو توجد نسخ غير متوافقة من برامج أخرى)
+    const env = { ...process.env, PATH: [path.dirname(this.postgrestBin), pgBinDir(), process.env.PATH || process.env.Path || ''].join(path.delimiter) };
+    if (process.platform === 'win32') delete env.Path;
+    const proc = spawn(this.postgrestBin, [conf], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, cwd: path.dirname(this.postgrestBin), env });
     proc.on('error', (e) => { failed = e; });
     proc.stdout.on('data', keep);
     proc.stderr.on('data', keep);
@@ -336,6 +355,7 @@ export class Backend {
       }
       await new Promise((r) => setTimeout(r, 150));
     }
+    await this.stopRest().catch(() => {});
     throw new Error('تأخر تشغيل واجهة البيانات.');
   }
 
@@ -373,11 +393,19 @@ export class Backend {
     await this.stopRest();
     await this.stopDb();
     let out;
-    try { out = this.copyBackup(a); } finally {
+    let copyErr = null;
+    try { out = this.copyBackup(a); } catch (e) { copyErr = e; }
+    try {
       await this.startDb(a, { init: false });
-      await this.startRest();
+      await this.startRestRetry();
       this.cur.account = a;
+    } catch (e) {
+      // لم تعد القاعدة للعمل: نغلق الحساب كاملاً (لا حالة نصف مفتوحة) ونُبلغ بالخطأين
+      await this.stopRest().catch(() => {});
+      await this.stopDb().catch(() => {});
+      throw new Error(`${copyErr ? `تعذّرت النسخة: ${copyErr.message}. ` : ''}تعذّر إعادة فتح الحساب: ${e.message}. افتح الحساب من جديد.`);
     }
+    if (copyErr) throw new Error(`تعذّرت النسخة الاحتياطية: ${copyErr.message}`);
     return out;
   }
 
@@ -418,12 +446,25 @@ function readTail(file) {
 }
 
 /** قاعدة بقيت تعمل بعد إغلاق غير طبيعي للبرنامج: نوقفها قبل التشغيل (Postgres يتعافى من سجلّه تلقائياً) */
+function isPostgres(pid) {
+  try {
+    if (process.platform === 'win32') {
+      const out = execFileSync('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], { encoding: 'utf8', windowsHide: true });
+      return /"postgres\.exe"/i.test(out);
+    }
+    if (fs.existsSync(`/proc/${pid}/comm`)) return /postgres/.test(fs.readFileSync(`/proc/${pid}/comm`, 'utf8'));
+    return true;
+  } catch { return false; }
+}
+
 async function stopLeftover(dataDir, log) {
   const pidFile = path.join(dataDir, 'postmaster.pid');
   if (!fs.existsSync(pidFile)) return;
   const pid = Number(fs.readFileSync(pidFile, 'utf8').split('\n')[0]);
   const alive = (n) => { try { process.kill(n, 0); return true; } catch { return false; } };
   if (!pid || !alive(pid)) return;
+  // رقم العملية قد يعود الآن لبرنامج آخر (بعد إعادة تشغيل الحاسوب): لا نوقف إلا postgres
+  if (!isPostgres(pid)) { log(`stale postmaster.pid (${pid} is not postgres)`); return; }
   log(`stopping leftover postgres ${pid}`);
   if (process.platform === 'win32') {
     try { await pgCtl(['stop', '-w', '-t', '30', '-m', 'fast', '-D', dataDir], log); return; } catch { /* نكمل بالإيقاف القسري */ }

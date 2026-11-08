@@ -136,6 +136,8 @@ jobs:
         run: |
           $exe = Get-ChildItem dist\win-unpacked\*.exe | Select-Object -First 1
           $env:RAQEEM_ROOT = "$env:RUNNER_TEMP\raqeem-app"
+          # كحاسوب عادي: لا PostgreSQL ولا Git ولا أدوات المطوّرين في PATH (جهاز الاختبار فيه مكتبات لا توجد عند المستخدمين)
+          $env:PATH = 'C:\Windows\System32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0'
           $app = Start-Process $exe.FullName -PassThru -RedirectStandardError "$env:RUNNER_TEMP\app.err" -RedirectStandardOutput "$env:RUNNER_TEMP\app.out"
           $ok = $false
           for ($i = 0; $i -lt 60; $i++) {

@@ -9,20 +9,34 @@ let win = null;
 let backend = null;
 let gateway = null;
 
-if (!app.requestSingleInstanceLock()) app.quit();
+const primary = app.requestSingleInstanceLock();
+if (!primary) app.quit();
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
 const resources = app.isPackaged ? process.resourcesPath : path.join(__dirname, '..', 'resources');
 const cfgFile = () => path.join(app.getPath('userData'), 'raqeem.json');
-function readCfg() { try { return JSON.parse(fs.readFileSync(cfgFile(), 'utf8')); } catch { return {}; } }
-function writeCfg(c) { fs.mkdirSync(path.dirname(cfgFile()), { recursive: true }); fs.writeFileSync(cfgFile(), JSON.stringify(c, null, 2)); }
+// كتابة آمنة: ملف مؤقت ثم استبدال (انقطاع الكهرباء لا يترك ملفاً فارغاً يضيّع مجلد البيانات وسر الجلسات)
+function writeCfg(c) {
+  fs.mkdirSync(path.dirname(cfgFile()), { recursive: true });
+  const tmp = `${cfgFile()}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(c, null, 2));
+  try { if (fs.existsSync(cfgFile())) fs.copyFileSync(cfgFile(), `${cfgFile()}.bak`); } catch { /* */ }
+  fs.renameSync(tmp, cfgFile());
+}
+function readCfg() {
+  for (const f of [cfgFile(), `${cfgFile()}.bak`]) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { /* التالي */ } }
+  return {};
+}
 
 /** مجلد البيانات الافتراضي: D:\Raqeem إن وُجد القرص D، وإلا مجلد المستخدم\Raqeem (خارج OneDrive: مزامنته تُتلف قاعدة البيانات) */
 function defaultRoot() {
   if (process.platform === 'win32' && fs.existsSync('D:\\')) {
     try { fs.mkdirSync('D:\\Raqeem', { recursive: true }); fs.accessSync('D:\\Raqeem', fs.constants.W_OK); return 'D:\\Raqeem'; } catch { /* قرص للقراءة فقط */ }
   }
-  return path.join(app.getPath('home'), 'Raqeem');
+  const home = path.join(app.getPath('home'), 'Raqeem');
+  // اسم مستخدم بحروف غير لاتينية: Postgres على ويندوز قد لا يقبل المسار ← C:\Raqeem
+  if (process.platform === 'win32' && /[^\x20-\x7e]/.test(home)) return 'C:\\Raqeem';
+  return home;
 }
 
 async function start() {
@@ -67,12 +81,15 @@ async function start() {
   });
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
   // الروابط الخارجية (واتساب، الخرائط) تُفتح في المتصفح، واللوحة تبقى داخل البرنامج
+  const ours = (u) => { try { return new URL(u).origin === `http://127.0.0.1:${PORT}`; } catch { return false; } };
+  // روابط خارجية آمنة فقط (واتساب، خرائط، بريد، هاتف) — لا file: ولا برامج النظام
+  const openOut = (u) => { try { if (/^(https?|mailto|tel):$/.test(new URL(u).protocol)) void shell.openExternal(u); } catch { /* */ } };
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith(`http://127.0.0.1:${PORT}`)) return { action: 'allow' };
-    void shell.openExternal(url);
+    if (ours(url)) return { action: 'allow' };
+    openOut(url);
     return { action: 'deny' };
   });
-  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(`http://127.0.0.1:${PORT}`)) { e.preventDefault(); void shell.openExternal(url); } });
+  win.webContents.on('will-navigate', (e, url) => { if (!ours(url)) { e.preventDefault(); openOut(url); } });
   await win.loadURL(`http://127.0.0.1:${PORT}/`);
   setupUpdates();
 }
@@ -91,9 +108,12 @@ function setupUpdates() {
   autoUpdater.logger = { info: log, warn: log, error: log, debug: () => {} };
   autoUpdater.on('error', (e) => log(`error ${e && e.message}`));
   autoUpdater.on('update-available', (i) => log(`available ${i && i.version}`));
+  let asked = '';
   autoUpdater.on('update-downloaded', async (i) => {
     updateReady = true;
-    if (!win) return;
+    // نسأل مرة واحدة لكل إصدار (الفحص الدوري لا يكرر الرسالة)
+    if (!win || asked === String(i && i.version)) return;
+    asked = String(i && i.version);
     const r = await dialog.showMessageBox(win, {
       type: 'info', buttons: ['إعادة التشغيل الآن', 'لاحقاً'], defaultId: 0, cancelId: 1,
       title: 'رقيم', message: `تحديث جديد لرقيم جاهز (${i && i.version ? i.version : ''})`,
@@ -122,7 +142,7 @@ function logFatal(e) {
 }
 process.on('uncaughtException', logFatal);
 process.on('unhandledRejection', logFatal);
-app.whenReady().then(start).catch((e) => {
+if (primary) app.whenReady().then(start).catch((e) => {
   logFatal(e);
   // في الفحص الآلي لا نافذة خطأ (تمنع الإغلاق)
   if (!process.env.RAQEEM_ROOT) dialog.showErrorBox('رقيم', `تعذّر تشغيل البرنامج: ${String(e && e.message || e)}`);
