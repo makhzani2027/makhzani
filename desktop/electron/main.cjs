@@ -56,7 +56,7 @@ async function start() {
     postgrest: path.join(resources, 'bin', process.platform === 'win32' ? 'postgrest.exe' : 'postgrest'),
   });
   gateway = createGateway(backend, {
-    adminDir: path.join(resources, 'admin'), port: PORT, version: app.getVersion(),
+    adminDir: path.join(resources, 'admin'), port: PORT, version: app.getVersion(), logFile,
     desktop: {
       chooseFolder: async () => {
         const r = await dialog.showOpenDialog(win, { title: 'اختر مكان حفظ بيانات رقيم', properties: ['openDirectory', 'createDirectory'] });

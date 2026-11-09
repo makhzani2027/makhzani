@@ -149,6 +149,8 @@ jobs:
             try { $st = Invoke-RestMethod http://127.0.0.1:47831/local/state; $ok = $true; break } catch { }
           }
           if (-not $ok) { Get-Content "$env:APPDATA\Raqeem\raqeem.log","$env:RUNNER_TEMP\app.err","$env:RUNNER_TEMP\app.out" -ErrorAction SilentlyContinue; throw 'the app did not start its local server' }
+          Write-Host '----- self-check (as on a user PC)'
+          Invoke-RestMethod http://127.0.0.1:47831/local/diagnostics | Select-Object version, platform, root_writable, postgrest_exists, postgrest_version, pg_ctl_version | Format-List | Out-String | Write-Host
           $page = Invoke-WebRequest http://127.0.0.1:47831/ -UseBasicParsing
           if ($page.Content -notmatch '/local/config.js') { throw 'dashboard not served' }
           $c = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:47831/local/create -ContentType 'application/json' -Body (@{ name = 'App Smoke'; password = '1234' } | ConvertTo-Json)

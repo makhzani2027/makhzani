@@ -150,6 +150,16 @@ export function createGateway(backend, o) {
         res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
         return res.end(`window.__RAQEEM_LOCAL__=${JSON.stringify({ anonKey: backend.anonKey(), version: o.version ?? '1.0.0' })};`);
       }
+      if (p === '/local/diagnostics') {
+        // «تفاصيل العطل»: فحص ذاتي + آخر سطور السجل (بلا أسرار: السجل لا يحوي كلمات سر)
+        let tail = '';
+        try { tail = fs.readFileSync(o.logFile, 'utf8').split(/\r?\n/).slice(-60).join('\n'); } catch { /* */ }
+        const acc = backend.listAccounts().map((x) => x.id);
+        const pgLogs = acc.map((id) => {
+          try { return `--- ${id}/postgres.log\n${fs.readFileSync(path.join(backend.accountDir(id), 'postgres.log'), 'utf8').split(/\r?\n/).slice(-15).join('\n')}`; } catch { return ''; }
+        }).filter(Boolean).join('\n');
+        return send(res, 200, { version: o.version, ...(await backend.diagnose()), log: tail, postgres_logs: pgLogs });
+      }
       if (p === '/local/state') {
         // root_chosen: أول تشغيل للبرنامج يسأل أين تُحفظ البيانات (خارج البرنامج — الخادم وحده — يُعدّ محدداً)
         const rootChosen = o.desktop?.rootChosen ? !!o.desktop.rootChosen() : true;

@@ -38,6 +38,16 @@ export default function LocalAccounts() {
   const [logo, setLogo] = useState<File | null>(null);
   const [storeFile, setStoreFile] = useState<StoreFile | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
+  const [diag, setDiag] = useState<string | null>(null);
+  // فحص ذاتي للبرنامج على هذا الحاسوب: أهم الأسطر أولاً ثم السجل
+  const showDiag = async () => {
+    setDiag('جارٍ الفحص…');
+    try {
+      const d = await api<Record<string, unknown>>('/local/diagnostics');
+      const { log, postgres_logs, ...rest } = d;
+      setDiag(`${Object.entries(rest).map(([k, v]) => `${k}: ${String(v)}`).join('\n')}\n\n--- raqeem.log\n${String(log ?? '')}\n${String(postgres_logs ?? '')}`);
+    } catch (e) { setDiag(`تعذّر الفحص: ${(e as Error).message}`); }
+  };
   const [importNote, setImportNote] = useState<string | null>(null);
   const [pendingSession, setPendingSession] = useState<{ access_token: string; refresh_token: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -125,7 +135,23 @@ export default function LocalAccounts() {
       <main className="login-form">
         <div className="col" style={{ gap: 16, width: 'min(440px, 100%)' }}>
           <div className="only-mobile"><Mark size={56} /></div>
-          {error ? <Alert tone="danger">{error}</Alert> : null}
+          {error ? (
+            <Alert tone="danger">{error}
+              <div style={{ marginTop: 8 }}><Button size="sm" onClick={() => void showDiag()}>تفاصيل العطل</Button></div>
+            </Alert>
+          ) : null}
+          {diag ? (
+            <div className="card" style={{ padding: 12 }}>
+              <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <b>تفاصيل العطل — صوّر هذه الشاشة وأرسلها</b>
+                <div className="row" style={{ gap: 6 }}>
+                  <Button size="sm" onClick={() => { void navigator.clipboard?.writeText(diag); }}>نسخ</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setDiag(null)}>إغلاق</Button>
+                </div>
+              </div>
+              <pre dir="ltr" style={{ maxHeight: 360, overflow: 'auto', fontSize: 11, lineHeight: 1.45, whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0, textAlign: 'left' }}>{diag}</pre>
+            </div>
+          ) : null}
           {importNote ? (
             <Alert tone="warning">{importNote}
               <div style={{ marginTop: 8 }}><Button size="sm" variant="primary" onClick={() => { const ps = pendingSession; setImportNote(null); setPendingSession(null); if (ps && supabase) void supabase.auth.setSession(ps); }}>متابعة إلى الحساب</Button></div>

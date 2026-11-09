@@ -271,6 +271,36 @@ export class Backend {
     }
   }
 
+  /** فحص ذاتي لحاسوب المستخدم: هل تعمل برامج واجهة البيانات والقاعدة؟ (لزر «تفاصيل العطل») */
+  async diagnose() {
+    const run = (bin, args, env) => new Promise((resolve) => {
+      let out = '';
+      let p;
+      try { p = spawn(bin, args, { windowsHide: true, env, cwd: path.dirname(bin) }); } catch (e) { resolve(`spawn ${e.message}`); return; }
+      p.stdout.on('data', (d) => { out += d; });
+      p.stderr.on('data', (d) => { out += d; });
+      p.on('error', (e) => resolve(`error ${e.code || e.message}`));
+      p.on('exit', (code) => resolve(`exit ${code} (0x${((code ?? 0) >>> 0).toString(16)}) ${out.trim().slice(0, 300)}`));
+      setTimeout(() => { try { p.kill(); } catch { /* */ } resolve(`timeout ${out.trim().slice(0, 300)}`); }, 15000);
+    });
+    const env = { ...process.env, PATH: [path.dirname(this.postgrestBin), pgBinDir(), process.env.PATH || process.env.Path || ''].join(path.delimiter) };
+    if (process.platform === 'win32') delete env.Path;
+    const bin = pgBinDir();
+    const list = (d) => { try { return fs.readdirSync(d).join(', '); } catch (e) { return `(${e.code})`; } };
+    let writable = 'yes';
+    try { const f = path.join(this.root, '.write-test'); fs.writeFileSync(f, 'x'); fs.rmSync(f); } catch (e) { writable = `no (${e.code})`; }
+    return {
+      platform: `${process.platform} ${process.arch} node ${process.version}`,
+      root: this.root, root_writable: writable,
+      postgrest_bin: this.postgrestBin, postgrest_exists: fs.existsSync(this.postgrestBin),
+      postgrest_version: await run(this.postgrestBin, ['--version'], env),
+      postgrest_dir: list(path.dirname(this.postgrestBin)),
+      pg_bin: bin, pg_ctl_version: await run(path.join(bin, process.platform === 'win32' ? 'pg_ctl.exe' : 'pg_ctl'), ['--version'], env),
+      pg_bin_files: list(bin),
+      open: this.cur ? this.cur.account.id : null,
+    };
+  }
+
   migrationFiles() {
     return fs.readdirSync(path.join(this.resources, 'sql', 'migrations')).filter((x) => x.endsWith('.sql')).sort();
   }
