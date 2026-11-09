@@ -7,7 +7,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Alert, Button, Field, Input, Loading, Mark } from '../../ui';
 import { supabase } from '../../lib/supabase';
-import { importStoreFile, readStoreFile, type StoreFile } from '../../lib/storeFile';
+import { CAN_FETCH_ONLINE, fetchOnlineStore, importStoreFile, readStoreFile, type StoreFile } from '../../lib/storeFile';
 import './login.css';
 
 interface Account { id: string; name: string; logo: boolean; created_at: string; last_opened_at: string | null }
@@ -98,6 +98,27 @@ export default function LocalAccounts() {
     } catch (ex) { setError((ex as Error).message); setProgress(null); } finally { setBusy(false); }
   };
 
+  const applyStoreFile = (j: StoreFile) => {
+    setStoreFile(j);
+    setName(j.store.name || name);
+    if (j.store.logo?.data) {
+      const bin = Uint8Array.from(atob(j.store.logo.data), (c) => c.charCodeAt(0));
+      setLogo(new File([bin], 'logo', { type: j.store.logo.type || 'image/png' }));
+    }
+  };
+  // «جلب بيانات متجري من الإنترنت»: دخول مرة واحدة بحساب رقيم أونلاين
+  const [onlineId, setOnlineId] = useState('');
+  const [onlinePw, setOnlinePw] = useState('');
+  const [fetching, setFetching] = useState(false);
+  const fetchOnline = async () => {
+    setError(null);
+    if (!onlineId.trim() || !onlinePw) { setError('اكتب بريد أو هاتف حسابك على رقيم أونلاين وكلمة السر.'); return; }
+    setFetching(true);
+    try { applyStoreFile(await fetchOnlineStore(onlineId, onlinePw)); setOnlinePw(''); }
+    catch (ex) { setError((ex as Error).message); }
+    finally { setFetching(false); }
+  };
+
   const pickStoreFile = async (f: File | undefined) => {
     if (!f) return;
     setError(null);
@@ -175,6 +196,15 @@ export default function LocalAccounts() {
                 <h2 style={{ fontSize: 28 }}>حساب شركة جديد</h2>
                 <p className="dim">كل حساب منفصل تماماً: منتجاته وفواتيره وصوره في مجلده الخاص على هذا الحاسوب.</p>
               </div>
+              {CAN_FETCH_ONLINE && !storeFile ? (
+                <div className="card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div><b>عندك متجر على رقيم أونلاين؟</b><div className="small dim">ادخل بحسابك مرة واحدة (يحتاج إنترنت الآن فقط): تُنقل منتجاتك وأقسامك وأسعارك وكمياتك واسم متجرك وشعاره تلقائياً.</div></div>
+                  <Input dir="ltr" value={onlineId} onChange={(e) => setOnlineId(e.target.value)} placeholder="البريد أو رقم الهاتف" autoComplete="username" />
+                  <Input type="password" dir="ltr" value={onlinePw} onChange={(e) => setOnlinePw(e.target.value)} placeholder="كلمة سر رقيم أونلاين" autoComplete="current-password" />
+                  <Button icon="download" loading={fetching} onClick={() => void fetchOnline()}>جلب بيانات متجري</Button>
+                </div>
+              ) : null}
+              {storeFile ? <Alert tone="success">جاهز للنقل: <b>{storeFile.products.length}</b> منتج و<b>{storeFile.categories.length}</b> قسم من «{storeFile.store.name}». ضع كلمة سر لحسابك على هذا الحاسوب ثم «إنشاء الحساب».</Alert> : null}
               <Field label="ملف بيانات متجري" hint="اختياري: الملف الذي نزل مع البرنامج من لوحة التحكم أونلاين — يملأ الاسم والشعار وينقل المنتجات والأسعار والكميات">
                 <div className="row" style={{ gap: 12, alignItems: 'center' }}>
                   <label className="btn"><input type="file" accept=".json,application/json" hidden onChange={(e) => { void pickStoreFile(e.target.files?.[0]); e.target.value = ''; }} />{storeFile ? 'تغيير الملف' : 'اختيار الملف'}</label>

@@ -3,6 +3,9 @@ import { defaultMediaBase } from '@raqeem/shared';
 /** نسخة الحاسوب (بلا إنترنت): البوابة المحلية تحقن window.__RAQEEM_LOCAL__ وتخدم اللوحة وواجهات البيانات من نفس العنوان */
 const LOCAL = (globalThis as { __RAQEEM_LOCAL__?: { anonKey: string; version?: string } }).__RAQEEM_LOCAL__;
 export const IS_LOCAL = !!LOCAL;
+/** نسخة الحاسوب: عنوان رقيم أونلاين لجلب بيانات المتجر مرة واحدة عند إنشاء الحساب (اختياري) */
+export const ONLINE_SUPABASE_URL = (import.meta.env.VITE_ONLINE_SUPABASE_URL as string | undefined)?.trim() || '';
+export const ONLINE_SUPABASE_ANON_KEY = (import.meta.env.VITE_ONLINE_SUPABASE_ANON_KEY as string | undefined)?.trim() || '';
 export const LOCAL_VERSION = LOCAL?.version ?? '';
 
 /** متغيرات البيئة العامة (لا أسرار هنا أبداً) */

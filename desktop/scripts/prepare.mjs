@@ -23,7 +23,9 @@ console.log(`✓ sql: ${fs.readdirSync(path.join(sql, 'migrations')).length} mig
 if (process.argv.includes('--admin')) {
   execSync('npm run build -w @raqeem/admin', {
     cwd: root, stdio: 'inherit',
-    env: { ...process.env, VITE_LOCAL: '1', VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', ADMIN_BASE: '/' },
+    env: { ...process.env, VITE_LOCAL: '1', VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_MEDIA_BASE: '', ADMIN_BASE: '/',
+      // «جلب بيانات متجري من الإنترنت» عند إنشاء الحساب (مفتاح anon عام، نفس الموجود في الموقع)
+      VITE_ONLINE_SUPABASE_URL: process.env.ONLINE_SUPABASE_URL ?? '', VITE_ONLINE_SUPABASE_ANON_KEY: process.env.ONLINE_SUPABASE_ANON_KEY ?? '' },
   });
   fs.rmSync(path.join(res, 'admin'), { recursive: true, force: true });
   fs.cpSync(path.join(root, 'apps/admin/dist'), path.join(res, 'admin'), { recursive: true });

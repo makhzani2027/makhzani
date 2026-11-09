@@ -1,6 +1,7 @@
 /** نسخة الحاسوب — البيانات والنسخ الاحتياطي: مكان الحفظ، نسخة الآن، فتح مجلد النسخ */
 import { useState } from 'react';
-import { Alert, Button, Card, PageHeader, toast } from '../../ui';
+import { Alert, Button, Card, Input, PageHeader, toast } from '../../ui';
+import { CAN_FETCH_ONLINE, fetchOnlineStore, importStoreFile } from '../../lib/storeFile';
 import { useLoad } from '../../lib/hooks';
 import { supabase } from '../../lib/supabase';
 import { LOCAL_VERSION } from '../../lib/env';
@@ -21,10 +22,40 @@ export default function LocalData() {
     setBusy(true);
     try { const r = await post<{ file: string }>('/local/backup'); setLast(r.file); toast.success('حُفظت نسخة احتياطية'); } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
+  // جلب المنتجات من رقيم أونلاين إلى هذا الحساب (الموجود منها بنفس الرمز SKU لا يتكرر)
+  const [oid, setOid] = useState('');
+  const [opw, setOpw] = useState('');
+  const [pulling, setPulling] = useState<string | null>(null);
+  const [pullResult, setPullResult] = useState<string | null>(null);
+  const pull = async () => {
+    if (!oid.trim() || !opw) { toast.error('اكتب بريد أو هاتف حسابك أونلاين وكلمة السر.'); return; }
+    setPullResult(null);
+    try {
+      setPulling('جارٍ الاتصال برقيم أونلاين…');
+      const f = await fetchOnlineStore(oid, opw);
+      setOpw('');
+      const token = (await supabase?.auth.getSession())?.data.session?.access_token ?? '';
+      const r = await importStoreFile(f, token, (d, t) => setPulling(`جارٍ النقل: ${d} من ${t}`));
+      const dup = r.failed.filter((x) => /sku|barcode|duplicate|unique|مستعمل|موجود/i.test(x)).length;
+      setPullResult(`نُقل ${r.ok} منتج من «${f.store.name}»${dup ? `، و${dup} موجود مسبقاً لم يتكرر` : ''}${r.failed.length - dup > 0 ? `، وتعذّر ${r.failed.length - dup}: ${r.failed.filter((x) => !/sku|barcode|duplicate|unique|مستعمل|موجود/i.test(x)).slice(0, 3).join('، ')}` : ''}.`);
+      toast.success('انتهى نقل المنتجات');
+    } catch (e) { toast.error((e as Error).message); } finally { setPulling(null); }
+  };
   return (
     <>
       <PageHeader title="البيانات والنسخ الاحتياطي" description="نسخة الحاسوب: كل بيانات شركتك محفوظة على هذا الجهاز فقط." />
       <div className="stack" style={{ maxWidth: 760 }}>
+        {CAN_FETCH_ONLINE ? (
+          <Card title="جلب منتجاتي من رقيم أونلاين" icon="download">
+            <p className="small dim">أضفت منتجاتك على رقيم أونلاين؟ ادخل بحسابك هناك مرة واحدة (يحتاج إنترنت الآن فقط)، فتُنقل المنتجات والأقسام والعلامات والأسعار والكميات إلى هذا الحساب. المنتجات الموجودة هنا بنفس الرمز لا تتكرر.</p>
+            <div className="form-grid" style={{ marginTop: 10 }}>
+              <Input dir="ltr" value={oid} onChange={(e) => setOid(e.target.value)} placeholder="البريد أو رقم الهاتف" autoComplete="username" />
+              <Input type="password" dir="ltr" value={opw} onChange={(e) => setOpw(e.target.value)} placeholder="كلمة سر رقيم أونلاين" autoComplete="current-password" />
+            </div>
+            <div style={{ marginTop: 10 }}><Button variant="primary" icon="download" loading={!!pulling} onClick={() => void pull()}>{pulling ?? 'جلب المنتجات'}</Button></div>
+            {pullResult ? <Alert tone="success">{pullResult}</Alert> : null}
+          </Card>
+        ) : null}
         <Card title="مكان البيانات" icon="warehouse">
           <p>حساب: <b>{state.data?.open?.name ?? '—'}</b></p>
           <p className="small dim">المجلد: <span className="ltr">{state.data?.root ?? '…'}</span></p>

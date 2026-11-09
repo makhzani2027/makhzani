@@ -4,9 +4,10 @@
  * التصدير: من صفحة «برنامج الحاسوب» أونلاين. الاستيراد: عند إنشاء حساب شركة في برنامج الحاسوب.
  * لا يحوي كلمات سر ولا زبائن ولا فواتير.
  */
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { defaultMediaBase, mediaUrl } from '@raqeem/shared';
 import { sb } from './supabase';
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from './env';
+import { ONLINE_SUPABASE_ANON_KEY, ONLINE_SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_URL } from './env';
 import { imgUrl } from './media';
 
 export const STORE_FILE_FORMAT = 'raqeem-store/1';
@@ -48,10 +49,10 @@ const blobToB64 = (b: Blob) => new Promise<string>((resolve, reject) => {
 });
 
 /** يجمع بيانات متجر المستخدم الحالي (RLS: متجره وحده) */
-export async function exportStoreFile(store: { name: string; logo_key: string | null }): Promise<StoreFile> {
-  const db = sb();
+export async function exportStoreFile(store: { name: string; logo_key: string | null }, opts: { client?: SupabaseClient; mediaBase?: string } = {}): Promise<StoreFile> {
+  const db = opts.client ?? sb();
   let logo: StoreFile['store']['logo'] = null;
-  const url = imgUrl(store.logo_key, 'lg');
+  const url = opts.mediaBase ? mediaUrl(store.logo_key, 'lg', opts.mediaBase) : imgUrl(store.logo_key, 'lg');
   if (url) {
     try {
       const r = await fetch(url);
@@ -157,4 +158,37 @@ export async function importStoreFile(f: StoreFile, token: string, onProgress?: 
     onProgress?.(i + 1, total);
   }
   return { ok, failed };
+}
+
+/** هل يمكن جلب بيانات المتجر من رقيم أونلاين؟ (نسخة الحاسوب المبنية بعنوان المنصة) */
+export const CAN_FETCH_ONLINE = !!(ONLINE_SUPABASE_URL && ONLINE_SUPABASE_ANON_KEY);
+
+/**
+ * نسخة الحاسوب: يدخل بحساب صاحب المتجر أونلاين (بريد أو هاتف + كلمة السر) مرة واحدة، ويجلب بيانات متجره
+ * بنفس صيغة ملف المتجر، ثم يخرج. لا تُحفظ كلمة السر ولا الجلسة أونلاين في البرنامج.
+ */
+export async function fetchOnlineStore(identifier: string, password: string): Promise<StoreFile> {
+  if (!CAN_FETCH_ONLINE) throw new Error('هذه النسخة لا تحوي عنوان رقيم أونلاين.');
+  const online = createClient(ONLINE_SUPABASE_URL, ONLINE_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'rq.online-import' } });
+  const id = identifier.trim();
+  try {
+    if (id.includes('@')) {
+      const { error } = await online.auth.signInWithPassword({ email: id, password });
+      if (error) throw new Error(/invalid/i.test(error.message) ? 'البريد أو كلمة السر غير صحيحة.' : error.message);
+    } else {
+      const { data, error } = await online.functions.invoke('login', { body: { identifier: id, password } });
+      if (error || !data?.access_token) throw new Error('رقم الهاتف أو كلمة السر غير صحيحة.');
+      const { error: e2 } = await online.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token });
+      if (e2) throw e2;
+    }
+    const { data: st, error: se } = await online.rpc('my_store');
+    if (se || !st) throw new Error('لم نجد متجراً مرتبطاً بهذا الحساب.');
+    const store = st as { name: string; logo_key: string | null; status?: string };
+    return await exportStoreFile({ name: store.name, logo_key: store.logo_key }, { client: online, mediaBase: defaultMediaBase(ONLINE_SUPABASE_URL) });
+  } catch (e) {
+    if (e instanceof TypeError) throw new Error('تعذّر الاتصال بالإنترنت. تأكد من الاتصال وحاول مجدداً.');
+    throw e;
+  } finally {
+    await online.auth.signOut({ scope: 'local' }).catch(() => {});
+  }
 }

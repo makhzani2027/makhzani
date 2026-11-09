@@ -34,6 +34,9 @@ jobs:
         run: npm ci --omit=dev
       - name: Resources (sql + admin)
         working-directory: desktop
+        env:
+          ONLINE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          ONLINE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
         run: node scripts/prepare.mjs --admin
       - name: PostgREST
         working-directory: desktop
@@ -93,6 +96,9 @@ jobs:
         run: for i in 1 2 3; do npm ci && exit 0; echo "retry $i"; sleep 20; done; exit 1
       - name: Resources (sql + admin)
         working-directory: desktop
+        env:
+          ONLINE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          ONLINE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
         run: node scripts/prepare.mjs --admin
       - name: PostgREST for Windows
         working-directory: desktop
