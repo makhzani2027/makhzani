@@ -53,7 +53,9 @@ jobs:
       - name: Playwright
         run: |
           npm i --no-save playwright@1.49.1 --prefix desktop
-          for i in 1 2 3; do npx --prefix desktop playwright install --with-deps chromium && exit 0; echo "retry $i"; sleep 20; done; exit 1
+          # نظام التشغيل أولاً (مرة واحدة)، ثم تنزيل المتصفح بمهلة لكل محاولة (التعليق لا يوقف الوظيفة ٢٠ دقيقة)
+          npx --prefix desktop playwright install-deps chromium || true
+          for i in 1 2 3; do timeout 240 npx --prefix desktop playwright install chromium && exit 0; echo "retry $i"; sleep 15; done; exit 1
       - name: E2E — first run
         working-directory: desktop
         run: |
