@@ -200,7 +200,6 @@ function Shell({ platformOnly, switchTo }: { platformOnly: boolean; switchTo: ((
               items={[
                 { label: 'حسابي', icon: 'user', onClick: () => navigate('/account') },
                 ...(switchTo ? [{ label: platformOnly ? 'الدخول إلى متجري' : 'لوحة إدارة رقيم', icon: 'store' as const, onClick: () => { navigate('/'); switchTo(); } }] : []),
-                ...(!IS_LOCAL && !platformOnly ? [{ label: 'تنزيل برنامج الحاسوب', icon: 'download' as const, onClick: () => navigate('/desktop') }] : []),
                 { divider: true, label: '' },
                 { label: 'تسجيل الخروج', icon: 'logout', danger: true, onClick: () => void auth.signOut(), disabled: IS_DEMO },
               ]}
