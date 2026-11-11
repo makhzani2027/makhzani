@@ -1,0 +1,19 @@
+# كم مرة نُزّل برنامج الحاسوب (قراءة فقط): عدّاد GitHub لكل ملف في صفحة التحديثات
+name: Desktop Downloads
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  count:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      GH_TOKEN: ${{ secrets.RELEASES_TOKEN || github.token }}
+      REPO: ${{ vars.RELEASES_REPO || 'makhzani2027/raqeem-app' }}
+    steps:
+      - run: |
+          curl -sS --fail-with-body -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$REPO/releases/tags/desktop" \
+            | jq -r '.assets[] | "\(.download_count)\t\(.name)\t\(.created_at)"' | tee counts.txt
+          echo "مجموع تنزيلات ملفات التثبيت (exe): $(awk -F'\t' '$2 ~ /\.exe$/ {s+=$1} END {print s+0}' counts.txt)"
+          echo "طلبات فحص التحديث (latest.yml): $(awk -F'\t' '$2 == "latest.yml" {print $1}' counts.txt)"

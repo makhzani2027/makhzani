@@ -211,6 +211,8 @@ jobs:
             printf '%s\n' 'تحديثات رقيم لسطح المكتب.' > notes.md
             gh release create desktop "$exe" "$exe.blockmap" out/latest.yml --repo "$REPO" --title 'رقيم لسطح المكتب' --notes-file notes.md --latest=false
           fi
+          # قبل الحذف: عدّاد التنزيل لكل ملف (يضيع بحذفه)
+          gh api "repos/$REPO/releases/tags/desktop" -q '.assets[] | "\(.download_count)\t\(.name)"' | tee -a "$GITHUB_STEP_SUMMARY"
           # التنزيل غير متاح للعامة: حذف الملف القديم بالاسم المعروف (Raqeem-Setup.exe) وأي ملف تثبيت سابق
           for a in $(gh release view desktop --repo "$REPO" --json assets -q '.assets[].name'); do
             case "$a" in latest.yml|"$name"|"$name.blockmap") ;; *) gh release delete-asset desktop "$a" --repo "$REPO" --yes ;; esac
