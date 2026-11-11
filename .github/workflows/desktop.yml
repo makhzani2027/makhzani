@@ -1,6 +1,6 @@
 # رقيم لسطح المكتب (ويندوز، بلا إنترنت):
 #   test  : لينكس — البوابة + Postgres المضمّن + PostgREST الحقيقي + اختبار شامل للواجهة (إنشاء حساب، منتج، بيع، عرض، نسخة، عزل الحسابات، إعادة التشغيل)
-#   build : ويندوز — فحص تشغيل الخلفية على ويندوز ثم بناء ملف التثبيت Raqeem-Setup.exe
+#   build : ويندوز — فحص تشغيل الخلفية على ويندوز ثم بناء ملف التثبيت (باسم عشوائي غير معلن: التنزيل غير متاح للعامة، والتحديث التلقائي للبرامج المثبّتة يعمل)
 #   publish (يدوي فقط): نشر الملف في مستودع الإصدارات العام برابط ثابت
 name: Desktop
 on:
@@ -135,6 +135,9 @@ jobs:
       - name: Version (1.0.<run number>) — the installed app updates itself to newer versions
         working-directory: desktop
         run: npm version "1.0.${{ github.run_number }}" --no-git-tag-version --allow-same-version
+      - name: Hidden installer name (not public; installed apps find it through latest.yml)
+        shell: bash
+        run: echo "RAQEEM_ARTIFACT=Raqeem-$(openssl rand -hex 12)" >> "$GITHUB_ENV"
       - name: Build installer
         working-directory: desktop
         env:
@@ -170,7 +173,7 @@ jobs:
         shell: pwsh
         working-directory: desktop
         run: |
-          $f = Get-Item dist\Raqeem-Setup.exe
+          $f = Get-Item "dist\$env:RAQEEM_ARTIFACT.exe"
           "{0:N1} MB" -f ($f.Length / 1MB)
           if (-not (Test-Path dist\latest.yml)) { throw 'latest.yml missing (auto-update)' }
           Get-Content dist\latest.yml
@@ -179,8 +182,8 @@ jobs:
           name: Raqeem-Setup
           retention-days: 30
           path: |
-            desktop/dist/Raqeem-Setup.exe
-            desktop/dist/Raqeem-Setup.exe.blockmap
+            desktop/dist/Raqeem-*.exe
+            desktop/dist/Raqeem-*.exe.blockmap
             desktop/dist/latest.yml
 
   publish:
@@ -191,20 +194,25 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with: { name: Raqeem-Setup, path: out }
-      - name: Publish to the public releases repo (fixed link)
+      - name: Publish the update (hidden name; the old public installer link is removed)
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
           REPO: ${{ vars.RELEASES_REPO || 'makhzani2027/raqeem-app' }}
         run: |
           [ -n "$GH_TOKEN" ] || { echo "::error::السر RELEASES_TOKEN غير مضاف."; exit 1; }
           ls -lh out
+          exe=$(ls out/Raqeem-*.exe | head -1); [ -n "$exe" ] || { echo "::error::no installer"; exit 1; }
+          name=$(basename "$exe")
           if gh release view desktop --repo "$REPO" >/dev/null 2>&1; then
             # الملف أولاً ثم latest.yml: البرامج المثبّتة لا ترى التحديث قبل اكتمال رفعه
-            gh release upload desktop out/Raqeem-Setup.exe out/Raqeem-Setup.exe.blockmap --repo "$REPO" --clobber
+            gh release upload desktop "$exe" "$exe.blockmap" --repo "$REPO" --clobber
             gh release upload desktop out/latest.yml --repo "$REPO" --clobber
           else
-            printf '%s\n' 'رقيم لسطح المكتب (ويندوز) — يعمل بلا إنترنت، وبياناتك على حاسوبك.' '' \
-              'عند أول تشغيل قد يظهر «Windows protected your PC»: اضغط More info ثم Run anyway.' > notes.md
-            gh release create desktop out/Raqeem-Setup.exe out/Raqeem-Setup.exe.blockmap out/latest.yml --repo "$REPO" --title 'رقيم لسطح المكتب (ويندوز)' --notes-file notes.md --latest=false
+            printf '%s\n' 'تحديثات رقيم لسطح المكتب.' > notes.md
+            gh release create desktop "$exe" "$exe.blockmap" out/latest.yml --repo "$REPO" --title 'رقيم لسطح المكتب' --notes-file notes.md --latest=false
           fi
-          echo "✓ https://github.com/$REPO/releases/download/desktop/Raqeem-Setup.exe"
+          # التنزيل غير متاح للعامة: حذف الملف القديم بالاسم المعروف (Raqeem-Setup.exe) وأي ملف تثبيت سابق
+          for a in $(gh release view desktop --repo "$REPO" --json assets -q '.assets[].name'); do
+            case "$a" in latest.yml|"$name"|"$name.blockmap") ;; *) gh release delete-asset desktop "$a" --repo "$REPO" --yes ;; esac
+          done
+          gh release view desktop --repo "$REPO" --json assets -q '.assets[].name'
